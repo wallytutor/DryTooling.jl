@@ -5,8 +5,8 @@ ENV["CANTERA_SHARED"] = cantera
 
 include("..\\..\\src\\CanteraAPI.jl")
 
-# import DryTooling.CanteraAPI as ct;
-import .CanteraAPI as ct;
+import DryTooling.CanteraAPI as ct;
+# import .CanteraAPI as ct;
 
 @assert ct.appdelete()
 @assert ct.resetstorage()
