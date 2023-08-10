@@ -1,24 +1,36 @@
 # -*- coding: utf-8 -*-
+"""
+        module Kramers
+
+    Implements the differential equation for prediction of bed height profile
+    in a rotary kiln as proposed by Kramers and Croockewite (1952) [^1].
+
+    [^1]: https://doi.org/10.1016/0009-2509(52)87019-8
+"""
 module Kramers
 
 using ModelingToolkit
+using Plots
 
 using DifferentialEquations: ODEProblem
+using DifferentialEquations: Tsit5
 using DifferentialEquations: solve
+using Printf: sprintf
 using Trapz: trapz
 
 export RotaryKilnBedGeometry
 export SymbolicLinearKramersModel
 export SolutionLinearKramersModel
 export solvelinearkramersmodel
+export plotlinearkramersmodel
 
 """
-	RotaryKilnBedGeometry
+        RotaryKilnBedGeometry
 
-Description of a rotary kiln bed geometry computed from the solution
-of bed height along the kiln length. The main goal of the quantities
-computed here is their use with heat and mass transfer models for the
-simulation of rotary kiln process.
+    Description of a rotary kiln bed geometry computed from the solution
+    of bed height along the kiln length. The main goal of the quantities
+    computed here is their use with heat and mass transfer models for the
+    simulation of rotary kiln process.
 """
 struct RotaryKilnBedGeometry
 	"Solution coordinates [m]"
@@ -45,6 +57,19 @@ struct RotaryKilnBedGeometry
     "Bed integral volume [m³]"
     V::Float64
 
+    """
+            RotaryKilnBedGeometry(
+                z::Vector{Float64}, 
+                h::Vector{Float64}, 
+                R::Float64, 
+                L::Float64
+            )
+
+        - z::Vector{Float64}, solution coordinates over length, [m].
+        - h::Vector{Float64}, bed profile solution over length, [m].
+        - R::Float64, kiln internal radius, [m].
+        - L::Float64, kiln length, [m].
+    """
 	function RotaryKilnBedGeometry(
 			z::Vector{Float64}, 
 			h::Vector{Float64}, 
@@ -62,20 +87,45 @@ struct RotaryKilnBedGeometry
         δz = z[2:end] - z[1:end-1]
         V = sum(@. Aₘ * δz)
 
-		return new(z, h, θ, l, A, η, ηₘ)
+		return new(z, h, θ, l, A, η, ηₘ, V)
 	end
 end
 
+"""
+        SymbolicLinearKramersModel
+
+    Creates a reusable linear Kramers model for rotary kiln simulation.
+"""
 struct SymbolicLinearKramersModel
+    "Symbolic kiln internal radius"
 	R::Num
+
+    "Symbolic kiln feed rate"
 	Φ::Num
+
+    "Symbolic kiln rotation rate"
 	ω::Num
+
+    "Symbolic kiln slope"
 	β::Num
+
+    "Symbolic solids repose angle"
 	γ::Num
+
+    "Symbolic kiln axial coordinates"
 	z::Num
+
+    "Symbolic bed height profile"
 	h::Num
+
+    "Problem ordinary differential equation"
 	sys::ODESystem
-	
+
+    """
+            SymbolicLinearKramersModel()
+
+        Symbolic model constructor.
+    """
 	function SymbolicLinearKramersModel()
 		# Declare symbols and unknowns.
 		@parameters z
@@ -100,23 +150,60 @@ struct SymbolicLinearKramersModel
 	end
 end
 
+"""
+        SolutionLinearKramersModel
+
+    Solve and process results from a symbolic linear Kramers model.
+"""
 struct SolutionLinearKramersModel
+    "Object containing profile results"
 	bed::RotaryKilnBedGeometry
+
+    "Residence time of particles"
     τ::Float64
 	
+    """
+            SolutionLinearKramersModel(;
+                model::SymbolicLinearKramersModel,
+                L::Float64,
+                R::Float64,
+                Φ::Float64,
+                ω::Float64,
+                β::Float64,
+                γ::Float64,
+                d::Float64,
+                solver::Any = Tsit5(),
+                rtol::Float64 = 1.0e-08,
+                atol::Float64 = 1.0e-08
+            )
+
+        Integrates an instace of `SymbolicLinearKramersModel`.
+        
+        **Note:** if the discharge end is hold by a dam, its height
+        must be provided instead of the particle size, as it is used
+        as the ODE initial condition.
+
+        - L::Float64, kiln length, [m].
+        - R::Float64, kiln internal radius, [m].
+        - Φ::Float64, kiln feed rate, [m³/s].
+        - ω::Float64, kiln rotation rate, [rev/s].
+        - β::Float64, kiln slope, [rad].
+        - γ::Float64, solids repose angle, [rad].
+        - d::Float64, particle size or dam height, [m].
+    """
 	function SolutionLinearKramersModel(;
-		model::SymbolicLinearKramersModel,
-		L::Float64,
-		R::Float64,
-		Φ::Float64,
-		ω::Float64,
-		β::Float64,
-		γ::Float64,
-		d::Float64,
-        solver::Any = ODE.Tsit5(),
-	    rtol::Float64 = 1.0e-08,
-	    atol::Float64 = 1.0e-08
-	)
+            model::SymbolicLinearKramersModel,
+            L::Float64,
+            R::Float64,
+            Φ::Float64,
+            ω::Float64,
+            β::Float64,
+            γ::Float64,
+            d::Float64,
+            solver::Any = Tsit5(),
+            rtol::Float64 = 1.0e-08,
+            atol::Float64 = 1.0e-08
+        )
         # Map initial condition (dam/particle size).
 		h₀ = [model.h => d]
 		
@@ -141,6 +228,32 @@ struct SolutionLinearKramersModel
 	end
 end
 
+"""
+        solvelinearkramersmodel(;
+            L::Float64,
+            D::Float64,
+            Φ::Float64,
+            ω::Float64,
+            β::Float64,
+            γ::Float64,
+            d::Float64,
+            model::Union{SymbolicLinearKramersModel,Nothing} = nothing
+        )::SolutionLinearKramersModel
+
+    - `L`: kiln length, [m].
+    - `D`: kiln internal diameter, [m].
+    - `Φ`: kiln feed rate, [m³/h].
+    - `ω`: kiln rotation rate, [rev/min].
+    - `β`: kiln slope, [°].
+    - `γ`: solids repose angle, [°].
+    - `d`: particle size or dam height, [mm].
+
+    **Important:** inputs are in customary units based in international
+    system (SI) - no imperial units supported - while all the computed
+    values are provided in SI units as a better physical practice. If `d`
+    represents a particle size, take care that it is provided in millimeters
+    for ease of exchange with common dam sizes.
+"""
 function solvelinearkramersmodel(;
         L::Float64,
         D::Float64,
@@ -149,8 +262,8 @@ function solvelinearkramersmodel(;
         β::Float64,
         γ::Float64,
         d::Float64,
-        model::SymbolicLinearKramersModel = nothing
-    )::RotaryKilnBedGeometry
+        model::Union{SymbolicLinearKramersModel,Nothing} = nothing
+    )::SolutionLinearKramersModel
     if isnothing(model)
 	    model = SymbolicLinearKramersModel()
     end
@@ -163,8 +276,60 @@ function solvelinearkramersmodel(;
             ω = ω / 60.0,
             β = deg2rad(β),
             γ = deg2rad(γ),
-            d = d
+            d = d / 1000.0
     )
+end
+
+"""
+        plotlinearkramersmodel(
+            model::SolutionLinearKramersModel;
+            normz::Bool = false,
+            normh::Bool = false
+        )::Any
+
+    Display plot of model solution for rotary kiln bed profile. Arguments
+    `normz` and `normh` control whether z-coordinate and bed height must
+    be normalized, respectively.
+"""
+function plotlinearkramersmodel(
+        model::SolutionLinearKramersModel;
+        normz::Bool = false,
+        normh::Bool = false
+    )::Plots.Plot
+    z = model.bed.z
+    h = model.bed.h
+    τ = model
+
+    z = normz ? (100z / maximum(z[end])) : z
+    h = normh ? (100h / maximum(h[end])) : 100h
+
+    unitz = normz ? "%" : "m"
+    unith = normh ? "%" : "cm"
+
+    xlims  = normz ? (0.0, 100.0) : (0.0, model.bed.z[end])
+    xticks = normz ? (0.0:20.0:100.0) : nothing
+
+    ylims  = normz ? (0.0, 100.0) : nothing
+    yticks = normh ? (0.0:20.0:100.0) : nothing
+
+    p = plot()
+
+    plot!(p, z, h, linewidth = 3, label = nothing)
+
+    η = @sprintf("%.1f", model.bed.ηₘ)
+    τ = @sprintf("%.0f", model.τ / 60)
+    
+    plot!(p,
+          title  = "Loading $(η)% | Residence $(τ) min",
+          xaxis  = "Coordinate [$(unitz)]",
+          yaxis  = "Bed height [$(unith)]",
+          xlims  = xlims,
+          xticks = xticks,
+          ylims  = ylims,
+          yticks = yticks
+    )
+
+    return p
 end
 
 end # (module Kramers)

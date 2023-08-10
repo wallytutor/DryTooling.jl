@@ -15,7 +15,8 @@ sol = solvelinearkramersmodel(
     ω =  0.0505 * 60.0,
     β = rad2deg(atan(0.5 / 12)),
     γ = 45.0,
-    d = 0.001,
+    d = 1.0,
     model = nothing
 )
 
+p = plotlinearkramersmodel(sol, normz=true, normh=true)
