@@ -11,11 +11,11 @@ module Kramers
 
 using ModelingToolkit
 using Plots
+using Printf
 
 using DifferentialEquations: ODEProblem
 using DifferentialEquations: Tsit5
 using DifferentialEquations: solve
-using Printf: sprintf
 using Trapz: trapz
 
 export RotaryKilnBedGeometry
