@@ -1,0 +1,13 @@
+name = "DryTooling"
+uuid = "0dff88b2-42f1-4682-ada6-3beed8c0a17c"
+authors = ["Walter Dal'Maz Silva <walter.dalmazsilva.manager@gmail.com> & contributors"]
+version = "0.1.0-DEV"
+
+[compat]
+julia = "1.8"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
