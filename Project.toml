@@ -1,7 +1,7 @@
 name = "DryTooling"
 uuid = "0dff88b2-42f1-4682-ada6-3beed8c0a17c"
 authors = ["Walter Dal'Maz Silva <walter.dalmazsilva.manager@gmail.com> & contributors"]
-version = "1.0.0-DEV"
+version = "1.0.0"
 
 [compat]
 julia = "1.8"
