@@ -3,9 +3,10 @@ cantera = "C:\\Program Files\\Cantera\\bin\\cantera_shared.dll"
 ENV["CANTERA_SHARED"] = cantera
 @assert haskey(ENV, "CANTERA_SHARED")
 
-# include("..\\src\\CCantera.jl")
+include("..\\..\\src\\CanteraAPI.jl")
 
-import DryTooling.CanteraAPI as ct;
+# import DryTooling.CanteraAPI as ct;
+import .CanteraAPI as ct;
 
 @assert ct.appdelete()
 @assert ct.resetstorage()

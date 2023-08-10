@@ -2,7 +2,7 @@
 module DryTooling
 
 include("Preamble.jl")
-include("CanteraAPI/CanteraAPI.jl")
+include("CanteraAPI.jl")
 include("Kramers.jl")
 
 end
