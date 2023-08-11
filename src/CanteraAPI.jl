@@ -1,9 +1,20 @@
 module CanteraAPI
 
 using Libdl
+using Logging
 using Printf
 
 export Solution
+
+# For now do not throw an error because otherwise the documentation build
+# will fail. Find a way of getting Cantera working on workflow.
+if !haskey(ENV, "CANTERA_SHARED")
+     @warn "CANTERA_SHARED environment variable required"
+     # error("CANTERA_SHARED environment variable required")
+     const CANTERA = nothing
+else
+     const CANTERA = Libdl.dlopen(ENV["CANTERA_SHARED"])
+end
 
 #############################################################################
 # EXPOSED METHODS
@@ -14,16 +25,12 @@ struct FnShared
     name::String
 
     function FnShared(name)
+        # Handle the missing library for documentation generation.
+        if isnothing(CANTERA)
+            return new()
+        end
         return new(Libdl.dlsym(CANTERA, name), string(name))
     end
-end
-
-begin # Initialize
-     if !haskey(ENV, "CANTERA_SHARED")
-        error("CANTERA_SHARED environment variable required")
-     end
-
-     const CANTERA = Libdl.dlopen(ENV["CANTERA_SHARED"])
 end
 
 begin # Get pointers.
@@ -1116,7 +1123,7 @@ begin # Helper functions
         buf[end] = 0
         return GC.@preserve buf unsafe_string(pointer(buf))
     end
-    
+
     function string_fn(fn)
         function wrapper(n::Int32; buflen = 128)
             buf = Vector{UInt8}(undef, buflen)
@@ -1142,7 +1149,7 @@ begin # Helper functions
             return value
         end
         return wrapper
-    end    
+    end
 end
 
 begin # Inlined interfaces
@@ -1168,7 +1175,7 @@ begin # Inlined interfaces
     IIIF_fn(f) = (n, i, j) -> @ccall $(f.ptr)(n::i32, i::i32, j::i32)::f64
     ISAI_fn(f) = (n, l, a) -> @ccall $(f.ptr)(n::i32, l::csz, a::p64)::i32
 end
- 
+
 begin # ct.h
     ct_appdelete                     = VI_fn(CT_APPDELETE)
     soln_del                         = II_fn(SOLN_DEL)
@@ -1268,7 +1275,7 @@ begin # ct.h
         systemerror("thermo_newFromFile $(value)", value < 0)
         return value
     end
-     
+
     function thermo_equilibrate(n, XY, solver, rtol, maxsteps,
                                 maxiter, loglevel)
         return @ccall $(THERMO_EQUILIBRATE.ptr)(
@@ -1284,14 +1291,14 @@ begin # ct.h
     #     for k in 1:buflen-1
     #         buf[k] = path[k];
     #     end
-        
+
     #     err = @ccall $_ct_addCanteraDirectory(
     #         buflen::Int32,
     #         buf::Ptr{UInt8}
     #     )::Int32;
 
     #     systemerror("ct_addCanteraDirectory", err != 0);
-    #     return err;    
+    #     return err;
     # end
 
     # function ct_getDataDirectories(;buflen=2^12, sep=";")
@@ -1316,7 +1323,7 @@ begin # ct.h
     #         buflen::Int32,
     #         buf::Ptr{UInt8}
     #     )::Int32;
-        
+
     #     systemerror("ct_getCanteraVersion", err != 0);
     #     buf[end] = 0;
 
@@ -1330,7 +1337,7 @@ begin # ct.h
     #         buflen::Int32,
     #         buf::Ptr{UInt8}
     #     )::Int32;
-        
+
     #     systemerror("ct_getGitCommit", err != 0);
     #     buf[end] = 0;
 
@@ -1409,13 +1416,13 @@ begin # ctonedim.h
     stflow_setPressure             = IFI_fn(STFLOW_SETPRESSURE)
     stflow_pressure                = IF_fn(STFLOW_PRESSURE)
     stflow_solveEnergyEqn          = III_fn(STFLOW_SOLVEENERGYEQN)
-    sim1D_del                      = II_fn(SIM1D_DEL)        
+    sim1D_del                      = II_fn(SIM1D_DEL)
     sim1D_getInitialSoln           = II_fn(SIM1D_GETINITIALSOLN)
     sim1D_refine                   = III_fn(SIM1D_REFINE)
     sim1D_writeStats               = III_fn(SIM1D_WRITESTATS)
     sim1D_eval                     = IFII_fn(SIM1D_EVAL)
     sim1D_setMaxJacAge             = IIII_fn(SIM1D_SETMAXJACAGE)
-    sim1D_setFixedTemperature      = IFI_fn(SIM1D_SETFIXEDTEMPERATURE)      
+    sim1D_setFixedTemperature      = IFI_fn(SIM1D_SETFIXEDTEMPERATURE)
 end
 
 begin # ctreactor.h
@@ -1481,7 +1488,7 @@ begin # ctreactor.h
     reactorsurface_area                   = IF_fn(REACTORSURFACE_AREA)
     reactorsurface_setArea                = IFI_fn(REACTORSURFACE_SETAREA)
     reactorsurface_addSensitivityReaction = III_fn(REACTORSURFACE_ADDSENSITIVITYREACTION)
-    ct_clearReactors                      = VI_fn(CT_CLEARREACTORS)                
+    ct_clearReactors                      = VI_fn(CT_CLEARREACTORS)
 end
 
 begin # ctrpath.h
@@ -1503,7 +1510,7 @@ begin # ctrpath.h
     ct_clearReactionPath     = VI_fn(CT_CLEARREACTIONPATH)
 end
 
-begin # ctsurf.h                
+begin # ctsurf.h
     surf_setSiteDensity = IFI_fn(SURF_SETSITEDENSITY)
     surf_siteDensity    = IF_fn(SURF_SITEDENSITY)
 end
@@ -1595,7 +1602,7 @@ end
 mutable struct Solution
     nelements::UInt32
     nspecies::UInt32
-    
+
     _index::SolutionIndex
     _X::Vector{Float64}
     _Y::Vector{Float64}
@@ -1610,7 +1617,7 @@ mutable struct Solution
             transport::String
         )
         obj = new()
-        
+
         # Create index of internals.
         obj._index = SolutionIndex(infile, name, transport)
 
@@ -1668,7 +1675,7 @@ function equilibrate!(
     if status < 0
         throw(CanteraError("equilibrate! : failed ($(status))"))
     end
-    
+
     if print_results
         status = thermo_print(obj._index.thermo, Int32(show_thermo), threshold)
         if status < 0
