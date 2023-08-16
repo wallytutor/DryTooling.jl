@@ -47,33 +47,34 @@ struct RotaryKilnBedGeometry
 
     "Local bed cross section area [m²]"
     A::Vector{Float64}
-    
+
     "Local loading based on height [-]"
     η::Vector{Float64}
 
     "Mean loading of kiln [-]"
     ηₘ::Float64
-    
+
     "Bed integral volume [m³]"
     V::Float64
+end
 
     """
-            RotaryKilnBedGeometry(
-                z::Vector{Float64}, 
-                h::Vector{Float64}, 
-                R::Float64, 
-                L::Float64
-            )
+        RotaryKilnBedGeometry(
+            z::Vector{Float64},
+            h::Vector{Float64},
+            R::Float64,
+            L::Float64
+        )
 
-        - z::Vector{Float64}, solution coordinates over length, [m].
-        - h::Vector{Float64}, bed profile solution over length, [m].
-        - R::Float64, kiln internal radius, [m].
-        - L::Float64, kiln length, [m].
+    - z::Vector{Float64}, solution coordinates over length, [m].
+    - h::Vector{Float64}, bed profile solution over length, [m].
+    - R::Float64, kiln internal radius, [m].
+    - L::Float64, kiln length, [m].
     """
     function RotaryKilnBedGeometry(
-            z::Vector{Float64}, 
-            h::Vector{Float64}, 
-            R::Float64, 
+            z::Vector{Float64},
+            h::Vector{Float64},
+            R::Float64,
             L::Float64
         )
         θ = @. 2acos(1 - h / R)
@@ -89,8 +90,6 @@ struct RotaryKilnBedGeometry
 
         return new(z, h, θ, l, A, η, ηₘ, V)
     end
-end
-
 """
         SymbolicLinearKramersModel
 
@@ -122,9 +121,9 @@ struct SymbolicLinearKramersModel
     sys::ODESystem
 
     """
-            SymbolicLinearKramersModel()
+        SymbolicLinearKramersModel()
 
-        Symbolic model constructor.
+    Symbolic model constructor.
     """
     function SymbolicLinearKramersModel()
         # Declare symbols and unknowns.
@@ -134,11 +133,11 @@ struct SymbolicLinearKramersModel
 
         # Declare a derivative.
         D = Differential(z)
-    
+
         # Compose problem right-hand side.
         C = (3//4) * tan(γ) * Φ / (π * R^3 * ω)
         f = C * ((h / R) * (2 - h / R))^(-3//2)
-    
+
         # *Stack* equation.
         eqs = D(h) ~ f - tan(β) / cos(γ)
 
@@ -151,9 +150,9 @@ struct SymbolicLinearKramersModel
 end
 
 """
-        SolutionLinearKramersModel
+    SolutionLinearKramersModel
 
-    Solve and process results from a symbolic linear Kramers model.
+Solve and process results from a symbolic linear Kramers model.
 """
 struct SolutionLinearKramersModel
     "Object containing profile results"
@@ -161,35 +160,35 @@ struct SolutionLinearKramersModel
 
     "Residence time of particles"
     τ::Float64
-    
+
     """
-            SolutionLinearKramersModel(;
-                model::SymbolicLinearKramersModel,
-                L::Float64,
-                R::Float64,
-                Φ::Float64,
-                ω::Float64,
-                β::Float64,
-                γ::Float64,
-                d::Float64,
-                solver::Any = Tsit5(),
-                rtol::Float64 = 1.0e-08,
-                atol::Float64 = 1.0e-08
-            )
+        SolutionLinearKramersModel(;
+            model::SymbolicLinearKramersModel,
+            L::Float64,
+            R::Float64,
+            Φ::Float64,
+            ω::Float64,
+            β::Float64,
+            γ::Float64,
+            d::Float64,
+            solver::Any = Tsit5(),
+            rtol::Float64 = 1.0e-08,
+            atol::Float64 = 1.0e-08
+        )
 
-        Integrates an instace of `SymbolicLinearKramersModel`.
-        
-        **Note:** if the discharge end is hold by a dam, its height
-        must be provided instead of the particle size, as it is used
-        as the ODE initial condition.
+    Integrates an instace of `SymbolicLinearKramersModel`.
 
-        - L::Float64, kiln length, [m].
-        - R::Float64, kiln internal radius, [m].
-        - Φ::Float64, kiln feed rate, [m³/s].
-        - ω::Float64, kiln rotation rate, [rev/s].
-        - β::Float64, kiln slope, [rad].
-        - γ::Float64, solids repose angle, [rad].
-        - d::Float64, particle size or dam height, [m].
+    **Note:** if the discharge end is hold by a dam, its height
+    must be provided instead of the particle size, as it is used
+    as the ODE initial condition.
+
+    - L::Float64, kiln length, [m].
+    - R::Float64, kiln internal radius, [m].
+    - Φ::Float64, kiln feed rate, [m³/s].
+    - ω::Float64, kiln rotation rate, [rev/s].
+    - β::Float64, kiln slope, [rad].
+    - γ::Float64, solids repose angle, [rad].
+    - d::Float64, particle size or dam height, [m].
     """
     function SolutionLinearKramersModel(;
             model::SymbolicLinearKramersModel,
@@ -206,14 +205,14 @@ struct SolutionLinearKramersModel
         )
         # Map initial condition (dam/particle size).
         h₀ = [model.h => d]
-        
+
         # Map model parameters.
         p = [model.R => R,
              model.Φ => Φ,
              model.ω => ω,
              model.β => β,
              model.γ => γ]
-    
+
         # Create and solve problem.
         prob = ODEProblem(model.sys, h₀, (0.0, L), p, jac = true)
         sol = solve(prob, solver, reltol = rtol, abstol = atol)
@@ -229,30 +228,30 @@ struct SolutionLinearKramersModel
 end
 
 """
-        solvelinearkramersmodel(;
-            L::Float64,
-            D::Float64,
-            Φ::Float64,
-            ω::Float64,
-            β::Float64,
-            γ::Float64,
-            d::Float64,
-            model::Union{SymbolicLinearKramersModel,Nothing} = nothing
-        )::SolutionLinearKramersModel
+    solvelinearkramersmodel(;
+        L::Float64,
+        D::Float64,
+        Φ::Float64,
+        ω::Float64,
+        β::Float64,
+        γ::Float64,
+        d::Float64,
+        model::Union{SymbolicLinearKramersModel,Nothing} = nothing
+    )::SolutionLinearKramersModel
 
-    - `L`: kiln length, [m].
-    - `D`: kiln internal diameter, [m].
-    - `Φ`: kiln feed rate, [m³/h].
-    - `ω`: kiln rotation rate, [rev/min].
-    - `β`: kiln slope, [°].
-    - `γ`: solids repose angle, [°].
-    - `d`: particle size or dam height, [mm].
+- `L`: kiln length, [m].
+- `D`: kiln internal diameter, [m].
+- `Φ`: kiln feed rate, [m³/h].
+- `ω`: kiln rotation rate, [rev/min].
+- `β`: kiln slope, [°].
+- `γ`: solids repose angle, [°].
+- `d`: particle size or dam height, [mm].
 
-    **Important:** inputs are in customary units based in international
-    system (SI) - no imperial units supported - while all the computed
-    values are provided in SI units as a better physical practice. If `d`
-    represents a particle size, take care that it is provided in millimeters
-    for ease of exchange with common dam sizes.
+**Important:** inputs are in customary units based in international
+system (SI) - no imperial units supported - while all the computed
+values are provided in SI units as a better physical practice. If `d`
+represents a particle size, take care that it is provided in millimeters
+for ease of exchange with common dam sizes.
 """
 function solvelinearkramersmodel(;
         L::Float64,
@@ -281,15 +280,15 @@ function solvelinearkramersmodel(;
 end
 
 """
-        plotlinearkramersmodel(
-            model::SolutionLinearKramersModel;
-            normz::Bool = false,
-            normh::Bool = false
-        )::Any
+    plotlinearkramersmodel(
+        model::SolutionLinearKramersModel;
+        normz::Bool = false,
+        normh::Bool = false
+    )::Any
 
-    Display plot of model solution for rotary kiln bed profile. Arguments
-    `normz` and `normh` control whether z-coordinate and bed height must
-    be normalized, respectively.
+Display plot of model solution for rotary kiln bed profile. Arguments
+`normz` and `normh` control whether z-coordinate and bed height must
+be normalized, respectively.
 """
 function plotlinearkramersmodel(
         model::SolutionLinearKramersModel;
@@ -318,7 +317,7 @@ function plotlinearkramersmodel(
 
     η = @sprintf("%.1f", model.bed.ηₘ)
     τ = @sprintf("%.0f", model.τ / 60)
-    
+
     plot!(p,
           title  = "Loading $(η)% | Residence $(τ) min",
           xaxis  = "Coordinate [$(unitz)]",

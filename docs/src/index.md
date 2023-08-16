@@ -10,5 +10,9 @@ Documentation for [DryTooling](https://github.com/wallytutor/DryTooling.jl).
 ```
 
 ```@autodocs
-Modules = [DryTooling]
+Modules = [
+    DryTooling,
+    DryTooling.CanteraAPI,
+    DryTooling.Kramers
+]
 ```
