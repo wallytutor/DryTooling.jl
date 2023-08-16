@@ -19,6 +19,7 @@ Trapz = "592b5752-818d-11e9-1e9a-2b8ca4a44cd1"
 
 [compat]
 CSV = "0.10"
+DataFrames = "1"
 DifferentialEquations = "7"
 Documenter = "0.27"
 Ipopt = "1"
