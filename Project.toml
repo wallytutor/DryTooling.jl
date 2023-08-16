@@ -19,6 +19,11 @@ Trapz = "592b5752-818d-11e9-1e9a-2b8ca4a44cd1"
 
 [compat]
 Documenter = "0.27"
+JuMP = "1"
+ModelingToolkit = "8"
+Trapz = "2"
+DifferentialEquations = "7"
+Ipopt = "1"
 julia = "1.8"
 
 [extras]
