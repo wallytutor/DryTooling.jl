@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-        module Kramers
+    module Kramers
 
-    Implements the differential equation for prediction of bed height profile
-    in a rotary kiln as proposed by Kramers and Croockewite (1952) [^1].
+Implements the differential equation for prediction of bed height profile
+in a rotary kiln as proposed by Kramers and Croockewite (1952) [^1].
 
-    [^1]: https://doi.org/10.1016/0009-2509(52)87019-8
+[^1]: https://doi.org/10.1016/0009-2509(52)87019-8
 """
 module Kramers
 
@@ -25,12 +25,12 @@ export solvelinearkramersmodel
 export plotlinearkramersmodel
 
 """
-        RotaryKilnBedGeometry
+    RotaryKilnBedGeometry
 
-    Description of a rotary kiln bed geometry computed from the solution
-    of bed height along the kiln length. The main goal of the quantities
-    computed here is their use with heat and mass transfer models for the
-    simulation of rotary kiln process.
+Description of a rotary kiln bed geometry computed from the solution
+of bed height along the kiln length. The main goal of the quantities
+computed here is their use with heat and mass transfer models for the
+simulation of rotary kiln process.
 """
 struct RotaryKilnBedGeometry
     "Solution coordinates [m]"
