@@ -5,7 +5,7 @@
 Implements the differential equation for prediction of bed height profile
 in a rotary kiln as proposed by Kramers and Croockewite (1952) [^1].
 
-[^1]: https://doi.org/10.1016/0009-2509(52)87019-8
+[^1]: [Kramers et al., 1952](https://doi.org/10.1016/0009-2509(52)87019-8)
 """
 module Kramers
 
@@ -56,7 +56,6 @@ struct RotaryKilnBedGeometry
 
     "Bed integral volume [m³]"
     V::Float64
-end
 
     """
         RotaryKilnBedGeometry(
@@ -66,10 +65,10 @@ end
             L::Float64
         )
 
-    - z::Vector{Float64}, solution coordinates over length, [m].
-    - h::Vector{Float64}, bed profile solution over length, [m].
-    - R::Float64, kiln internal radius, [m].
-    - L::Float64, kiln length, [m].
+    - `z`: solution coordinates over length, [m].
+    - `h`: bed profile solution over length, [m].
+    - `R`: kiln internal radius, [m].
+    - `L`: kiln length, [m].
     """
     function RotaryKilnBedGeometry(
             z::Vector{Float64},
@@ -90,6 +89,8 @@ end
 
         return new(z, h, θ, l, A, η, ηₘ, V)
     end
+end
+
 """
         SymbolicLinearKramersModel
 
@@ -182,13 +183,13 @@ struct SolutionLinearKramersModel
     must be provided instead of the particle size, as it is used
     as the ODE initial condition.
 
-    - L::Float64, kiln length, [m].
-    - R::Float64, kiln internal radius, [m].
-    - Φ::Float64, kiln feed rate, [m³/s].
-    - ω::Float64, kiln rotation rate, [rev/s].
-    - β::Float64, kiln slope, [rad].
-    - γ::Float64, solids repose angle, [rad].
-    - d::Float64, particle size or dam height, [m].
+    - `L`: kiln length, [m].
+    - `R`: kiln internal radius, [m].
+    - `Φ`: kiln feed rate, [m³/s].
+    - `ω`: kiln rotation rate, [rev/s].
+    - `β`: kiln slope, [rad].
+    - `γ`: solids repose angle, [rad].
+    - `d`: particle size or dam height, [m].
     """
     function SolutionLinearKramersModel(;
             model::SymbolicLinearKramersModel,
