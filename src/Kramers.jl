@@ -28,7 +28,7 @@ export plotlinearkramersmodel
 #############################################################################
 
 """
-    `SymbolicLinearKramersModel``
+    SymbolicLinearKramersModel
 
 Creates a reusable linear Kramers model for rotary kiln simulation.
 """
@@ -59,7 +59,7 @@ struct SymbolicLinearKramersModel
 end
 
 """
-    `SymbolicLinearKramersModel()`
+    SymbolicLinearKramersModel()
 
 Symbolic model constructor.
 """
@@ -91,7 +91,7 @@ end
 #############################################################################
 
 """
-    `RotaryKilnBedSolution`
+    RotaryKilnBedSolution
 
 Description of a rotary kiln bed geometry computed from the solution
 of bed height along the kiln length. The main goal of the quantities
@@ -128,12 +128,12 @@ struct RotaryKilnBedSolution
 end
 
 """
-    `RotaryKilnBedSolution(
+    RotaryKilnBedSolution(
         z::Vector{Float64},
         h::Vector{Float64},
         R::Float64,
         Φ::Float64
-    )`
+    )
 
 - `z`: solution coordinates over length, [m].
 - `h`: bed profile solution over length, [m].
@@ -165,7 +165,7 @@ end
 #############################################################################
 
 """
-    `solvelinearkramersmodelSI(;
+    solvelinearkramersmodel(;
         model::SymbolicLinearKramersModel,
         L::Float64,
         R::Float64,
@@ -177,12 +177,14 @@ end
         solver::Any = Tsit5(),
         rtol::Float64 = 1.0e-08,
         atol::Float64 = 1.0e-08
-    )`
+    )
 
 Integrates an instance of `SymbolicLinearKramersModel`.
 
-**Note:** if the discharge end is hold by a dam, its height
-must be provided instead of the particle size, as it is used
+**Important:** inputs must be provided in international system (SI) units 
+as a better physical practice. The only exception is the rotation rate `ω`
+provided in revolution multiples. If the discharge end is held by a dam,
+its height must be provided instead of the particle size, as it is used
 as the ODE initial condition.
 
 - `model`: a symbolic kiln model.
@@ -194,7 +196,7 @@ as the ODE initial condition.
 - `γ`: solids repose angle, [rad].
 - `d`: particle size or dam height, [m].
 """
-function solvelinearkramersmodelSI(;
+function solvelinearkramersmodel(;
         model::SymbolicLinearKramersModel,
         L::Float64,
         R::Float64,
@@ -207,73 +209,17 @@ function solvelinearkramersmodelSI(;
         rtol::Float64 = 1.0e-08,
         atol::Float64 = 1.0e-08
     )
-    # Map initial condition (dam/particle size).
-    h₀ = [model.h => d]
-
-    # Map model parameters.
+    h = [model.h => d]
     p = [model.R => R,
          model.Φ => Φ,
          model.ω => ω,
          model.β => β,
          model.γ => γ]
 
-    prob = ODEProblem(model.sys, h₀, (0.0, L), p, jac = true)
+    prob = ODEProblem(model.sys, h, (0.0, L), p, jac = true)
     sol = solve(prob, solver, reltol = rtol, abstol = atol)
     bed = RotaryKilnBedSolution(sol.t, sol[1, :], R, Φ)
-
     return bed
-end
-
-"""
-    `solvelinearkramersmodel(;
-        L::Float64,
-        D::Float64,
-        Φ::Float64,
-        ω::Float64,
-        β::Float64,
-        γ::Float64,
-        d::Float64,
-        model::Union{SymbolicLinearKramersModel,Nothing} = nothing
-    )::RotaryKilnBedSolution`
-
-- `L`: kiln length, [m].
-- `D`: kiln internal diameter, [m].
-- `Φ`: kiln feed rate, [m³/h].
-- `ω`: kiln rotation rate, [rev/min].
-- `β`: kiln slope, [°].
-- `γ`: solids repose angle, [°].
-- `d`: particle size or dam height, [mm].
-
-**Important:** inputs are in customary units based in international
-system (SI) - no imperial units supported - while all the computed
-values are provided in SI units as a better physical practice. If `d`
-represents a particle size, take care that it is provided in millimeters
-for ease of exchange with common dam sizes.
-"""
-function solvelinearkramersmodel(;
-        L::Float64,
-        D::Float64,
-        Φ::Float64,
-        ω::Float64,
-        β::Float64,
-        γ::Float64,
-        d::Float64,
-        model::Union{SymbolicLinearKramersModel,Nothing} = nothing
-    )::RotaryKilnBedSolution
-    if isnothing(model)
-        model = SymbolicLinearKramersModel()
-    end
-
-    return solvelinearkramersmodelSI(
-            model = model,
-            L = L,
-            R = D / 2.0,
-            Φ = Φ / 3600.0,
-            ω = ω / 60.0,
-            β = deg2rad(β),
-            γ = deg2rad(γ),
-            d = d / 1000.0
-    )
 end
 
 """
