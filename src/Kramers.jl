@@ -5,6 +5,7 @@ using ModelingToolkit
 using Plots
 using Printf
 
+using DocStringExtensions: TYPEDFIELDS
 using DifferentialEquations: ODEProblem
 using DifferentialEquations: Tsit5
 using DifferentialEquations: solve
@@ -23,6 +24,8 @@ export plotlinearkramersmodel
     SymbolicLinearKramersModel
 
 Creates a reusable linear Kramers model for rotary kiln simulation.
+
+$(TYPEDFIELDS)
 """
 struct SymbolicLinearKramersModel
     "Symbolic kiln internal radius"
@@ -89,6 +92,8 @@ Description of a rotary kiln bed geometry computed from the solution
 of bed height along the kiln length. The main goal of the quantities
 computed here is their use with heat and mass transfer models for the
 simulation of rotary kiln process.
+
+$(TYPEDFIELDS)
 """
 struct RotaryKilnBedSolution
     "Solution coordinates [m]"
