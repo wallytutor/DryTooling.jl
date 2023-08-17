@@ -1,12 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-    module Kramers
-
-Implements the differential equation for prediction of bed height profile
-in a rotary kiln as proposed by Kramers and Croockewite (1952) [^1].
-
-[^1]: [Kramers et al., 1952](https://doi.org/10.1016/0009-2509(52)87019-8)
-"""
 module Kramers
 
 using ModelingToolkit

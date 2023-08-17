@@ -6,13 +6,3 @@ CurrentModule = DryTooling
 
 Documentation for [DryTooling](https://github.com/wallytutor/DryTooling.jl).
 
-```@index
-```
-
-```@autodocs
-Modules = [
-    DryTooling,
-    DryTooling.CanteraAPI,
-    DryTooling.Kramers
-]
-```
