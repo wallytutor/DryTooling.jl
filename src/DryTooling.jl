@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-__precompile__()
+# __precompile__()
 
 module DryTooling
 
