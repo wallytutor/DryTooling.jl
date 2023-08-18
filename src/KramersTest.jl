@@ -2,10 +2,6 @@
 using DryTooling.Kramers
 using Statistics
 
-function getsamplebed()
-
-end
-
 @testset "DryTooling.Kramers.jl" begin
     R = 1.0e+00
     Φ = 1.0e-02
