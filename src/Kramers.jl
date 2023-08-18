@@ -114,7 +114,7 @@ struct RotaryKilnBedSolution
     "Local loading based on height [-]"
     η::Vector{Float64}
 
-    "Mean loading of kiln [-]"
+    "Mean loading of kiln [%]"
     ηₘ::Float64
 
     "Bed integral volume [m³]"

@@ -3,14 +3,6 @@ using Plots
 using DryTooling.Kramers
 import DryTooling.Kramers as kramers
 
-function gettestbed()
-    R = 1.0e+00
-    Φ = 1.0e-02
-    z = collect(0.0:0.1:10.0)
-    h = (0.5R) * ones(size(z))
-    return RotaryKilnBedSolution(z, h, R, Φ)
-end
-
 function solvekramers1952()
     # Data from last example of reference paper.
 
