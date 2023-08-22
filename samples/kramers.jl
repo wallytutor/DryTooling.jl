@@ -79,7 +79,7 @@ Play with the sliders below to understand process parameters.
 @bind ω Slider(0.5:0.1:5.0, default=ωᵣ, show_value=true)
 
 # ╔═╡ 3c3651b2-e001-4338-a1fb-9f7881d2f007
-begin
+try
 	bed = dk.solvelinearkramersmodel(;
 		model = dk.SymbolicLinearKramersModel(),
 		L     = L,
@@ -92,15 +92,9 @@ begin
 	)
 	
 	dk.plotlinearkramersmodel(bed, normz=false, normh=false)
+catch e
+	println("Failed to solve Kramers equation: $(e)")
 end
-
-# ╔═╡ 5f8f7562-f43e-4222-aed3-293988477bc5
-md"""
-You can also inspect `bed` for additional properties and plots.
-"""
-
-# ╔═╡ 86aeea3e-9255-46d8-8dae-9bc19b67c801
-bed
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -2000,7 +1994,5 @@ version = "1.4.1+0"
 # ╠═820189d1-921a-4d5e-a833-dcdf18d57bdf
 # ╠═0e0f3f58-5b1c-4fa6-a491-b60b46e77646
 # ╟─3c3651b2-e001-4338-a1fb-9f7881d2f007
-# ╟─5f8f7562-f43e-4222-aed3-293988477bc5
-# ╠═86aeea3e-9255-46d8-8dae-9bc19b67c801
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
