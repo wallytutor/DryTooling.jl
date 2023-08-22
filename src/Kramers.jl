@@ -244,12 +244,6 @@ function plotlinearkramersmodel(
     unitz = normz ? "%" : "m"
     unith = normh ? "%" : "cm"
 
-    xlims  = normz ? (0.0, 100.0) : (0.0, model.z[end])
-    xticks = normz ? (0.0:20.0:100.0) : nothing
-
-    ylims  = normz ? (0.0, 100.0) : nothing
-    yticks = normh ? (0.0:20.0:100.0) : nothing
-
     η = @sprintf("%.1f", model.ηₘ)
     τ = @sprintf("%.0f", model.τ / 60)
 
@@ -258,12 +252,18 @@ function plotlinearkramersmodel(
     plot!(p,
           title  = "Loading $(η)% | Residence $(τ) min",
           xaxis  = "Coordinate [$(unitz)]",
-          yaxis  = "Bed height [$(unith)]",
-          xlims  = xlims,
-          xticks = xticks,
-          ylims  = ylims,
-          yticks = yticks
+          yaxis  = "Bed height [$(unith)]"
     )
+
+    if normz
+        plot!(p, xlims = (0.0, 100.0), xticks = (0.0:20.0:100.0))
+    else
+        plot!(p, xlims = (0.0, model.z[end]))
+    end
+
+    if normh
+        plot!(p, ylims = (0.0, 100.0), yticks = (0.0:20.0:100.0))
+    end
 
     return p
 end
