@@ -1,5 +1,9 @@
 # DryTooling.Kramers
 
+```@meta
+CurrentModule = DryTooling.Kramers
+```
+
 Implements the ordinary differential equation for prediction of bed
 height profile in a rotary kiln as proposed by Kramers and Croockewite
 (1952) [^1]. Its goal is to be used as a process support tool or to

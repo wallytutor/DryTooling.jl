@@ -1,9 +1,5 @@
 # DryTooling
 
-```@meta
-CurrentModule = DryTooling
-```
-
 Documentation for [DryTooling](https://github.com/wallytutor/DryTooling.jl).
 
 I am often faced with using the same approach for different engineering and scientific problems,

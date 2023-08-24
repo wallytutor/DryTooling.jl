@@ -1,5 +1,9 @@
 # DryTooling.IdealGas
 
+```@meta
+CurrentModule = DryTooling.IdealGas
+```
+
 ```@index
 ```
 
