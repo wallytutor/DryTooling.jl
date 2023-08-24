@@ -20,8 +20,12 @@ struct ElementData
     end
 end
 
+""" Retrieve an element by name. """
+element(s::String) = getfield(Elements, Symbol(s))
+
+""" Retrieve atomic mass of element. """
 mass(e::ElementData) = e.atomicmass
-mass(s::String) = mass(getfield(Elements, Symbol(s)))
+mass(s::String) = mass(element(s))
 
 const H  = ElementData("H",  "hydrogen",        1.008)
 const He = ElementData("He", "helium",          4.002602)
