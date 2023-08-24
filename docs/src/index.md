@@ -15,3 +15,10 @@ Also [dry tooling](https://fr.wikipedia.org/wiki/Dry-tooling) is my favorite spo
 ## Citing
 
 See [`CITATION.bib`](CITATION.bib) for the relevant reference(s).
+
+```@meta
+CurrentModule = DryTooling
+```
+
+```@index
+```
