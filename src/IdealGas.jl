@@ -11,6 +11,10 @@ export AbstractGasThermo
 export IdealGasThermo
 export IdealGasSpecies
 export IdealGasMixture
+export specificheatmass
+export specificheatmole
+export enthalpymass
+export enthalpymole
 
 """ Ideal gas constant [J/(mol.K)]. """
 const GAS_CONSTANT = 8.314_462_618_153_24
@@ -61,6 +65,7 @@ struct IdealGasMixture
     species::Array{IdealGasSpecies,1}
 end
 
+""" Queries database and constructs species from its name. """
 function IdealGasSpecies(
         speciesdata::Vector{Dict{Any, Any}},
         name::String
