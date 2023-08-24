@@ -15,9 +15,28 @@ export specificheatmass
 export specificheatmole
 export enthalpymass
 export enthalpymole
+export meanmolecularmass
+export massfraction2molefraction
+export molefraction2massfraction
+export densitymass
+export massfractions
+export molefractions
 
 """ Ideal gas constant [J/(mol.K)]. """
 const GAS_CONSTANT = 8.314_462_618_153_24
+
+""" Zero degrees Celsius in Kelvin for conversion [K]. """
+const ZERO_CELSIUS = 273.15
+
+""" Atmospheric pressure at sea level [Pa]. """
+const ONE_ATM = 101325.0
+
+f64 = Float64
+vf64 = Vector{f64}
+
+#############################################################################
+# Types
+#############################################################################
 
 """ Base type for thermodynamic models. """
 abstract type AbstractGasThermo end
@@ -25,8 +44,8 @@ abstract type AbstractGasThermo end
 """ Ideal gas phase thermodynamics model. """
 struct IdealGasThermo <: AbstractGasThermo
     model::String
-    temperature_ranges::Vector{Float64}
-    data::Vector{Vector{Float64}}
+    temperature_ranges::vf64
+    data::Vector{vf64}
     specificheat::Function
     enthalpy::Function
 
@@ -45,7 +64,7 @@ struct IdealGasSpecies
     composition::Dict{String, Int64}
     transport::AbstractTransportModel
     thermo::IdealGasThermo
-    molecularmass::Float64
+    molecularmass::f64
 
     function IdealGasSpecies(species; verbose = true)
         composition = species["composition"]
@@ -62,7 +81,35 @@ end
 
 """ Ideal gas phase mixture model. """
 struct IdealGasMixture
-    species::Array{IdealGasSpecies,1}
+    species::Vector{IdealGasSpecies}
+    nspecies::Int32
+
+    T::f64
+    P::f64
+    Y::vf64
+
+    molecularmasses::vf64
+
+    function IdealGasMixture(data, selected; phasename = "gas")
+        nspecies = length(selected)
+        species = Vector{IdealGasSpecies}(undef, nspecies)
+        molecularmasses = zeros(nspecies)
+        Y = zeros(nspecies)
+
+        phase = getphase(data["phases"], phasename)
+
+        if haskey(phase, "state")
+            T = getkey(phase, "T", 300.0)
+            P = getkey(phase, "P", ONE_ATM)
+        end
+
+        for (i, name) in enumerate(selected)
+            species[i] = IdealGasSpecies(data["species"], name)
+            molecularmasses[i] = mass(species[i])
+        end
+
+        return new(species, nspecies, T, P, Y, molecularmasses)
+    end
 end
 
 """ Queries database and constructs species from its name. """
@@ -70,119 +117,82 @@ function IdealGasSpecies(
         speciesdata::Vector{Dict{Any, Any}},
         name::String
     )::IdealGasSpecies
-    return IdealGasSpecies(getspeciesbyname(speciesdata, name))
+    return IdealGasSpecies(getnameditem(speciesdata, name))
 end
 
-function getspeciesbyname(speciesdata, name)
-    return first(filter(s -> s["name"] == name, speciesdata))
-end
+#############################################################################
+# Public (IdealGasSpecies)
+#############################################################################
 
-function computemolecularmass(composition)
-    return sum(n * Elements.mass(s) for (s, n) in composition)
-end
-
-mass(s::IdealGasSpecies) = s.molecularmass / 1000
-
-""" Molar specific heat from NASA7 polynomial [J/(mol.K)]. """
-function nasa7specificheat(T, c)
-    p = c[1]+T.*(c[2]+T.*(c[3]+T.*(c[4]+c[5].*T)))
-    return GAS_CONSTANT .* p
-end
-
-""" Molar enthalpy from NASA7 polynomial [J/mol]. """
-function nasa7enthapy(T, c)
-    d = c[1:5] ./ collect(1:5)
-    p = d[1]+T.*(d[2]+T.*(d[3]+T.*(d[4]+d[5].*T)))+c[6]./T
-    return GAS_CONSTANT .* T .* p
-end
-
-""" Create specific heat and enthalpy functions for species. """
-function getthermo(model, data, xl, xc, xh, verbose)
-    cpname = string(model, "specificheat")
-    hmname = string(model, "enthapy")
-
-    cpfun = getfield(IdealGas, Symbol(cpname))
-    hmfun = getfield(IdealGas, Symbol(hmname))
-
-    cp = makestepwise1d(T -> cpfun(T, data[1]), 
-                        T -> cpfun(T, data[2]), 
-                        xc, differentiable = true)
-
-    hm = makestepwise1d(T -> hmfun(T, data[1]), 
-                        T -> hmfun(T, data[2]), 
-                        xc, differentiable = true)
-
-    function prewarning(T, f)
-        if !(T isa Num) && (T < xl || T > xh)
-            @warn "Temperature out of range = $(T)K"
-        end
-        return f(T)
-    end
-
-    specificheat = verbose ? (T -> prewarning(T, cp)) : cp
-    enthalpy = verbose ? (T -> prewarning(T, hm)) : hm
-    return specificheat, enthalpy
-end
-
-function specificheatmass(species, T)
+function specificheatmass(species::IdealGasSpecies, T::f64)::f64
     return species.thermo.specificheat(T) / mass(species)
 end
 
-function enthalpymass(species, T)
+function enthalpymass(species::IdealGasSpecies, T::f64)::f64
     return species.thermo.enthalpyheat(T) / mass(species)
 end
 
-function specificheatmole(species, T)
+function specificheatmole(species::IdealGasSpecies, T::f64)::f64
     return species.thermo.specificheat(T)
 end
 
-function enthalpymole(species, T)
+function enthalpymole(species::IdealGasSpecies, T::f64)::f64
     return species.thermo.enthalpyheat(T)
 end
 
-#     function [result] = n_species(self)
-#         % Access to number of species in mechanism [-].
-#         result = numel(self.mw);
-#     endfunction
+#############################################################################
+# Public (by definitions)
+#############################################################################
 
-#     function [result] = molecular_masses(self)
-#         % Access to array of molecular masses [kg/mol].
-#         result = self.mw;
-#     endfunction
+""" Mixture mean molecular mass [kg/mol]. """
+function meanmolecularmass(M::vf64, Y::vf64)::f64
+    return  1.0 / sum(@. Y / M)
+end
 
-#     function [mw] = mean_molecular_mass_xfrac(self, X)
-#         % Mixture mean molecular mass from mole fractions [kg/mol].
-#         mw = X * self.mw';
-#     endfunction
+""" Convert mass fractions to mole fractions. """
+function massfraction2molefraction(M::vf64, Y::vf64)::vf64
+    return @. Y * meanmolecularmass(M, Y) / M
+end
 
-#     function [mw] = mean_molecular_mass_yfrac(self, Y)
-#         % Mixture mean molecular mass from mass fractions [kg/mol].
-#         mw = (sum(Y' ./ self.mw').^(-1))';
-#     endfunction
+""" Convert mole fractions to mass fractions. """
+function molefraction2massfraction(M::vf64, X::vf64)::vf64
+    return @. X * M / sum(X * M)
+end
 
-#     function [Y] = mole_to_mass_fraction(self, X)
-#         % Convert mole to mass fractions.
-#         Y = X .* self.mw ./ self.mean_molecular_mass_xfrac(X);
-#     endfunction
+#############################################################################
+# Public (IdealGasMixture)
+#############################################################################
 
-#     function [X] = mass_to_mole_fraction(self, Y)
-#         % Convert mass to mole fractions.
-#         X = ((Y .* self.mean_molecular_mass_yfrac(Y))' ./ self.mw')';
-#     endfunction
+""" Mixture mean molecular mass [kg/mol]. """
+function meanmolecularmass(mix::IdealGasMixture)::f64
+    return meanmolecularmass(mix.molecularmasses, mix.Y)
+end
 
-#     function [rho] = density_mass(self, T, P, Y)
-#         % Mixture specific mass [kg/m³].
-#         m = self.mean_molecular_mass_yfrac(Y);
-#         rho = P .* m ./ (Thermodata.GAS_CONSTANT .* T);
-#     endfunction
+""" Convert mass fractions to mole fractions. """
+function massfraction2molefraction(mix::IdealGasMixture)::vf64
+    return massfraction2molefraction(mix.molecularmasses, mix.Y)
+end
 
-#     function [cp] = specific_heat_mass(self, T, Y)
-#         % Mixture mass-averaged specific heat [J/(kg.K)].
-#         cp = 0.0;
-#         for k=1:self.n_species
-#             cp = cp + self.species{k}.cp_mole(T) .* Y(:, k) ./ self.mw(k);
-#         endfor
-#     endfunction
+""" Mixture specific mass [kg/m³]. """
+function densitymass(mix::IdealGasMixture)::f64
+    return mix.P * meanmolecularmass(mix) / (GAS_CONSTANT * mix.T)
+end
+
+""" Mixture composition in mole fractions. """
+function massfractions(mix::IdealGasMixture)::vf64
+    return mix.Y
+end
+
+""" Mixture composition in mole fractions. """
+function molefractions(mix::IdealGasMixture)::vf64
+    return massfraction2molefraction(mix)
+end
+
+""" Mixture mass-averaged specific heat [J/(kg.K)] """
+function specificheatmass(mix::IdealGasMixture)::f64
+    contrib(s, y) = specificheatmass(s, mix.T) * y
+    return sum(contrib(s, y) for (s, y) ∈ zip(mix.species, mix.Y))
+end
 
 #     function [h] = enthalpy_mass(self, T, Y)
 #         % Mixture mass-averaged enthalpy [J/kg].
@@ -201,5 +211,65 @@ end
 #         % Heat release rate [W/m³].
 #         hdot = sum((mdotk .* h)')';
 #     endfunction
+
+#############################################################################
+# Private
+#############################################################################
+
+mass(s::IdealGasSpecies) = s.molecularmass / 1000
+getnameditem(data, name) = first(filter(s -> s["name"] == name, data))
+
+function computemolecularmass(composition)
+    return sum(n * Elements.mass(s) for (s, n) in composition)
+end
+
+""" Molar specific heat from NASA7 polynomial [J/(mol.K)]. """
+function nasa7specificheat(T, c)
+    p = c[1]+T*(c[2]+T*(c[3]+T*(c[4]+c[5]*T)))
+    return GAS_CONSTANT * p
+end
+
+""" Molar enthalpy from NASA7 polynomial [J/mol]. """
+function nasa7enthapy(T, c)
+    d = c[1:5] / collect(1:5)
+    p = d[1]+T*(d[2]+T*(d[3]+T*(d[4]+d[5]*T)))+c[6]/T
+    return GAS_CONSTANT * T * p
+end
+
+""" Create specific heat and enthalpy functions for species. """
+function getthermo(model, data, xl, xc, xh, verbose)
+    cpname = string(model, "specificheat")
+    hmname = string(model, "enthapy")
+
+    cpfun = getfield(IdealGas, Symbol(cpname))
+    hmfun = getfield(IdealGas, Symbol(hmname))
+
+    cp = makestepwise1d(T -> cpfun(T, data[1]),
+                        T -> cpfun(T, data[2]),
+                        xc, differentiable = true)
+
+    hm = makestepwise1d(T -> hmfun(T, data[1]),
+                        T -> hmfun(T, data[2]),
+                        xc, differentiable = true)
+
+    function prewarning(T, f)
+        if !(T isa Num) && (T < xl || T > xh)
+            @warn "Temperature out of range = $(T)K"
+        end
+        return f(T)
+    end
+
+    specificheat = verbose ? (T -> prewarning(T, cp)) : cp
+    enthalpy = verbose ? (T -> prewarning(T, hm)) : hm
+    return specificheat, enthalpy
+end
+
+function getphase(data, name)
+    try
+        return getnameditem(data, name)
+    catch
+        return data[1]
+    end
+end
 
 end # (module IdealGas)
