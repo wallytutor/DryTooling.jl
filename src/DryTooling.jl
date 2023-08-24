@@ -7,6 +7,7 @@ include("General.jl")
 include("Elements.jl")
 include("Transport.jl")
 include("IdealGas.jl")
+include("Combustion.jl")
 include("CanteraAPI.jl")
 include("Kramers.jl")
 

@@ -140,4 +140,66 @@ function enthalpymole(species, T)
     return species.thermo.enthalpyheat(T)
 end
 
+#     function [result] = n_species(self)
+#         % Access to number of species in mechanism [-].
+#         result = numel(self.mw);
+#     endfunction
+
+#     function [result] = molecular_masses(self)
+#         % Access to array of molecular masses [kg/mol].
+#         result = self.mw;
+#     endfunction
+
+#     function [mw] = mean_molecular_mass_xfrac(self, X)
+#         % Mixture mean molecular mass from mole fractions [kg/mol].
+#         mw = X * self.mw';
+#     endfunction
+
+#     function [mw] = mean_molecular_mass_yfrac(self, Y)
+#         % Mixture mean molecular mass from mass fractions [kg/mol].
+#         mw = (sum(Y' ./ self.mw').^(-1))';
+#     endfunction
+
+#     function [Y] = mole_to_mass_fraction(self, X)
+#         % Convert mole to mass fractions.
+#         Y = X .* self.mw ./ self.mean_molecular_mass_xfrac(X);
+#     endfunction
+
+#     function [X] = mass_to_mole_fraction(self, Y)
+#         % Convert mass to mole fractions.
+#         X = ((Y .* self.mean_molecular_mass_yfrac(Y))' ./ self.mw')';
+#     endfunction
+
+#     function [rho] = density_mass(self, T, P, Y)
+#         % Mixture specific mass [kg/m³].
+#         m = self.mean_molecular_mass_yfrac(Y);
+#         rho = P .* m ./ (Thermodata.GAS_CONSTANT .* T);
+#     endfunction
+
+#     function [cp] = specific_heat_mass(self, T, Y)
+#         % Mixture mass-averaged specific heat [J/(kg.K)].
+#         cp = 0.0;
+#         for k=1:self.n_species
+#             cp = cp + self.species{k}.cp_mole(T) .* Y(:, k) ./ self.mw(k);
+#         endfor
+#     endfunction
+
+#     function [h] = enthalpy_mass(self, T, Y)
+#         % Mixture mass-averaged enthalpy [J/kg].
+#         h = sum((Y .* self.enthalpies_mass(T))')';
+#     endfunction
+
+#     function [hs] = enthalpies_mass(self, T)
+#         % Matrix of species enthalpies [J/kg].
+#         hs = [];
+#         for k=1:self.n_species
+#             hs = horzcat(hs, self.species{k}.enthalpy_mole(T) ./ self.mw(k));
+#         endfor
+#     endfunction
+
+#     function hdot = heat_release_rate(self, h, mdotk)
+#         % Heat release rate [W/m³].
+#         hdot = sum((mdotk .* h)')';
+#     endfunction
+
 end # (module IdealGas)
