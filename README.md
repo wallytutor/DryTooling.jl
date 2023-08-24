@@ -1,7 +1,7 @@
 # DryTooling
 
 A variety of models in the field of process engineering, thermochemistry, materials,
-image analysis, ..., pretty much anything that an engineer could need.
+image analysis, ...
 
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://wallytutor.github.io/DryTooling.jl/stable/)
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://wallytutor.github.io/DryTooling.jl/dev/)
