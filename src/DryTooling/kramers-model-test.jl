@@ -9,12 +9,12 @@ using Statistics
 
     # Force a very thick *analytical* bed.
     h = R * ones(size(z))
-    
+
     # Analytical *half-filled* bed area.
     Aₐ = π * R^2 / 2
 
     # Analytical *half-filled* bed volume.
-    Vₐ = Aₐ * z[end] 
+    Vₐ = Aₐ * z[end]
 
     # Create bed object.
     bed = dry.RotaryKilnBedSolution(z, h, R, Φ)
@@ -25,5 +25,5 @@ using Statistics
     @test mean(bed.η) ≈ 0.5
     @test bed.ηₘ      ≈ 50.0
     @test bed.V       ≈ Vₐ
-    @test bed.τ       ≈ Vₐ / Φ 
+    @test bed.τ       ≈ Vₐ / Φ
 end

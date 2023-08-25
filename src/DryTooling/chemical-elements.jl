@@ -15,7 +15,7 @@ struct ElementData
             h0::Float64 = 0.0,
             s0::Float64 = 0.0
         )
-        return new(symbol, name, atomicmass, h0, s0)        
+        return new(symbol, name, atomicmass, h0, s0)
     end
 end
 

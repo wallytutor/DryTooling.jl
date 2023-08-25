@@ -66,29 +66,39 @@ struct IdealGasSpecies
     end
 end
 
+""" Species specific heat in mass units [J/(kg.K)]. """
+function specificheatmass(species::IdealGasSpecies, T)
+    return species.thermo.specificheat(T) / mass(species)
+end
+
+""" Species specific heat in mole units [J/(mol.K)]. """
+function specificheatmole(species::IdealGasSpecies, T)
+    return species.thermo.specificheat(T)
+end
+
+""" Species enthalpy in mass units [J/kg]. """
+function enthalpymass(species::IdealGasSpecies, T)
+    return species.thermo.enthalpy(T) / mass(species)
+end
+
+""" Species enthalpy in mole units [J/mol]. """
+function enthalpymole(species::IdealGasSpecies, T)
+    return species.thermo.enthalpy(T)
+end
+
 """ Ideal gas phase mixture model. """
 struct IdealGasMixture
     species::Vector{IdealGasSpecies}
+    molecularmasses::Vector{Float64}
     nspecies::Int32
 
-    T::Num
-    P::Num
-    Y::Vector{Num}
-
-    molecularmasses::Vector{Float64}
-
-    function IdealGasMixture(data, selected; phasename = "gas")
+    function IdealGasMixture(
+            data::Dict{Any, Any},
+            selected::Vector{String}
+        )
         nspecies = length(selected)
         species = Vector{IdealGasSpecies}(undef, nspecies)
         molecularmasses = zeros(nspecies)
-        Y = zeros(nspecies)
-
-        phase = getphase(data["phases"], phasename)
-
-        if haskey(phase, "state")
-            T = getkey(phase, "T", 300.0)
-            P = getkey(phase, "P", ONE_ATM)
-        end
 
         for (i, name) in enumerate(selected)
             thisone = getnameditem(data["species"], name)
@@ -96,65 +106,45 @@ struct IdealGasMixture
             molecularmasses[i] = mass(species[i])
         end
 
-        return new(species, nspecies, T, P, Y, molecularmasses)
+        return new(species, molecularmasses, nspecies)
     end
 end
 
-function specificheatmass(species::IdealGasSpecies, T)
-    return species.thermo.specificheat(T) / mass(species)
-end
+mutable struct IdealGasSolution
+    mix::IdealGasMixture
+    T::Num
+    P::Num
+    Y::AbstractArray
 
-function specificheatmole(species::IdealGasSpecies, T)
-    return species.thermo.specificheat(T)
-end
-
-function enthalpymass(species::IdealGasSpecies, T)
-    return species.thermo.enthalpy(T) / mass(species)
-end
-
-function enthalpymole(species::IdealGasSpecies, T)
-    return species.thermo.enthalpy(T)
+    function IdealGasSolution(mix::IdealGasMixture)
+        new(mix, 300.0, ONE_ATM, zeros(mix.nspecies))
+    end
 end
 
 """ Mixture mean molecular mass [kg/mol]. """
-function meanmolecularmass(M::Vector{Float64}, Y)
-    return  1.0 / sum(@. Y / M)
-end
-
-""" Convert mass fractions to mole fractions. """
-function massfraction2molefraction(M::Vector{Float64}, Y)
-    return meanmolecularmass(M, Y) * @. Y / M
-end
-
-""" Convert mole fractions to mass fractions. """
-function molefraction2massfraction(M::Vector{Float64}, X)
-    return (@. X * M) / sum(@. X * M)
-end
-
-""" Mixture mean molecular mass [kg/mol]. """
-function meanmolecularmass(mix::IdealGasMixture)
-    return meanmolecularmass(mix.molecularmasses, mix.Y)
+function meanmolecularmass(gas::IdealGasSolution)
+    return meanmolecularmass(gas.mix.molecularmasses, gas.Y)
 end
 
 """ Mixture specific mass [kg/m³]. """
-function densitymass(mix::IdealGasMixture)
-    return mix.P * meanmolecularmass(mix) / (GAS_CONSTANT * mix.T)
+function densitymass(gas::IdealGasSolution)
+    return gas.P * meanmolecularmass(gas) / (GAS_CONSTANT * gas.T)
 end
 
 """ Mixture composition in mole fractions. """
-function massfractions(mix::IdealGasMixture)
-    return mix.Y
+function massfractions(gas::IdealGasSolution)
+    return gas.Y
 end
 
 """ Mixture composition in mole fractions. """
-function molefractions(mix::IdealGasMixture)
-    return massfraction2molefraction(mix.molecularmasses, mix.Y)
+function molefractions(gas::IdealGasSolution)
+    return massfraction2molefraction(gas.mix.molecularmasses, gas.Y)
 end
 
 """ Mixture mass-averaged specific heat [J/(kg.K)]. """
-function specificheatmass(mix::IdealGasMixture)
-    contrib(s, y) = specificheatmass(s, mix.T) * y
-    return sum(contrib(s, y) for (s, y) ∈ zip(mix.species, mix.Y))
+function specificheatmass(gas::IdealGasSolution)
+    contrib(s, y) = specificheatmass(s, gas.T) * y
+    return sum(contrib(s, y) for (s, y) ∈ zip(gas.mix.species, gas.Y))
 end
 
 #         % Mixture mass-averaged enthalpy [J/kg].
@@ -224,14 +214,6 @@ function getthermo(model, data, xl, xc, xh, verbose)
     specificheat = verbose ? (T -> prewarning(T, cp)) : cp
     enthalpy = verbose ? (T -> prewarning(T, hm)) : hm
     return specificheat, enthalpy
-end
-
-function getphase(data, name)
-    try
-        return getnameditem(data, name)
-    catch
-        return data[1]
-    end
 end
 
 #         function [wdot] = wdot_mak(self, z, T, Y, L)
