@@ -110,41 +110,25 @@ struct IdealGasMixture
     end
 end
 
-mutable struct IdealGasSolution
-    mix::IdealGasMixture
-    T::Num
-    P::Num
-    Y::AbstractArray
-
-    function IdealGasSolution(mix::IdealGasMixture)
-        new(mix, 300.0, ONE_ATM, zeros(mix.nspecies))
-    end
-end
-
 """ Mixture mean molecular mass [kg/mol]. """
-function meanmolecularmass(gas::IdealGasSolution)
-    return meanmolecularmass(gas.mix.molecularmasses, gas.Y)
+function meanmolecularmass(mix::IdealGasMixture, Y)
+    return meanmolecularmass(mix.molecularmasses, Y)
 end
 
 """ Mixture specific mass [kg/m³]. """
-function densitymass(gas::IdealGasSolution)
-    return gas.P * meanmolecularmass(gas) / (GAS_CONSTANT * gas.T)
+function densitymass(mix::IdealGasMixture, T, P, Y)
+    return P * meanmolecularmass(mix, Y) / (GAS_CONSTANT * T)
 end
 
-""" Mixture composition in mole fractions. """
-function massfractions(gas::IdealGasSolution)
-    return gas.Y
-end
-
-""" Mixture composition in mole fractions. """
-function molefractions(gas::IdealGasSolution)
-    return massfraction2molefraction(gas.mix.molecularmasses, gas.Y)
+""" Mixture concentration [mol/m³]. """
+function concentration(mix::IdealGasMixture, T, P, Y)
+    return densitymass(mix, T, P, Y) * (@. Y / mix.molecularmasses)
 end
 
 """ Mixture mass-averaged specific heat [J/(kg.K)]. """
-function specificheatmass(gas::IdealGasSolution)
-    contrib(s, y) = specificheatmass(s, gas.T) * y
-    return sum(contrib(s, y) for (s, y) ∈ zip(gas.mix.species, gas.Y))
+function specificheatmass(mix::IdealGasMixture, T, Y)
+    contrib(s, y) = specificheatmass(s, T) * y
+    return sum(contrib(s, y) for (s, y) ∈ zip(mix.species, Y))
 end
 
 #         % Mixture mass-averaged enthalpy [J/kg].
@@ -164,6 +148,27 @@ end
 #     function hdot = heat_release_rate(self, h, mdotk)
 #         hdot = sum((mdotk .* h)')';
 #     endfunction
+
+# mutable struct IdealGasSolution
+#     mix::IdealGasMixture
+#     T::Num
+#     P::Num
+#     Y::AbstractArray
+
+#     function IdealGasSolution(mix::IdealGasMixture)
+#         new(mix, 300.0, ONE_ATM, zeros(mix.nspecies))
+#     end
+# end
+
+# """ Mixture composition in mole fractions. """
+# function massfractions(gas::IdealGasSolution)
+#     return gas.Y
+# end
+
+# """ Mixture composition in mole fractions. """
+# function molefractions(gas::IdealGasSolution)
+#     return massfraction2molefraction(gas.mix.molecularmasses, gas.Y)
+# end
 
 #############################################################################
 # Private
