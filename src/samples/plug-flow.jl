@@ -48,15 +48,15 @@ RT = dry.GAS_CONSTANT * T
 
 # Reaction rates in molar units.
 r = [
-    4.4e+03 * exp(-1.0300e+05 / RT) * X[1] * X[2]^0.36
-    3.8e+07 * exp(-2.0000e+05 / RT) * X[3]^0.50
-    1.4e+05 * exp(-1.5000e+05 / RT) * X[1]^0.35 * X[2]^0.22
-    8.6e+06 * exp(-1.9500e+05 / RT) * X[4]^0.21
-    5.5e+06 * exp(-1.6500e+05 / RT) * X[1]^1.90 / (1.0 + 18.0*X[2])
-    1.2e+05 * exp(-1.2070e+05 / RT) * X[1]^1.60
-    1.0e+15 * exp(-3.3520e+05 / RT) * X[5]^0.75
-    1.8e+03 * exp(-6.4500e+04 / RT) * X[1]^1.30 * X[5]^0.60
-    1.0e+03 * exp(-7.5000e+04 / RT) * X[6]^0.75 / (1.0 + 22.0*X[2])
+    4.4e+03 * exp(-1.0300e+05 / RT) * abs(X[1]) * abs(X[2])^0.36
+    3.8e+07 * exp(-2.0000e+05 / RT) * abs(X[3])^0.50
+    1.4e+05 * exp(-1.5000e+05 / RT) * abs(X[1])^0.35 * abs(X[2])^0.22
+    8.6e+06 * exp(-1.9500e+05 / RT) * abs(X[4])^0.21
+    5.5e+06 * exp(-1.6500e+05 / RT) * abs(X[1])^1.90 / (1.0 + 18.0*X[2])
+    1.2e+05 * exp(-1.2070e+05 / RT) * abs(X[1])^1.60
+    1.0e+15 * exp(-3.3520e+05 / RT) * abs(X[5])^0.75
+    1.8e+03 * exp(-6.4500e+04 / RT) * abs(X[1])^1.30 * X[5]^0.60
+    1.0e+03 * exp(-7.5000e+04 / RT) * abs(X[6])^0.75 / (1.0 + 22.0*X[2])
 ]
 
 # Reactions coefficients.
@@ -86,13 +86,24 @@ eqs = [scalarize(D.(Y) .~ RHS)..., scalarize(RHS .~ rhs)...]
 
 system = structural_simplify(model)
 
-Yz = 1.0e-08 * ones(mix.nspecies)
-Yz[1] = 0.01
-Yz[end] = 1 - sum(Yz[1:end-1])
+y1 = 0.35
+Y0 = zeros(mix.nspecies)
+Y0[1] = 0.980 * y1
+Y0[4] = 0.002 * y1
+Y0[end] = 1 - sum(Y0[1:end-1])
 
-p = [ṁ => 1.0e-08, P => dry.ONE_ATM, T => 1173.15]
-prob = ODEProblem(system, Yz, (0.0, 0.001L), p)
-# sol = solve(prob; reltol=1.0e-03, abstol=1.0e-08)
+p = [ṁ => 1.0e-05, P => 5000.0, T => 1173.15]
+prob = ODEProblem(system, Y0, (0.0, L), p)
+sol = solve(prob; reltol=1.0e-03, abstol=1.0e-08)
 # plot(sol[RHS])
 
+molefractions(Y) = dry.massfraction2molefraction(W, Y)
+density(Y) = dry.densitymass(mix, p[3].second, p[2].second, Y)
+
+X = [molefractions(y) for y in sol.u]
+ρ = [density(y) for y in sol.u]
+u = (p[1].second / (ρ * A[1]))'
+
+x1 = [x[2] for x in X]
+plot(sol.t, x1)
 # dry.massfraction2molefraction(W, sol.u[2])
