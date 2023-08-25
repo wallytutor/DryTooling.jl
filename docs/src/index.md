@@ -20,5 +20,13 @@ See [`CITATION.bib`](CITATION.bib) for the relevant reference(s).
 CurrentModule = DryTooling
 ```
 
+## Table of contents
+
 ```@index
+```
+
+```@autodocs
+Modules = [
+    DryTooling
+]
 ```

@@ -5,7 +5,7 @@ using Test
 @testset "DryTooling.jl" begin
     for (root, dirs, files) in walkdir("../src/")
         for file in files
-            if endswith(file, "Test.jl")
+            if endswith(lowercase(file), "test.jl")
                 include(joinpath(root, file));
             end
         end

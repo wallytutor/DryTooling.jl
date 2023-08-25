@@ -1,29 +1,20 @@
 # -*- coding: utf-8 -*-
-module Kramers
-
-using ModelingToolkit
-using Plots
-using Printf
-
-using DocStringExtensions: TYPEDFIELDS
-using DifferentialEquations: ODEProblem
-using DifferentialEquations: Tsit5
-using DifferentialEquations: solve
-using Trapz: trapz
-
 export SymbolicLinearKramersModel
 export RotaryKilnBedSolution
 export solvelinearkramersmodel
 export plotlinearkramersmodel
 
-#############################################################################
-# SymbolicLinearKramersModel
-#############################################################################
-
 """
     SymbolicLinearKramersModel
 
 Creates a reusable linear Kramers model for rotary kiln simulation.
+
+Implements the ordinary differential equation for prediction of bed
+height profile in a rotary kiln as proposed by Kramers and Croockewite
+(1952) [^1]. Its goal is to be used as a process support tool or to
+integrate more complex models requiring integration of the bed profile.
+        
+[^1]: [Kramers et al., 1952](https://doi.org/10.1016/0009-2509(52)87019-8)
 
 $(TYPEDFIELDS)
 """
@@ -51,39 +42,31 @@ struct SymbolicLinearKramersModel
 
     "Problem ordinary differential equation"
     sys::ODESystem
+
+    """ Symbolic model constructor. """
+    function SymbolicLinearKramersModel()
+        # Declare symbols and unknowns.
+        @parameters z
+        @parameters R Φ ω β γ
+        @variables h(z)
+
+        # Declare a derivative.
+        Dz = Differential(z)
+
+        # Compose problem right-hand side.
+        C = (3//4) * tan(γ) * Φ / (π * R^3 * ω)
+        f = C * ((h / R) * (2 - h / R))^(-3//2)
+
+        # *Stack* equation.
+        eqs = Dz(h) ~ f - tan(β) / cos(γ)
+
+        # Assembly system for solution.
+        @named sys = ODESystem(eqs)
+        sys = structural_simplify(sys)
+
+        return new(R, Φ, ω, β, γ, z, h, sys)
+    end
 end
-
-"""
-    SymbolicLinearKramersModel()
-
-Symbolic model constructor.
-"""
-function SymbolicLinearKramersModel()
-    # Declare symbols and unknowns.
-    @parameters z
-    @parameters R Φ ω β γ
-    @variables h(z)
-
-    # Declare a derivative.
-    Dz = Differential(z)
-
-    # Compose problem right-hand side.
-    C = (3//4) * tan(γ) * Φ / (π * R^3 * ω)
-    f = C * ((h / R) * (2 - h / R))^(-3//2)
-
-    # *Stack* equation.
-    eqs = Dz(h) ~ f - tan(β) / cos(γ)
-
-    # Assembly system for solution.
-    @named sys = ODESystem(eqs)
-    sys = structural_simplify(sys)
-
-    return SymbolicLinearKramersModel(R, Φ, ω, β, γ, z, h, sys)
-end
-
-#############################################################################
-# RotaryKilnBedSolution
-#############################################################################
 
 """
     RotaryKilnBedSolution
@@ -92,6 +75,22 @@ Description of a rotary kiln bed geometry computed from the solution
 of bed height along the kiln length. The main goal of the quantities
 computed here is their use with heat and mass transfer models for the
 simulation of rotary kiln process.
+
+Internal elements are initialized through the following constructor:
+
+    RotaryKilnBedSolution(
+        z::Vector{Float64},
+        h::Vector{Float64},
+        R::Float64,
+        Φ::Float64
+    )
+
+Where parameters are given as:
+
+    - `z`: solution coordinates over length, [m].
+    - `h`: bed profile solution over length, [m].
+    - `R`: kiln internal radius, [m].
+    - `Φ`: kiln feed rate, [m³/s].
 
 $(TYPEDFIELDS)
 """
@@ -122,44 +121,27 @@ struct RotaryKilnBedSolution
 
     "Residence time of particles"
     τ::Float64
+
+    function RotaryKilnBedSolution(z, h, R, Φ)
+        L = z[end]
+        θ = @. 2acos(1 - h / R)
+        l = @. 2R * sin(θ / 2)
+        A = @. (θ * R^2 - l * (R - h)) / 2
+        η = @. (θ - sin(θ)) / 2π
+        ηₘ = 100trapz(z, η) / L
+
+        # Integrate mid-point volume approximation.
+        Aₘ = (1//2) * (A[1:end-1] + A[2:end])
+        δz = z[2:end] - z[1:end-1]
+        V = sum(@. Aₘ * δz)
+
+        # Residence time is bed volume divided by flow rate.
+        τ = V  / Φ
+
+        # Construct solution object.
+        return new(z, h, θ, l, A, η, ηₘ, V, τ)
+    end
 end
-
-"""
-    RotaryKilnBedSolution(
-        z::Vector{Float64},
-        h::Vector{Float64},
-        R::Float64,
-        Φ::Float64
-    )
-
-- `z`: solution coordinates over length, [m].
-- `h`: bed profile solution over length, [m].
-- `R`: kiln internal radius, [m].
-- `Φ`: kiln feed rate, [m³/s].
-"""
-function RotaryKilnBedSolution(z, h, R, Φ)
-    L = z[end]
-    θ = @. 2acos(1 - h / R)
-    l = @. 2R * sin(θ / 2)
-    A = @. (θ * R^2 - l * (R - h)) / 2
-    η = @. (θ - sin(θ)) / 2π
-    ηₘ = 100trapz(z, η) / L
-
-    # Integrate mid-point volume approximation.
-    Aₘ = (1//2) * (A[1:end-1] + A[2:end])
-    δz = z[2:end] - z[1:end-1]
-    V = sum(@. Aₘ * δz)
-
-    # Residence time is bed volume divided by flow rate.
-    τ = V  / Φ
-
-    # Construct solution object.
-    return RotaryKilnBedSolution(z, h, θ, l, A, η, ηₘ, V, τ)
-end
-
-#############################################################################
-# Functions
-#############################################################################
 
 """
     solvelinearkramersmodel(;
@@ -178,7 +160,7 @@ end
 
 Integrates an instance of `SymbolicLinearKramersModel`.
 
-**Important:** inputs must be provided in international system (SI) units 
+**Important:** inputs must be provided in international system (SI) units
 as a better physical practice. The only exception is the rotation rate `ω`
 provided in revolution multiples. If the discharge end is held by a dam,
 its height must be provided instead of the particle size, as it is used
@@ -267,5 +249,3 @@ function plotlinearkramersmodel(
 
     return p
 end
-
-end # (module Kramers)

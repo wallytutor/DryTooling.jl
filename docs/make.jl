@@ -15,11 +15,8 @@ makedocs(;
         assets=String[],
     ),
     pages=[
-        "Home"      => "index.md",
-        "General"   => "DocsGeneral.md",
-        "IdealGas"  => "DocsIdealGas.md",
-        "Transport" => "DocsTransport.md",
-        "Kramers"   => "DocsKramers.md",
+        "Home" => "index.md",
+        "Cantera API" => "DocsCanteraAPI.md"
     ],
 )
 
