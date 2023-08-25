@@ -1,12 +1,9 @@
 # -*- coding: utf-8 -*-
-# module PlugFlow
-
+import DryTooling as dry
 using ModelingToolkit
 using Plots
 using YAML
 
-# include("DryTooling.jl")
-import DryTooling as dry
 
 function loaddatabase(fpath)
     return YAML.load_file(realpath(fpath))
@@ -60,89 +57,3 @@ dry.densitymass(gas)
 sum(dry.massfractions(gas)) ≈ 1.0
 sum(dry.molefractions(gas)) ≈ 1.0
 dry.specificheatmass(gas)
-
-# end # (module PlugFlow)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

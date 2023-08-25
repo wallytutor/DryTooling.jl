@@ -71,9 +71,9 @@ struct IdealGasMixture
     species::Vector{IdealGasSpecies}
     nspecies::Int32
 
-    T::Float64
-    P::Float64
-    Y::Vector{Float64}
+    T::Num
+    P::Num
+    Y::Vector{Num}
 
     molecularmasses::Vector{Float64}
 
