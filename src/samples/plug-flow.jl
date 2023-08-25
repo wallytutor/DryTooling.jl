@@ -10,7 +10,7 @@ loaddatabase(fpath) = YAML.load_file(realpath(fpath))
 data = loaddatabase(joinpath(pwd(), "src/samples/plug-flow.yaml"))
 
 # Create gas phase only once.
-selected = ["C2H2", "H2", "C2H4", "CH4", "C4H4", "C6H6", "N2"]
+selected = ["C2H2", "H2", "C2H4", "CH4", "C4H4", "C6H6", "Cs", "N2"]
 mix = dry.IdealGasMixture(data, selected)
 
 # Radius of reactor [m].
@@ -34,12 +34,9 @@ A = (π * R^2) * ones(length(zn))
 # Interpolated area at cell centers.
 Ac = (1/2)*(A[1:end-1] + A[2:end])
 
-
-# function pfrfactory()
 # Create symbolics.
 pars = @parameters T P ṁ
-@variables z (Y(z))[1:mix.nspecies]
-#(RHS(z))[1:mix.nspecies]
+@variables z (Y(z))[1:mix.nspecies] (RHS(z))[1:mix.nspecies]
 
 # Create differential.
 D = Differential(z)
@@ -55,49 +52,47 @@ r = [
     3.8e+07 * exp(-2.0000e+05 / RT) * X[3]^0.50
     1.4e+05 * exp(-1.5000e+05 / RT) * X[1]^0.35 * X[2]^0.22
     8.6e+06 * exp(-1.9500e+05 / RT) * X[4]^0.21
+    5.5e+06 * exp(-1.6500e+05 / RT) * X[1]^1.90 / (1.0 + 18.0*X[2])
     1.2e+05 * exp(-1.2070e+05 / RT) * X[1]^1.60
     1.0e+15 * exp(-3.3520e+05 / RT) * X[5]^0.75
     1.8e+03 * exp(-6.4500e+04 / RT) * X[1]^1.30 * X[5]^0.60
+    1.0e+03 * exp(-7.5000e+04 / RT) * X[6]^0.75 / (1.0 + 22.0*X[2])
 ]
 
 # Reactions coefficients.
 ν = [
-    -1   1  -1   1  -2   2  -1
-    -1   1  -3   3   0   0   0
-     1  -1   0   0   0   0   0
-     0   0   2  -2   0   0   0
-     0   0   0   0   1  -1  -1
-     0   0   0   0   0   0   1
-     0   0   0   0   0   0   0
+    -1  1 -1  1 -1 -2  2 -1  0
+    -1  1 -3  3  1  0  0  0  3
+     1 -1  0  0  0  0  0  0  0
+     0  0  2 -2  0  0  0  0  0
+     0  0  0  0  0  1 -1 -1  0
+     0  0  0  0  0  0  0  1 -1
+     0  0  0  0  2  0  0  0  6
+     0  0  0  0  0  0  0  0  0
 ]
 
 # Species production rates.
 ω = scalarize(ν * r)
 
-# Product ρu is constant in this case.
-# TODO: generalize to A(z).
+# # Product ρu is constant in this case.
+# # TODO: generalize to A(z).
 ρu = ṁ / A[1]
+scaler = @. W / ρu
 
-rhs = @. ω * W / ρu
-eqs = scalarize(D.(Y) .~ rhs)
+rhs = @. ω * scaler
+eqs = [scalarize(D.(Y) .~ RHS)..., scalarize(RHS .~ rhs)...]
 
-    # return eqs
-# end
+@named model = ODESystem(eqs, z, [Y..., RHS...], pars)
 
-# eqs = pfrfactory()
-@named model = ODESystem(eqs, z, [Y...], pars)
+system = structural_simplify(model)
 
-Yz = zeros(mix.nspecies)
-Yz[1] = 0.35
-Yz[7] = 0.65
+Yz = 1.0e-08 * ones(mix.nspecies)
+Yz[1] = 0.01
+Yz[end] = 1 - sum(Yz[1:end-1])
 
-p = [ṁ => 1.0e-05, P => dry.ONE_ATM, T => 1073.15]
-prob = ODEProblem(model, Yz, (0.0, 0.5), p)
-sol = solve(prob)
-plot(sol)
+p = [ṁ => 1.0e-08, P => dry.ONE_ATM, T => 1173.15]
+prob = ODEProblem(system, Yz, (0.0, 0.001L), p)
+# sol = solve(prob; reltol=1.0e-03, abstol=1.0e-08)
+# plot(sol[RHS])
 
-# @variables z (A(z))[1:2] (RHS(z)
-
-# D = Differential(z)
-
-# eq1 = 
+# dry.massfraction2molefraction(W, sol.u[2])
