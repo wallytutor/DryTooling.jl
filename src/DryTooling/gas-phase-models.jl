@@ -1,26 +1,5 @@
 # -*- coding: utf-8 -*-
 
-# export AbstractTransportModel
-# export AbstractGasThermo
-# export LennardJonesTransport
-# export IdealGasThermo
-# export IdealGasSpecies
-# export IdealGasMixture
-# export specificheatmass
-# export specificheatmole
-# export enthalpymass
-# export enthalpymole
-# export meanmolecularmass
-# export massfraction2molefraction
-# export molefraction2massfraction
-# export densitymass
-# export massfractions
-# export molefractions
-
-# TODO make this work with Num instead!
-f64 = Float64
-vf64 = Vector{f64}
-
 """ Base type for transport models. """
 abstract type AbstractTransportModel end
 
@@ -52,8 +31,8 @@ end
 """ Ideal gas phase thermodynamics model. """
 struct IdealGasThermo <: AbstractGasThermo
     model::String
-    temperature_ranges::vf64
-    data::Vector{vf64}
+    temperature_ranges::Vector{Float64}
+    data::Vector{Vector{Float64}}
     specificheat::Function
     enthalpy::Function
 
@@ -72,7 +51,7 @@ struct IdealGasSpecies
     composition::Dict{String, Int64}
     transport::AbstractTransportModel
     thermo::IdealGasThermo
-    molecularmass::f64
+    molecularmass::Float64
 
     function IdealGasSpecies(species; verbose = true)
         composition = species["composition"]
@@ -92,11 +71,11 @@ struct IdealGasMixture
     species::Vector{IdealGasSpecies}
     nspecies::Int32
 
-    T::f64
-    P::f64
-    Y::vf64
+    T::Float64
+    P::Float64
+    Y::Vector{Float64}
 
-    molecularmasses::vf64
+    molecularmasses::Vector{Float64}
 
     function IdealGasMixture(data, selected; phasename = "gas")
         nspecies = length(selected)
@@ -112,7 +91,8 @@ struct IdealGasMixture
         end
 
         for (i, name) in enumerate(selected)
-            species[i] = IdealGasSpecies(data["species"], name)
+            thisone = getnameditem(data["species"], name)
+            species[i] = IdealGasSpecies(thisone)
             molecularmasses[i] = mass(species[i])
         end
 
@@ -120,91 +100,78 @@ struct IdealGasMixture
     end
 end
 
-""" Queries database and constructs species from its name. """
-function IdealGasSpecies(
-        speciesdata::Vector{Dict{Any, Any}},
-        name::String
-    )::IdealGasSpecies
-    return IdealGasSpecies(getnameditem(speciesdata, name))
-end
-
-function specificheatmass(species::IdealGasSpecies, T::f64)::f64
+function specificheatmass(species::IdealGasSpecies, T)
     return species.thermo.specificheat(T) / mass(species)
 end
 
-function enthalpymass(species::IdealGasSpecies, T::f64)::f64
-    return species.thermo.enthalpyheat(T) / mass(species)
-end
-
-function specificheatmole(species::IdealGasSpecies, T::f64)::f64
+function specificheatmole(species::IdealGasSpecies, T)
     return species.thermo.specificheat(T)
 end
 
-function enthalpymole(species::IdealGasSpecies, T::f64)::f64
-    return species.thermo.enthalpyheat(T)
+function enthalpymass(species::IdealGasSpecies, T)
+    return species.thermo.enthalpy(T) / mass(species)
+end
+
+function enthalpymole(species::IdealGasSpecies, T)
+    return species.thermo.enthalpy(T)
 end
 
 """ Mixture mean molecular mass [kg/mol]. """
-function meanmolecularmass(M::vf64, Y::vf64)::f64
+function meanmolecularmass(M::Vector{Float64}, Y)
     return  1.0 / sum(@. Y / M)
 end
 
 """ Convert mass fractions to mole fractions. """
-function massfraction2molefraction(M::vf64, Y::vf64)::vf64
-    return @. Y * meanmolecularmass(M, Y) / M
+function massfraction2molefraction(M::Vector{Float64}, Y)
+    return meanmolecularmass(M, Y) * @. Y / M
 end
 
 """ Convert mole fractions to mass fractions. """
-function molefraction2massfraction(M::vf64, X::vf64)::vf64
-    return @. X * M / sum(X * M)
+function molefraction2massfraction(M::Vector{Float64}, X)
+    return (@. X * M) / sum(@. X * M)
 end
 
 """ Mixture mean molecular mass [kg/mol]. """
-function meanmolecularmass(mix::IdealGasMixture)::f64
+function meanmolecularmass(mix::IdealGasMixture)
     return meanmolecularmass(mix.molecularmasses, mix.Y)
 end
 
-""" Convert mass fractions to mole fractions. """
-function massfraction2molefraction(mix::IdealGasMixture)::vf64
-    return massfraction2molefraction(mix.molecularmasses, mix.Y)
-end
-
 """ Mixture specific mass [kg/m³]. """
-function densitymass(mix::IdealGasMixture)::f64
+function densitymass(mix::IdealGasMixture)
     return mix.P * meanmolecularmass(mix) / (GAS_CONSTANT * mix.T)
 end
 
 """ Mixture composition in mole fractions. """
-function massfractions(mix::IdealGasMixture)::vf64
+function massfractions(mix::IdealGasMixture)
     return mix.Y
 end
 
 """ Mixture composition in mole fractions. """
-function molefractions(mix::IdealGasMixture)::vf64
-    return massfraction2molefraction(mix)
+function molefractions(mix::IdealGasMixture)
+    return massfraction2molefraction(mix.molecularmasses, mix.Y)
 end
 
-""" Mixture mass-averaged specific heat [J/(kg.K)] """
-function specificheatmass(mix::IdealGasMixture)::f64
+""" Mixture mass-averaged specific heat [J/(kg.K)]. """
+function specificheatmass(mix::IdealGasMixture)
     contrib(s, y) = specificheatmass(s, mix.T) * y
     return sum(contrib(s, y) for (s, y) ∈ zip(mix.species, mix.Y))
 end
 
-#     function [h] = enthalpy_mass(self, T, Y)
 #         % Mixture mass-averaged enthalpy [J/kg].
+#     function [h] = enthalpy_mass(self, T, Y)
 #         h = sum((Y .* self.enthalpies_mass(T))')';
 #     endfunction
 
-#     function [hs] = enthalpies_mass(self, T)
 #         % Matrix of species enthalpies [J/kg].
+#     function [hs] = enthalpies_mass(self, T)
 #         hs = [];
 #         for k=1:self.n_species
 #             hs = horzcat(hs, self.species{k}.enthalpy_mole(T) ./ self.mw(k));
 #         endfor
 #     endfunction
 
-#     function hdot = heat_release_rate(self, h, mdotk)
 #         % Heat release rate [W/m³].
+#     function hdot = heat_release_rate(self, h, mdotk)
 #         hdot = sum((mdotk .* h)')';
 #     endfunction
 

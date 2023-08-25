@@ -4,6 +4,7 @@ module DryTooling
 using ModelingToolkit
 using Plots
 using Printf
+using YAML
 
 using DocStringExtensions: TYPEDFIELDS
 using DifferentialEquations: ODEProblem, Tsit5
