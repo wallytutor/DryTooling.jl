@@ -83,7 +83,7 @@ struct IdealGasSpecies
             composition,
             model(species["transport"]),
             IdealGasThermo(species["thermo"], verbose = verbose),
-            computemolecularmass(composition))
+            sum(n * elementmass(s) for (s, n) in composition))
     end
 end
 
@@ -212,25 +212,11 @@ end
 # Private
 #############################################################################
 
-""" Retrieve an element by name. """
-element(s::String) = getfield(DryTooling, Symbol(s))
-
-""" Retrieve atomic mass of element from atomic symbol [g/mol]. """
-elementmass(s::String) = mass(element(s))
-
-""" Retrieve atomic mass of element [g/mol]. """
-mass(e::ElementData) = e.atomicmass
-
 """ Retrieve atomic mass of species [kg/mol]. """
 mass(s::IdealGasSpecies) = s.molecularmass / 1000
 
 """ Query first item matching name in dictionary. """
 getnameditem(data, name) = first(filter(s -> s["name"] == name, data))
-
-""" Compute molecular mass from atomic dictionary [g/mol]. """
-function computemolecularmass(composition)
-    return sum(n * elementmass(s) for (s, n) in composition)
-end
 
 """ Molar specific heat from NASA7 polynomial [J/(mol.K)]. """
 function nasa7specificheat(T, c)
