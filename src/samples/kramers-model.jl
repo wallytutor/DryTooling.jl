@@ -53,7 +53,7 @@ md"""
 Play with the sliders below to understand process parameters.
 
 |                    |                                                             |
-| -----------------: | ----------------------------------------------------------- |
+| -----------------: | :---------------------------------------------------------- |
 | Length [m]         | $(@bind L Slider(5.0:0.5:50.0, default=Lᵣ, show_value=true))
 | Diameter [m]       | $(@bind D Slider(0.2:0.05:5.0, default=Dᵣ, show_value=true))
 | Slope [°]          | $(@bind β Slider(0.0:0.05:5.0, default=βᵣ, show_value=true))
