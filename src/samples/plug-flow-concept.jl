@@ -93,18 +93,19 @@ solution = FvmThermalModelAllConstant(space, R, ρ, u, cₚ, ĥ, Tₚ, Tₛ)
 
 h(T) = cₚ * T
 find_temperature(Tₖ, hₖ) = find_zero(T->h(T)-hₖ, Tₖ)
+underrelax(aold, anew, α) = (1 - α) * anew + α * aold
 
 Aᵥ = π * R^2
 Aₛ = 2 * π * R * space.δ
 ṁ = ρ * u * Aᵥ
 
-M = spdiagm(0 => ones(N), -1 => -ones(N-1))
-C = ĥ * Aₛ / ṁ
 α = 0.8
+M = spdiagm(0 => ones(N), -1 => -ones(N-1))
+C₁ = ĥ * Aₛ / ṁ
 
 # Random initialization of expected solution.
 # Force boundary condition (fix this later with computed value!)
-T_old = Tₛ * rand(0.99:0.001:1.01, N)
+T_old = Tₛ * ones(N+1)
 T_old[1] = Tₚ
 
 atol = 1.0e-08
@@ -112,14 +113,18 @@ maxiter = 100
 
 niter = 0
 residuals = []
+T_new = similar(T_old)
 
 while niter < maxiter
-    x = C₁ * (Tₛ .- T_old)
-    x[1] = h(Tₚ)
+    T_mid = (T_old[1:end-1] + T_old[2:end])/2
+    x = C₁ * (Tₛ .- T_mid)
 
-    T_new = broadcast(find_temperature, T_old, M \ x)
-    T_old = (1 - α) .* T_new + α * T_old
-    
+    # Apply boundary condition (h1 = C*(Ts - T*) + h0).
+    x[1] += h(Tₚ)
+
+    T_new[2:end] = broadcast(find_temperature, T_old[2:end], M \ x)
+    T_old[2:end] = underrelax(T_old[2:end], T_new[2:end], α)
+
     residual = sum(abs2.(T_old - T_new))
     push!(residuals, residual)
 
@@ -132,4 +137,4 @@ end
 
 p = plot()
 plot!(space.zc, solution.T)
-plot!(space.zc, T_old)
+plot!(space.zc, T_old[2:end])
