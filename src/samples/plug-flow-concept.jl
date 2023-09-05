@@ -70,7 +70,7 @@ struct FvmThermalModelAllConstant
     end
 end
 
-N = 1000
+N = 100
 L = 10.0
 
 Tₚ = 300.0
@@ -115,6 +115,9 @@ niter = 0
 residuals = []
 T_new = similar(T_old)
 
+# XXX: otherwise it always have a huge residual.
+T_new[1] = Tₚ
+
 while niter < maxiter
     T_mid = (T_old[1:end-1] + T_old[2:end])/2
     x = C₁ * (Tₛ .- T_mid)
@@ -125,10 +128,10 @@ while niter < maxiter
     T_new[2:end] = broadcast(find_temperature, T_old[2:end], M \ x)
     T_old[2:end] = underrelax(T_old[2:end], T_new[2:end], α)
 
-    residual = sum(abs2.(T_old - T_new))
-    push!(residuals, residual)
+    ε = maximum(abs2.(T_old - T_new))
+    push!(residuals, ε)
 
-    if residual <= atol
+    if ε <= atol
         break
     end
 
