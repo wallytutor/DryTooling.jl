@@ -40,7 +40,7 @@ struct FvmThermalModelAllConstant
             ρ::Float64,
             u::Float64,
             cₚ::Float64,
-            h::Float64,
+            ĥ::Float64,
             Tₚ::Float64,
             Tₛ::Float64
         )
@@ -48,7 +48,7 @@ struct FvmThermalModelAllConstant
         Aₛ = 2 * π * R * space.δ
         
         a₁ = ρ * u * Aᵥ * cₚ
-        a₂ = h * Aₛ
+        a₂ = ĥ * Aₛ
         
         A⁺ = a₁ + a₂ / 2
         A⁻ = a₁ - a₂ / 2
@@ -79,29 +79,57 @@ Tₛ = 1000.0
 R = 0.015
 ρ = 1.0
 u = 1.0
+ĥ = 10.0
 cₚ = 1000.0
-h = 10.0
 
-# space = FvmLinearSpace1D(L, N)
-# solution = FvmThermalModelAllConstant(space, R, ρ, u, cₚ, h, Tₚ, Tₛ)
+space = FvmLinearSpace1D(L, N)
+solution = FvmThermalModelAllConstant(space, R, ρ, u, cₚ, ĥ, Tₚ, Tₛ)
 # plot(space.zc, solution.T)
-
 
 # - Guess solution in temperature.
 # - Compute RHS and solve for enthalpy.
 # - Find temperature root of enthalpy.
 # - Repeat.
 
-ṁ = 1.0
-ĥ = 10.0
+h(T) = cₚ * T
+find_temperature(Tₖ, hₖ) = find_zero(T->h(T)-hₖ, Tₖ)
+
+Aᵥ = π * R^2
 Aₛ = 2 * π * R * space.δ
+ṁ = ρ * u * Aᵥ
 
-enthalpy(T) = 1000 * T + 1000
-h₀ = enthalpy(Tₚ)
+M = spdiagm(0 => ones(N), -1 => -ones(N-1))
+C = ĥ * Aₛ / ṁ
+α = 0.8
 
-space = FvmLinearSpace1D(L, N)
-T = Tₛ * ones(N)
+# Random initialization of expected solution.
+# Force boundary condition (fix this later with computed value!)
+T_old = Tₛ * rand(0.99:0.001:1.01, N)
+T_old[1] = Tₚ
 
-hₛ = enthalpy.(T)
+atol = 1.0e-08
+maxiter = 100
 
-find_zero((T->enthalpy(T)-hₛ[1]), (0.9T[1]))
+niter = 0
+residuals = []
+
+while niter < maxiter
+    x = C₁ * (Tₛ .- T_old)
+    x[1] = h(Tₚ)
+
+    T_new = broadcast(find_temperature, T_old, M \ x)
+    T_old = (1 - α) .* T_new + α * T_old
+    
+    residual = sum(abs2.(T_old - T_new))
+    push!(residuals, residual)
+
+    if residual <= atol
+        break
+    end
+
+    niter += 1
+end
+
+p = plot()
+plot!(space.zc, solution.T)
+plot!(space.zc, T_old)
