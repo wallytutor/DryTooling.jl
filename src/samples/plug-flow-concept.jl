@@ -3,10 +3,12 @@
 Thermal plug-flow model concept
 ===============================
 
-- [ ] Finite volume matrix formulation.
+- [x] Finite volume matrix formulation.
 - [ ] Box-model with ModelingToolkit.
+- [ ] Solution in enthalpy space.
 """
 using Plots
+using Roots
 using SparseArrays: spdiagm
 
 struct FvmLinearSpace1D
@@ -80,6 +82,26 @@ u = 1.0
 cₚ = 1000.0
 h = 10.0
 
+# space = FvmLinearSpace1D(L, N)
+# solution = FvmThermalModelAllConstant(space, R, ρ, u, cₚ, h, Tₚ, Tₛ)
+# plot(space.zc, solution.T)
+
+
+# - Guess solution in temperature.
+# - Compute RHS and solve for enthalpy.
+# - Find temperature root of enthalpy.
+# - Repeat.
+
+ṁ = 1.0
+ĥ = 10.0
+Aₛ = 2 * π * R * space.δ
+
+enthalpy(T) = 1000 * T + 1000
+h₀ = enthalpy(Tₚ)
+
 space = FvmLinearSpace1D(L, N)
-solution = FvmThermalModelAllConstant(space, R, ρ, u, cₚ, h, Tₚ, Tₛ)
-plot(space.zc, solution.T)
+T = Tₛ * ones(N)
+
+hₛ = enthalpy.(T)
+
+find_zero((T->enthalpy(T)-hₛ[1]), (0.9T[1]))
