@@ -119,8 +119,8 @@ while niter < maxiter
     T_mid = (T_old[1:end-1] + T_old[2:end])/2
     x = C₁ * (Tₛ .- T_mid)
 
-    # Apply boundary condition (h1 = C*(Ts - T*) + h0).
-    x[1] += h(Tₚ)
+    # Apply boundary condition (h1 = (C*(Ts - T*) + 2h0)/2).
+    x[1] = (x[1] + 2 * h(Tₚ)) / 2
 
     T_new[2:end] = broadcast(find_temperature, T_old[2:end], M \ x)
     T_old[2:end] = underrelax(T_old[2:end], T_new[2:end], α)
