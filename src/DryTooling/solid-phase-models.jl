@@ -69,7 +69,7 @@ end
 """
     MaterialTransportPolynomial
 
-Polynomial transport properties for a solid material.
+Transport properties for a solid material.
 
 $(TYPEDFIELDS)
 """
@@ -88,6 +88,13 @@ struct MaterialTransportProperties <: AbstractSolidTransport
     end
 end
 
+"""
+    MaterialPowderBed
+
+Description of a powder bed material for a rotary kiln.
+
+$(TYPEDFIELDS)
+"""
 struct MaterialPowderBed <: AbstractSolidMaterial
     """ Density [kg/m³]. """
     ρ::Float64
@@ -144,6 +151,36 @@ struct MaterialPowderBed <: AbstractSolidMaterial
             thermo, transport
         )
     end
+end
+
+#############################################################################
+# For YAML parsing
+#############################################################################
+
+function MaterialShomate(data::Dict{Any, Any})
+    return MaterialShomate(; a_lo = data["coefs_low"],
+                             a_hi = data["coefs_high"],
+                             T_ch = data["change_temperature"])
+end
+
+function MaterialTransportProperties(data::Dict{Any, Any})
+    return MaterialTransportProperties(;
+        k = eval(Meta.parse(data["thermal_conductivity"])),
+        ε = eval(Meta.parse(data["emissivity"])))
+end
+
+function MaterialPowderBed(data::Dict{Any, Any})
+    model = getfield(DryTooling, Symbol(data["thermo"]["type"]))
+
+    return MaterialPowderBed(;
+        ρ = data["density"],
+        γ = deg2rad(data["repose_angle"]),
+        ϕ = data["solid_filling"],
+        d = data["particle_diam"],
+        M = data["molar_mass"],
+        thermo = model(data["thermo"]),
+        transport = MaterialTransportProperties(data["transport"])
+    )
 end
 
 #############################################################################

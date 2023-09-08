@@ -122,7 +122,10 @@ struct RotaryKilnBedSolution
     "Residence time of particles"
     τ::Float64
 
-    function RotaryKilnBedSolution(z, h, R, Φ)
+    "Kiln slope [rad]"
+    β::Float64
+
+    function RotaryKilnBedSolution(z, h, β, R, Φ)
         L = z[end]
         θ = @. 2acos(1 - h / R)
         l = @. 2R * sin(θ / 2)
@@ -139,7 +142,7 @@ struct RotaryKilnBedSolution
         τ = V  / Φ
 
         # Construct solution object.
-        return new(z, h, θ, l, A, η, ηₘ, V, τ)
+        return new(z, h, θ, l, A, η, ηₘ, V, τ, β)
     end
 end
 
@@ -197,7 +200,7 @@ function solvelinearkramersmodel(;
 
     prob = ODEProblem(model.sys, h, (0.0, L), p, jac = true)
     sol = solve(prob, solver, reltol = rtol, abstol = atol)
-    bed = RotaryKilnBedSolution(sol.t, sol[1, :], R, Φ)
+    bed = RotaryKilnBedSolution(sol.t, sol[1, :], β, R, Φ)
     return bed
 end
 
@@ -215,13 +218,16 @@ be normalized, respectively.
 function plotlinearkramersmodel(
         model::RotaryKilnBedSolution;
         normz::Bool = false,
-        normh::Bool = false
-    )::Plots.Plot
+        normh::Bool = false,
+        backend::Symbol = :plots
+    )::Any
     z = model.z
-    h = model.h
+    # h = model.h
+    h = tan(model.β) * z + model.h
 
     z = normz ? (100z / maximum(z[end])) : z
     h = normh ? (100h / maximum(h[end])) : 100h
+
 
     unitz = normz ? "%" : "m"
     unith = normh ? "%" : "cm"
@@ -229,13 +235,25 @@ function plotlinearkramersmodel(
     η = @sprintf("%.1f", model.ηₘ)
     τ = @sprintf("%.0f", model.τ / 60)
 
+    title  = "Loading $(η)% | Residence $(τ) min"
+    xlab  = "Coordinate [$(unitz)]"
+    ylab  = "Bed height [$(unith)]"
+
+    if backend == :plots
+        return plot_Plots(model, z, h, title, xlab, ylab, normz, normh)
+    elseif backend == :makie
+    
+    else
+        println("Unknown backend $(backend)")
+    end
+
+    return nothing
+end
+
+function plot_Plots(model, z, h, title, xlab, ylab, normz, normh)
     p = plot()
     plot!(p, z, h, linewidth = 3, label = nothing)
-    plot!(p,
-          title  = "Loading $(η)% | Residence $(τ) min",
-          xaxis  = "Coordinate [$(unitz)]",
-          yaxis  = "Bed height [$(unith)]"
-    )
+    plot!(p, title = title, xaxis = xlab, yaxis = ylab)
 
     if normz
         plot!(p, xlims = (0.0, 100.0), xticks = (0.0:20.0:100.0))
@@ -249,3 +267,21 @@ function plotlinearkramersmodel(
 
     return p
 end
+
+# function plotlinearkramersmodel_CairoMakie()
+#     fig = cm.Figure()
+#     ax = cm.Axis(
+#         fig[1, 1],
+#         title  = "Kramers model solution",
+#         xlabel = "Coordinate [m]",
+#         ylabel = "Bed profile [m]"
+#     )
+
+#     cm.lines!(ax, bed.z, prof, color = :red, label = "Profile")
+#     cm.lines!(ax, bed.z, base, color = :black, label = "Base radius")
+
+#     cm.limits!(ax, (0.0, L), (0.0, D/2))
+#     cm.axislegend(position = :lt)
+
+#     fig
+# end

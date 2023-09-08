@@ -1,0 +1,34 @@
+# Data for model initialization
+
+material_powder_bed:
+  density: 1460.0
+  repose_angle: 45.0
+  solid_filling: 0.61
+  particle_diam: 0.0025
+  molar_mass: 0.0600843
+  transport:
+    thermal_conductivity: (T) -> 0.268
+    emissivity: (T) -> 0.900
+  thermo:
+    type: MaterialShomate
+    coefs_low: [
+      -6.076591,
+      251.6755,
+      -324.7964,
+      168.5604,
+      0.002548,
+      -917.6893,
+      -27.96962,
+      -910.8568
+      ]
+    coefs_high: [
+      58.7534, 
+      10.27925, 
+      -0.131384, 
+      0.02521,        
+      0.025601, 
+      -929.3292, 
+      105.8092, 
+      -910.8568
+      ]
+    change_temperature: 847.0
