@@ -16,6 +16,7 @@ include("DryTooling/utility-functions.jl")
 include("DryTooling/chemical-elements.jl")
 include("DryTooling/chemical-conversions.jl")
 include("DryTooling/gas-phase-models.jl")
+include("DryTooling/solid-phase-models.jl")
 include("DryTooling/kramers-model.jl")
 # include("CanteraAPI.jl")
 
