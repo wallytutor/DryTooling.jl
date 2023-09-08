@@ -21,11 +21,22 @@ right behavior by multiplying `T_ch` the value by `1-eps()`.
 $(TYPEDFIELDS)
 """
 struct MaterialShomate <: AbstractSolidThermo
+    """ Molar specific heat [J/(mol.K)]. """
     cₚ::Function
+
+    """ Molar enthalpy [J/mol]. """
     h::Function
+
+    """ Molar entropy [J/K]. """
     s::Function
+    
+    """ Low temperature range Shomate coefficients. """
     a_lo::Vector{Float64}
+
+    """ High temperature range Shomate coefficients. """
     a_hi::Vector{Float64}
+    
+    """ Temperature of range change for evaluation. """
     T_ch::Float64
 
     function MaterialShomate(;
@@ -51,23 +62,87 @@ struct MaterialShomate <: AbstractSolidThermo
             T_ch; differentiable = true
         )
 
-        new(c, h, s, a_lo, a_hi, T_ch)
+        return new(c, h, s, a_lo, a_hi, T_ch)
     end
 end
 
-struct MaterialTransportPolynomial <: AbstractSolidTransport
+"""
+    MaterialTransportPolynomial
+
+Polynomial transport properties for a solid material.
+
+$(TYPEDFIELDS)
+"""
+struct MaterialTransportProperties <: AbstractSolidTransport
+    """ Thermal conductivity [W/(m.K)]. """
+    k::Function
+    
+    """ Emissivity [-]. """
+    ε::Function
+    
+    function MaterialTransportProperties(;
+            k::Function,
+            ε::Function
+        )
+        return new(k, ε)
+    end
 end
 
 struct MaterialPowderBed <: AbstractSolidMaterial
+    """ Density [kg/m³]. """
+    ρ::Float64
+
+    """ Repose angle [rad]. """
+    γ::Float64
+
+    """ Solid packing fraction [-]. """
+    ϕ::Float64
+
+    """ Particle mean diameter [m]. """
+    d::Float64
+
+    """ Molar mass [kg/mol]. """
+    M::Float64
+
+    """ Thermal conductivity [W/(m.K)]. """
+    k::Function
+
+    """ Emissivity [-]. """
+    ε::Function
+
+    """ Molar specific heat [J/(mol.K)]. """
+    cₚ::Function
+
+    """ Molar enthalpy [J/mol]. """
+    h::Function
+
+    """ Molar entropy [J/K]. """
+    s::Function
+
+    """ Access to thermodynamic model. """
     thermo::AbstractSolidThermo
+
+    """ Access to transport model. """
     transport::AbstractSolidTransport
 
     function MaterialPowderBed(;
-            thermo::AbstractSolidThermo
+            ρ::Float64,
+            γ::Float64,
+            ϕ::Float64,
+            d::Float64,
+            M::Float64,
+            thermo::AbstractSolidThermo,
             transport::AbstractSolidTransport
         )
-
-        return new(thermo, transport)
+        return new(
+            ρ, γ, ϕ, d, M,
+            transport.k,
+            transport.ε,
+            thermo.cₚ,
+            thermo.h,
+            thermo.s,
+            thermo, transport
+        )
     end
 end
 

@@ -2,6 +2,7 @@
 module DryTooling
 
 using ModelingToolkit
+using Polynomials
 using Plots
 using Printf
 using YAML
@@ -10,6 +11,9 @@ using DocStringExtensions: TYPEDFIELDS
 using DifferentialEquations: ODEProblem, Tsit5
 using DifferentialEquations: solve
 using Trapz: trapz
+
+# TODO: remove dependence from Plots!
+import CairoMakie as CM
 
 include("DryTooling/constants.jl")
 include("DryTooling/utility-functions.jl")
