@@ -196,7 +196,7 @@ Hypotheses:
 1. Constant imposed wall temperature over length
 1. Solids transfer heat only with gas phase
 
-Under these conditions the standard plug-flow energy equation can be written as
+Here we modify the standard plug-flow energy equation to be
 
 ```math
 \begin{align}
@@ -355,7 +355,7 @@ let
     eqs = [
         p ~ 101_325.0
         Ρ ~ ρ(p, T)
-        u ~ ṁ / (Ρ * A)
+        u ~ ṁ / (Ρ * A * Φ(z))
         D(T) ~ ĥ * P * (Tw - T) / (Ρ * u * A * cₚ_gas(T))
     ]
 
