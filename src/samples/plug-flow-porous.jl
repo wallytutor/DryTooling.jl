@@ -17,7 +17,9 @@ md"""
 
 In this note we study the behavior of a conceptual counter current plug-flow reactor with a moving porous solid and gas phases. The following goals are 
 
+- Solve a basic plug-flow with wall heat exchanges
 - Model heat transfer between phases in counter-flow problem
+- Consider heat losses through solid refractory walls
 - Add side mass flow injections at user supplied locations
 - Include the effect of pressure drop over main inlet flow
 - Add solid-gas mass exchange model (``\mathrm{H_2O}``, ``\mathrm{CO_2}``,...)
@@ -27,6 +29,8 @@ In this note we study the behavior of a conceptual counter current plug-flow rea
 # ╔═╡ 45569fc8-8d5b-44f4-a20e-c34b79832dd2
 md"""
 ## Required tools
+
+Import all required tools on top so keeping track of them is easier.
 """
 
 # ╔═╡ 5888cf92-0a95-4a17-b83d-600b93dbd1ed
@@ -37,7 +41,7 @@ const Y0 = [0.192, 0.016, 0.076, 0.012, 0.704]
 md"""
 ## Materials properties
 
-The properties provided in this section for gas phase were prepared to fit a composition described by the following mass fractions. This approximate certain combustion flue gas composition.
+The properties provided in this section for gas phase were prepared to fit a composition described by the following mass fractions. This approximates certain combustion flue gas composition.
 
 | Species           | Mass fraction |
 | ----------------: | :------------ |
@@ -47,6 +51,8 @@ The properties provided in this section for gas phase were prepared to fit a com
 | ``\mathrm{Ar}``   | $(Y0[4])      |
 | ``\mathrm{N_2}``  | $(Y0[5])      |
 | Balance           | $(sum(Y0))    |
+
+In what follows, ideal gas law is assumed valid, limiting the model range to near atmospheric pressures and consideration of *small* molecules in gas phase, without any major interacting forces.
 """
 
 # ╔═╡ 86c926de-ac8c-4df5-8b63-2b93a8ee2e0d
@@ -101,11 +107,74 @@ k_gas = Polynomial([
         -7.058723563087003e-19
 ], :T)
 
+# ╔═╡ 6438d22f-dbb9-470f-93e2-ef7330aca17a
+md"""
+## General conditions
+
+In this section we provide those quantities that specify the problem and are intended to be held constant all along this study.
+
+A parameter that is of particular interest here is the porosity level Φ, which is specified below as a function of position (because there might be *a priori* knowledge of its evolution over reactor length).
+"""
+
+# ╔═╡ 2e44d2ee-466b-49e9-acdf-c9e231f7c800
+"Porosity volume fraction in terms of position"
+Φ(z) = 0.35
+
 # ╔═╡ 7fcbe3a3-c6e8-4345-8e90-e6bacedcf54e
+md"""
+## Basic plug-flow model
+
+Hypotheses:
+
+1. Constant reactor cross-section
+1. No reactions in gas phase
+1. No mass flow changes (*injections* over length)
+1. Constant temperature wall
+
+Under these conditions the standard plug-flow energy equation can be written as
+
+```math
+\rho{}u{}c_{p}(T)\frac{dT}{dz}=\frac{\hat{h}P}{A_{c}}\left(T_{w}-T\right)
+```
+
+Because of the third point above and because ``\dot{m}=\rho{}u{}A_{c}``
+
+```math
+c_{p}(T)\frac{dT}{dz}=\frac{\hat{h}P}{\dot{m}}\left(T_{w}-T\right)
+```
+
+or simplifying further by the introduction of ``C_{1}=\hat{h}P\dot{m}^{-1}``
+
+```math
+c_{p}(T)\frac{dT}{dz}=C_{1}\left(T_{w}-T\right)
+```
+"""
+
+# ╔═╡ d4055357-74e9-412b-af9a-38d9090e1e65
+
+
+# ╔═╡ 7cd3fc72-6e24-43df-ab7f-dcb55908ff1e
+
+
+# ╔═╡ 63f1af64-b4ea-4ab2-a288-cc1931f149e4
+
+
+# ╔═╡ 29122e73-142e-465e-94b7-6e656cc87b7a
+
+
+# ╔═╡ 259bd6c5-2ea9-4e3e-863b-98df5618cc76
 md"""
 ## Counter-flow heat transfer
 
+## Heat losses through solids
 
+## Mass flow injections over length
+
+## Modleign of pressure drop
+
+## Solid-gas mass exchanges
+
+## Comparisong agains CFD model
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
@@ -2134,6 +2203,13 @@ version = "3.5.0+0"
 # ╟─d595f1e5-fae1-420c-8163-6a60c121c6a4
 # ╟─3462e85a-b14e-4622-ae58-b9ead3b21944
 # ╟─92052050-5edd-46c9-bb48-ee61b35c3184
-# ╠═7fcbe3a3-c6e8-4345-8e90-e6bacedcf54e
+# ╟─6438d22f-dbb9-470f-93e2-ef7330aca17a
+# ╟─2e44d2ee-466b-49e9-acdf-c9e231f7c800
+# ╟─7fcbe3a3-c6e8-4345-8e90-e6bacedcf54e
+# ╠═d4055357-74e9-412b-af9a-38d9090e1e65
+# ╠═7cd3fc72-6e24-43df-ab7f-dcb55908ff1e
+# ╠═63f1af64-b4ea-4ab2-a288-cc1931f149e4
+# ╠═29122e73-142e-465e-94b7-6e656cc87b7a
+# ╟─259bd6c5-2ea9-4e3e-863b-98df5618cc76
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
