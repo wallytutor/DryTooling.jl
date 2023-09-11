@@ -264,59 +264,6 @@ perim(s) = 2 * (s.depth + s.width)
 "Area of a rectangle"
 area(s) = s.depth * s.width
 
-# ╔═╡ 1690cd11-1183-41f8-85c8-090812634592
-let
-    ĥ_num = 20.0
-    P_num = perim(section)
-    A_num = area(section)
-    ṁ_num = ṁ_ref
-
-    Ts_try = Ts₀ * ones(length(saveat))
-    Ts_fun = linear_interpolation(saveat, Ts_try)
-
-    pars = @parameters ĥ Pgw Pgs Ac ṁg ṁs Tw
-    obsr = @variables pg Ρg ug Acg Acs Qgw Qgs
-    vars = @variables z Tg(z)
-
-    D = Differential(z)
-
-    eqs = [
-        pg ~ 101_325.0
-        Ρg ~ ρ(pg, Tg)
-
-        Acg ~ Ac * Φ(z)
-        Acs ~ Ac - Acg
-
-        ug ~ ṁg / (Ρg * Acg)
-
-        Qgw ~ ĥ * Pgw * (Tw        - Tg)
-        Qgs ~ ĥ * Pgs * (Ts_fun(z) - Tg)
-
-        D(Tg) ~ (Qgw) / (Ρg * ug * Acg * cₚ_gas(Tg))
-    ]
-
-    # p = [
-    # 	ĥ   => ĥ_num,
-    # 	Pgw => P_num,
-    # 	Pgs => P_num,
-    # 	Ac  => A_num,
-    # 	ṁg  => ṁ_num,
-    # 	ṁs  => ṁ_num,
-    # 	Tw  => Tenv
-    # ]
-
-    # @named model = ODESystem(eqs, z, [Tg], pars)
-    # sys = structural_simplify(model)
-    # prob = ODEProblem(sys, [Tg => Tg₀], zspan, p)
-    # gas = solve(prob; saveat=saveat)
-
-    # T_gas = linear_interpolation(gas[:z], gas[:Tg])
-
-    # plotpfr(gas)
-
-
-end
-
 # ╔═╡ 277bb20b-7e9d-40fe-ae33-457afad338ea
 "Plot results of standard PFR solution"
 function plotpfr(gas; bed = nothing)
@@ -351,6 +298,7 @@ function plotpfr(gas; bed = nothing)
     linkxaxes!(ax1, ax2, ax3, ax4)
 
     lines!(ax1, z, T)
+    lines!(ax1, L.-z, gas[:Ts])
     lines!(ax2, z, u)
     lines!(ax3, z, Ρ)
     lines!(ax4, z, p)
@@ -393,6 +341,58 @@ let
     sol = solve(prob; saveat=saveat)
 
     plotpfr(sol)
+end
+
+# ╔═╡ 1690cd11-1183-41f8-85c8-090812634592
+let
+    ĥ_num = 20.0
+    P_num = perim(section)
+    A_num = area(section)
+    ṁ_num = ṁ_ref
+
+    # Ts_try = Ts₀ * ones(length(saveat))
+    # Ts_fun = linear_interpolation(saveat, Ts_try)
+
+    pars = @parameters ĥ Pgw Pgs Ac ṁg ṁs Tw
+    obsr = @variables pg Ρg ug Acg Acs Qgw Qgs
+    vars = @variables z Tg(z) Ts(z)
+
+    D = Differential(z)
+
+    eqs = [
+        pg ~ 101_325.0
+        Ρg ~ ρ(pg, Tg)
+
+        Acg ~ Ac * Φ(z)
+        Acs ~ Ac - Acg
+
+        ug ~ ṁg / (Ρg * Acg)
+
+        Qgw ~ ĥ * Pgw * (Tw - Tg)
+        Qgs ~ ĥ * Pgs * (Ts - Tg)
+
+        D(Tg) ~ (Qgw + Qgs) / (Ρg * ug * Acg * cₚ_gas(Tg))
+        D(Ts) ~ (     -Qgs) / (3000 * 0.001 * Acs * 900)
+    ]
+
+    p = [
+        ĥ   => ĥ_num,
+        Pgw => P_num,
+        Pgs => 10P_num,
+        Ac  => A_num,
+        ṁg  => ṁ_num,
+        ṁs  => ṁ_num,
+        Tw  => Tenv
+    ]
+
+    @named model = ODESystem(eqs, z, [Tg], pars)
+    sys = structural_simplify(model)
+    prob = ODEProblem(sys, [Tg => Tg₀, Ts => Ts₀], zspan, p)
+    gas = solve(prob; saveat=saveat)
+
+    # T_gas = linear_interpolation(gas[:z], gas[:Tg])
+
+    plotpfr(gas)
 end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
@@ -2563,6 +2563,6 @@ version = "3.5.0+0"
 # ╟─3739ed10-d3b0-4cea-9522-c11eecde7d07
 # ╟─df06b2ae-1157-43e4-a895-be328d788c16
 # ╟─16b2896c-d5f5-419c-b728-76fefdc47b50
-# ╟─277bb20b-7e9d-40fe-ae33-457afad338ea
+# ╠═277bb20b-7e9d-40fe-ae33-457afad338ea
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
