@@ -149,9 +149,13 @@ const Tenv = 313.0
 "Reactor retangular area dimensions $(section) m"
 const section = (depth = 2.1, width = 6.7)
 
+# ╔═╡ 11b3f426-c867-41db-b276-e9a98c57b8b0
+"Limits of integration domain"
+const zspan = (0.0, L)
+
 # ╔═╡ a056b520-13bc-4c7a-99ab-29d3008e89bc
 "Coordinates to retrieve all solutions"
-const saveat = range(0, 9, 91)
+const saveat = range(zspan..., 91)
 
 # ╔═╡ 5888cf92-0a95-4a17-b83d-600b93dbd1ed
 "Inlet composition of reference atmosphere"
@@ -260,14 +264,67 @@ perim(s) = 2 * (s.depth + s.width)
 "Area of a rectangle"
 area(s) = s.depth * s.width
 
+# ╔═╡ 1690cd11-1183-41f8-85c8-090812634592
+let
+    ĥ_num = 20.0
+    P_num = perim(section)
+    A_num = area(section)
+    ṁ_num = ṁ_ref
+
+    Ts_try = Ts₀ * ones(length(saveat))
+    Ts_fun = linear_interpolation(saveat, Ts_try)
+
+    pars = @parameters ĥ Pgw Pgs Ac ṁg ṁs Tw
+    obsr = @variables pg Ρg ug Acg Acs Qgw Qgs
+    vars = @variables z Tg(z)
+
+    D = Differential(z)
+
+    eqs = [
+        pg ~ 101_325.0
+        Ρg ~ ρ(pg, Tg)
+
+        Acg ~ Ac * Φ(z)
+        Acs ~ Ac - Acg
+
+        ug ~ ṁg / (Ρg * Acg)
+
+        Qgw ~ ĥ * Pgw * (Tw        - Tg)
+        Qgs ~ ĥ * Pgs * (Ts_fun(z) - Tg)
+
+        D(Tg) ~ (Qgw) / (Ρg * ug * Acg * cₚ_gas(Tg))
+    ]
+
+    # p = [
+    # 	ĥ   => ĥ_num,
+    # 	Pgw => P_num,
+    # 	Pgs => P_num,
+    # 	Ac  => A_num,
+    # 	ṁg  => ṁ_num,
+    # 	ṁs  => ṁ_num,
+    # 	Tw  => Tenv
+    # ]
+
+    # @named model = ODESystem(eqs, z, [Tg], pars)
+    # sys = structural_simplify(model)
+    # prob = ODEProblem(sys, [Tg => Tg₀], zspan, p)
+    # gas = solve(prob; saveat=saveat)
+
+    # T_gas = linear_interpolation(gas[:z], gas[:Tg])
+
+    # plotpfr(gas)
+
+
+end
+
 # ╔═╡ 277bb20b-7e9d-40fe-ae33-457afad338ea
 "Plot results of standard PFR solution"
-function plotpfr(sol)
-    z = sol[:z]
-    T = sol[:T]
-    u = sol[:u]
-    Ρ = sol[:Ρ]
-    p = sol[:p] .- 101_325.0
+function plotpfr(gas; bed = nothing)
+    z = gas[:z]
+    T = gas[:Tg]
+    u = gas[:ug]
+    Ρ = gas[:Ρg]
+    p = gas[:pg] .- 101_325.0
 
     xlaba = "Position [m]"
     ylab1 = "Temperature [K]"
@@ -308,81 +365,31 @@ let
     A_num = area(section)
     ṁ_num = ṁ_ref
 
-    pars = @parameters ĥ P A ṁ Tw
-    vars = @variables z T(z) p Ρ u
+    pars = @parameters ĥ Pg Ac ṁg Tw
+    vars = @variables z Tg(z) pg Ρg ug
 
     D = Differential(z)
 
     eqs = [
-        p ~ 101_325.0
-        Ρ ~ ρ(p, T)
-        u ~ ṁ / (Ρ * A)
-        D(T) ~ ĥ * P * (Tw - T) / (Ρ * u * A * cₚ_gas(T))
+        pg ~ 101_325.0
+        Ρg ~ ρ(pg, Tg)
+        ug ~ ṁg / (Ρg * Ac)
+        D(Tg) ~ ĥ * Pg * (Tw - Tg) / (Ρg * ug * Ac * cₚ_gas(Tg))
     ]
 
-    tspan = (saveat[1], saveat[end])
-
-    u0 = [T => Tg₀]
+    u0 = [Tg => Tg₀]
 
     p = [
         ĥ => ĥ_num,
-        P => P_num,
-        A => A_num,
-        ṁ => ṁ_num,
+        Pg => P_num,
+        Ac => A_num,
+        ṁg => ṁ_num,
         Tw => Tenv
     ]
 
-    @named model = ODESystem(eqs, z, [T], pars)
-
+    @named model = ODESystem(eqs, z, [Tg], pars)
     sys = structural_simplify(model)
-
-    prob = ODEProblem(sys, u0, tspan, p)
-
-    sol = solve(prob; saveat=saveat)
-
-    plotpfr(sol)
-end
-
-# ╔═╡ 1690cd11-1183-41f8-85c8-090812634592
-let
-    ĥ_num = 20.0
-    P_num = perim(section)
-    A_num = area(section)
-    ṁ_num = ṁ_ref
-
-    T_sol_guess = Ts₀ * ones(length(saveat))
-    T_sol = linear_interpolation(saveat, T_sol_guess)
-
-    pars = @parameters ĥ P A ṁ Tw
-    vars = @variables z T(z) p Ρ u
-
-    D = Differential(z)
-
-    eqs = [
-        p ~ 101_325.0
-        Ρ ~ ρ(p, T)
-        u ~ ṁ / (Ρ * A * Φ(z))
-        D(T) ~ ĥ * P * (Tw - T) / (Ρ * u * A * cₚ_gas(T))
-    ]
-
-    tspan = (saveat[1], saveat[end])
-
-    u0 = [T => Tg₀]
-
-    p = [
-        ĥ => ĥ_num,
-        P => P_num,
-        A => A_num,
-        ṁ => ṁ_num,
-        Tw => Tenv
-    ]
-
-    @named model = ODESystem(eqs, z, [T], pars)
-
-    sys = structural_simplify(model)
-
-    prob = ODEProblem(sys, u0, tspan, p)
-
+    prob = ODEProblem(sys, u0, zspan, p)
     sol = solve(prob; saveat=saveat)
 
     plotpfr(sol)
@@ -2540,6 +2547,7 @@ version = "3.5.0+0"
 # ╟─9b0f1cc0-4440-43b6-85b7-d4e7a85f5537
 # ╟─d9d85ce6-17ed-4e9a-94c1-0ab907940a4d
 # ╟─d1482799-e268-4480-9227-0dad31b76615
+# ╟─11b3f426-c867-41db-b276-e9a98c57b8b0
 # ╟─a056b520-13bc-4c7a-99ab-29d3008e89bc
 # ╟─a0387438-cd1b-4c70-b02c-582d568f0813
 # ╟─5888cf92-0a95-4a17-b83d-600b93dbd1ed
