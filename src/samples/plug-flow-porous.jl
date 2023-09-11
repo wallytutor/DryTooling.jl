@@ -7,6 +7,7 @@ using InteractiveUtils
 # ╔═╡ 7529d5a2-f27d-4630-be2e-4c2cfe87ae06
 begin
 	using CairoMakie
+	using DifferentialEquations: solve
 	using ModelingToolkit
 	using Polynomials
 end
@@ -37,26 +38,8 @@ Import all required tools on top so keeping track of them is easier.
 "Inlet composition of reference atmosphere"
 const Y0 = [0.192, 0.016, 0.076, 0.012, 0.704]
 
-# ╔═╡ a0387438-cd1b-4c70-b02c-582d568f0813
-md"""
-## Materials properties
-
-The properties provided in this section for gas phase were prepared to fit a composition described by the following mass fractions. This approximates certain combustion flue gas composition.
-
-| Species           | Mass fraction |
-| ----------------: | :------------ |
-| ``\mathrm{CO_2}`` | $(Y0[1])      |
-| ``\mathrm{O_2}``  | $(Y0[2])      |
-| ``\mathrm{H_2O}`` | $(Y0[3])      |
-| ``\mathrm{Ar}``   | $(Y0[4])      |
-| ``\mathrm{N_2}``  | $(Y0[5])      |
-| Balance           | $(sum(Y0))    |
-
-In what follows, ideal gas law is assumed valid, limiting the model range to near atmospheric pressures and consideration of *small* molecules in gas phase, without any major interacting forces.
-"""
-
 # ╔═╡ 86c926de-ac8c-4df5-8b63-2b93a8ee2e0d
-"Molar masses of species ordered as `Y0`"
+"Molar masses of species ordered as per `Y0`"
 const MW = let
 	mass = [
 		1.008
@@ -76,6 +59,28 @@ const MW = let
 
 	compounds * mass
 end
+
+# ╔═╡ d09419ba-ae90-4fbe-9b12-661d40662a37
+"Mixture mean molecular mass [kg/mol]"
+const M̄ = 0.001 ./ sum(@. Y0 / MW)
+
+# ╔═╡ a0387438-cd1b-4c70-b02c-582d568f0813
+md"""
+## Materials properties
+
+The properties provided in this section for gas phase were prepared to fit a composition described by the following mass fractions. This approximates certain combustion flue gas composition.
+
+| Species           | Mass fraction | Mass fraction |
+| ----------------: | :------------ | :------------ |
+| ``\mathrm{CO_2}`` | $(Y0[1])      | $(MW[1])      |
+| ``\mathrm{O_2}``  | $(Y0[2])      | $(MW[2])      |
+| ``\mathrm{H_2O}`` | $(Y0[3])      | $(MW[3])      |
+| ``\mathrm{Ar}``   | $(Y0[4])      | $(MW[4])      |
+| ``\mathrm{N_2}``  | $(Y0[5])      | $(MW[5])      |
+| Verification      | $(sum(Y0))    | $(1000M̄)      |
+
+In what follows, ideal gas law is assumed valid, limiting the model range to near atmospheric pressures and consideration of *small* molecules in gas phase, without any major interacting forces.
+"""
 
 # ╔═╡ d595f1e5-fae1-420c-8163-6a60c121c6a4
 "Gas phase specific heat [J/(kg.K)]"
@@ -120,6 +125,30 @@ A parameter that is of particular interest here is the porosity level Φ, which 
 "Porosity volume fraction in terms of position"
 Φ(z) = 0.35
 
+# ╔═╡ 947283d5-1ffb-49d6-8d9d-d637476670d2
+"Reference initial gas temperature Tg₀ = $(Tg₀) K"
+const Tg₀ = 2073.0
+
+# ╔═╡ 7d060746-4cfe-42e8-b272-47e0b8ccda94
+"Reference inlet gas flow rate ṁ_ref = $(ṁ_ref) kg/s"
+const ṁ_ref = 8.0
+
+# ╔═╡ 9b0f1cc0-4440-43b6-85b7-d4e7a85f5537
+"Reactor length L = $(L) m"
+const L = 9.0
+
+# ╔═╡ d9d85ce6-17ed-4e9a-94c1-0ab907940a4d
+"Reactor external environment temperature Tenv = $(Tenv) K"
+const Tenv = 313.0
+
+# ╔═╡ d1482799-e268-4480-9227-0dad31b76615
+"Reactor retangular area dimensions $(section) m"
+const section = (depth = 2.1, width = 6.7)
+
+# ╔═╡ a056b520-13bc-4c7a-99ab-29d3008e89bc
+"Coordinates to retrieve all solutions"
+const saveat = range(0, 9, 91)
+
 # ╔═╡ 7fcbe3a3-c6e8-4345-8e90-e6bacedcf54e
 md"""
 ## Basic plug-flow model
@@ -148,19 +177,9 @@ or simplifying further by the introduction of ``C_{1}=\hat{h}P\dot{m}^{-1}``
 ```math
 c_{p}(T)\frac{dT}{dz}=C_{1}\left(T_{w}-T\right)
 ```
+
+Since this is a simple ODE, let's start with a basic ModelingToolkit implementation.
 """
-
-# ╔═╡ d4055357-74e9-412b-af9a-38d9090e1e65
-
-
-# ╔═╡ 7cd3fc72-6e24-43df-ab7f-dcb55908ff1e
-
-
-# ╔═╡ 63f1af64-b4ea-4ab2-a288-cc1931f149e4
-
-
-# ╔═╡ 29122e73-142e-465e-94b7-6e656cc87b7a
-
 
 # ╔═╡ 259bd6c5-2ea9-4e3e-863b-98df5618cc76
 md"""
@@ -177,15 +196,121 @@ md"""
 ## Comparisong agains CFD model
 """
 
+# ╔═╡ d069eede-afdd-4f88-b3ac-fb8c7e03120d
+md"""
+## Utilities
+"""
+
+# ╔═╡ f9b0f36f-2427-4a0a-930a-e075b8660040
+"Ideal gas constant [J/(mol.K)]. "
+const GAS_CONSTANT = 8.314_462_618_153_24
+
+# ╔═╡ 3739ed10-d3b0-4cea-9522-c11eecde7d07
+"Ideal gas specific mass of mixture [kg/m³]"
+ρ(p, T) = p * M̄ / (GAS_CONSTANT * T)
+
+# ╔═╡ df06b2ae-1157-43e4-a895-be328d788c16
+"Perimeter of a rectangle [m]"
+perim(s) = 2 * (s.depth + s.width)
+
+# ╔═╡ 16b2896c-d5f5-419c-b728-76fefdc47b50
+"Area of a rectangle"
+area(s) = s.depth * s.width
+
+# ╔═╡ 277bb20b-7e9d-40fe-ae33-457afad338ea
+"Plot results of standard PFR solution"
+function plotpfr(sol)
+	z = sol[:z]
+	T = sol[:T]
+	u = sol[:u]
+	Ρ = sol[:Ρ]
+	p = sol[:p] .- 101_325.0
+
+	xlaba = "Position [m]"
+	ylab1 = "Temperature [K]"
+	ylab2 = "Velocity [m/s]"
+	ylab3 = "Density [kg/m³]"
+	ylab4 = "Pressure [Pa]"
+
+	xlims = (0.0, L)
+	xticks = range(xlims..., 6)
+	
+	fig = Figure(resolution = (1000, 700))
+	axes = fig[1, 1] = GridLayout()
+	
+	ax1 = Axis(axes[1, 1], ylabel = ylab1, xlabel = xlaba, xticks = xticks)
+	ax2 = Axis(axes[2, 1], ylabel = ylab2, xlabel = xlaba, xticks = xticks)
+	ax3 = Axis(axes[1, 2], ylabel = ylab3, xlabel = xlaba, xticks = xticks)
+	ax4 = Axis(axes[2, 2], ylabel = ylab4, xlabel = xlaba, xticks = xticks)
+
+	xlims!(ax1, xlims)
+	xlims!(ax2, xlims)
+	xlims!(ax3, xlims)
+	xlims!(ax4, xlims)
+	
+	linkxaxes!(ax1, ax2, ax3, ax4)
+
+	lines!(ax1, z, T)
+	lines!(ax2, z, u)
+	lines!(ax3, z, Ρ)
+	lines!(ax4, z, p)
+
+	return fig
+end
+
+# ╔═╡ d4055357-74e9-412b-af9a-38d9090e1e65
+let
+	ĥ_num = 20.0
+	P_num = perim(section)
+	A_num = area(section)
+	ṁ_num = ṁ_ref
+	
+	pars = @parameters ĥ P A ṁ Tw
+	vars = @variables z T(z) p Ρ u
+
+    D = Differential(z)
+	
+    eqs = [
+		p ~ 101_325.0
+		Ρ ~ ρ(p, T)
+		u ~ ṁ / (Ρ * A)
+        D(T) ~ ĥ * P * (Tw - T) / (Ρ * u * A * cₚ_gas(T))
+    ]
+
+	tspan = (saveat[1], saveat[end])
+	
+	u0 = [T => Tg₀]
+	
+	p = [
+		ĥ => ĥ_num,
+		P => P_num,
+		A => A_num,
+		ṁ => ṁ_num, 
+		Tw => Tenv
+	]
+	
+	@named model = ODESystem(eqs, z, [T], pars)
+
+	sys = structural_simplify(model)
+	
+	prob = ODEProblem(sys, u0, tspan, p)
+	
+	sol = solve(prob; saveat=saveat)
+
+	plotpfr(sol)
+end
+
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
+DifferentialEquations = "0c46a032-eb83-5123-abaf-570d42b7fbaa"
 ModelingToolkit = "961ee093-0014-501f-94e3-6117800e7a78"
 Polynomials = "f27b6e38-b328-58d1-80ce-0feddd5e7a45"
 
 [compat]
 CairoMakie = "~0.10.8"
+DifferentialEquations = "~7.9.1"
 ModelingToolkit = "~8.68.0"
 Polynomials = "~4.0.3"
 """
@@ -196,7 +321,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.8.1"
 manifest_format = "2.0"
-project_hash = "4f36f257fec41ee348e3b4b28caebfa306140ed5"
+project_hash = "8d9d36783caf4e60f765eb925c3cc8f76cef00f5"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "d68758475ff90600488eb975b5ac222709a7dd6f"
@@ -259,6 +384,12 @@ git-tree-sha1 = "e5f08b5689b1aad068e01751889f2f615c7db36d"
 uuid = "30b0a656-2188-435a-8636-2ec0e6a096e2"
 version = "0.1.29"
 
+[[deps.ArrayLayouts]]
+deps = ["FillArrays", "LinearAlgebra", "SparseArrays"]
+git-tree-sha1 = "a350eb3cd7833f3544f2858c709ce1b8882842c6"
+uuid = "4c555306-a7a7-4459-81d9-ec55ddd5c99a"
+version = "1.3.1"
+
 [[deps.Artifacts]]
 uuid = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
 
@@ -280,6 +411,12 @@ git-tree-sha1 = "16351be62963a67ac4083f748fdb3cca58bfd52f"
 uuid = "39de3d68-74b9-583c-8d2d-e117c070f3a9"
 version = "0.4.7"
 
+[[deps.BandedMatrices]]
+deps = ["ArrayLayouts", "FillArrays", "LinearAlgebra", "PrecompileTools", "SparseArrays"]
+git-tree-sha1 = "0b816941273b5b162be122a6c94d706e3b3125ca"
+uuid = "aae01518-5342-5314-be14-df237901396f"
+version = "0.17.38"
+
 [[deps.Base64]]
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 
@@ -293,6 +430,12 @@ deps = ["Static"]
 git-tree-sha1 = "0c5f81f47bbbcf4aea7b2959135713459170798b"
 uuid = "62783981-4cbd-42fc-bca8-16325de8dc4b"
 version = "0.1.5"
+
+[[deps.BoundaryValueDiffEq]]
+deps = ["ArrayInterface", "BandedMatrices", "DiffEqBase", "FiniteDiff", "ForwardDiff", "LinearAlgebra", "NonlinearSolve", "Reexport", "SciMLBase", "Setfield", "SparseArrays", "TruncatedStacktraces", "UnPack"]
+git-tree-sha1 = "f7392ce20e6dafa8fee406142b1764de7d7cd911"
+uuid = "764a87c0-6b3e-53db-9096-fe964310641d"
+version = "4.0.1"
 
 [[deps.Bzip2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -490,6 +633,12 @@ git-tree-sha1 = "a1d8532de83f8ce964235eff1edeff9581144d02"
 uuid = "927a84f5-c5f4-47a5-9785-b46e178433df"
 version = "0.7.2"
 
+[[deps.DelayDiffEq]]
+deps = ["ArrayInterface", "DataStructures", "DiffEqBase", "LinearAlgebra", "Logging", "OrdinaryDiffEq", "Printf", "RecursiveArrayTools", "Reexport", "SciMLBase", "SimpleNonlinearSolve", "SimpleUnPack"]
+git-tree-sha1 = "89f3fbfe78f9d116d1ed0721d65b0b2cf9b36169"
+uuid = "bcd4f6db-9728-5f36-b5f7-82caef46ccdb"
+version = "5.42.0"
+
 [[deps.DensityInterface]]
 deps = ["InverseFunctions", "Test"]
 git-tree-sha1 = "80c3e8639e3353e5d2912fb3a1916b8455e2494b"
@@ -508,6 +657,12 @@ git-tree-sha1 = "9c7d3a84264d935f6981504388b202a770113faa"
 uuid = "459566f4-90b8-5000-8ac3-15dfb0a30def"
 version = "2.29.1"
 
+[[deps.DiffEqNoiseProcess]]
+deps = ["DiffEqBase", "Distributions", "GPUArraysCore", "LinearAlgebra", "Markdown", "Optim", "PoissonRandom", "QuadGK", "Random", "Random123", "RandomNumbers", "RecipesBase", "RecursiveArrayTools", "Requires", "ResettableStacks", "SciMLBase", "StaticArraysCore", "Statistics"]
+git-tree-sha1 = "6b02e9c9d0d4cacf2b20f36c33710b8b415c5194"
+uuid = "77a26b50-5914-5dd7-bc55-306e6241c503"
+version = "5.18.0"
+
 [[deps.DiffResults]]
 deps = ["StaticArraysCore"]
 git-tree-sha1 = "782dd5f4561f5d267313f23853baaaa4c52ea621"
@@ -519,6 +674,12 @@ deps = ["IrrationalConstants", "LogExpFunctions", "NaNMath", "Random", "SpecialF
 git-tree-sha1 = "23163d55f885173722d1e4cf0f6110cdbaf7e272"
 uuid = "b552c78f-8df3-52c6-915a-8e097449b14b"
 version = "1.15.1"
+
+[[deps.DifferentialEquations]]
+deps = ["BoundaryValueDiffEq", "DelayDiffEq", "DiffEqBase", "DiffEqCallbacks", "DiffEqNoiseProcess", "JumpProcesses", "LinearAlgebra", "LinearSolve", "NonlinearSolve", "OrdinaryDiffEq", "Random", "RecursiveArrayTools", "Reexport", "SciMLBase", "SteadyStateDiffEq", "StochasticDiffEq", "Sundials"]
+git-tree-sha1 = "c3d11164d1b08c379bc3c6abae45fcd7250e8e35"
+uuid = "0c46a032-eb83-5123-abaf-570d42b7fbaa"
+version = "7.9.1"
 
 [[deps.Distances]]
 deps = ["LinearAlgebra", "SparseArrays", "Statistics", "StatsAPI"]
@@ -1066,6 +1227,12 @@ git-tree-sha1 = "a560dd966b386ac9ae60bdd3a3d3a326062d3c3e"
 uuid = "8cdb02fc-e678-4876-92c5-9defec4f444e"
 version = "0.3.1"
 
+[[deps.LevyArea]]
+deps = ["LinearAlgebra", "Random", "SpecialFunctions"]
+git-tree-sha1 = "56513a09b8e0ae6485f34401ea9e2f31357958ec"
+uuid = "2d8b4e74-eb68-11e8-0fb9-d5eb67b50637"
+version = "1.0.0"
+
 [[deps.LibCURL]]
 deps = ["LibCURL_jll", "MozillaCACerts_jll"]
 uuid = "b27032c2-a3e7-50c8-80cd-2d36dbcbfd21"
@@ -1557,6 +1724,12 @@ uuid = "3fa0cd96-eef1-5676-8a61-b3b8758bbffb"
 deps = ["SHA", "Serialization"]
 uuid = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 
+[[deps.Random123]]
+deps = ["Random", "RandomNumbers"]
+git-tree-sha1 = "552f30e847641591ba3f39fd1bed559b9deb0ef3"
+uuid = "74087812-796a-5b5d-8853-05524746bad3"
+version = "1.6.1"
+
 [[deps.RandomExtensions]]
 deps = ["Random", "SparseArrays"]
 git-tree-sha1 = "062986376ce6d394b23d5d90f01d81426113a3c9"
@@ -1614,6 +1787,12 @@ deps = ["UUIDs"]
 git-tree-sha1 = "838a3a4188e2ded87a4f9f184b4b0d78a1e91cb7"
 uuid = "ae029012-a4dd-5104-9daa-d747884805df"
 version = "1.3.0"
+
+[[deps.ResettableStacks]]
+deps = ["StaticArrays"]
+git-tree-sha1 = "256eeeec186fa7f26f2801732774ccf277f05db9"
+uuid = "ae5879a3-cd67-5da8-be7f-38c6eb64a37b"
+version = "1.1.1"
 
 [[deps.RingLists]]
 deps = ["Random"]
@@ -1866,6 +2045,18 @@ git-tree-sha1 = "f625d686d5a88bcd2b15cd81f18f98186fdc0c9a"
 uuid = "4c63d2b9-4356-54db-8cca-17b64c39e42c"
 version = "1.3.0"
 
+[[deps.SteadyStateDiffEq]]
+deps = ["DiffEqBase", "DiffEqCallbacks", "LinearAlgebra", "NLsolve", "Reexport", "SciMLBase"]
+git-tree-sha1 = "6e801d0da4c81d9cd6a05d97340404f9892fba85"
+uuid = "9672c7b4-1e72-59bd-8a11-6ac3964bc41f"
+version = "1.16.0"
+
+[[deps.StochasticDiffEq]]
+deps = ["Adapt", "ArrayInterface", "DataStructures", "DiffEqBase", "DiffEqNoiseProcess", "DocStringExtensions", "FillArrays", "FiniteDiff", "ForwardDiff", "JumpProcesses", "LevyArea", "LinearAlgebra", "Logging", "MuladdMacro", "NLsolve", "OrdinaryDiffEq", "Random", "RandomNumbers", "RecursiveArrayTools", "Reexport", "SciMLBase", "SciMLOperators", "SparseArrays", "SparseDiffTools", "StaticArrays", "UnPack"]
+git-tree-sha1 = "b341540a647b39728b6d64eaeda82178e848f76e"
+uuid = "789caeaf-c7a9-5a7d-9973-96adeb23e2a0"
+version = "6.62.0"
+
 [[deps.StrideArraysCore]]
 deps = ["ArrayInterface", "CloseOpenIntervals", "IfElse", "LayoutPointers", "ManualMemory", "SIMDTypes", "Static", "StaticArrayInterface", "ThreadingUtilities"]
 git-tree-sha1 = "f02eb61eb5c97b48c153861c72fbbfdddc607e06"
@@ -1886,6 +2077,18 @@ uuid = "4607b0f0-06f3-5cda-b6b1-a6196a1729e9"
 deps = ["Artifacts", "Libdl", "Pkg", "libblastrampoline_jll"]
 uuid = "bea87d4a-7f5b-5778-9afe-8cc45184846c"
 version = "5.10.1+0"
+
+[[deps.Sundials]]
+deps = ["CEnum", "DataStructures", "DiffEqBase", "Libdl", "LinearAlgebra", "Logging", "PrecompileTools", "Reexport", "SciMLBase", "SparseArrays", "Sundials_jll"]
+git-tree-sha1 = "4931f9013c53128337ce8df54a2d38c79fe58d4c"
+uuid = "c3572dad-4567-51f8-b174-8c6c989267f4"
+version = "4.19.3"
+
+[[deps.Sundials_jll]]
+deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl", "OpenBLAS_jll", "Pkg", "SuiteSparse_jll"]
+git-tree-sha1 = "04777432d74ec5bc91ca047c9e0e0fd7f81acdb6"
+uuid = "fb77eaff-e24c-56d4-86b1-d163f2edb164"
+version = "5.2.1+0"
 
 [[deps.SymbolicIndexingInterface]]
 deps = ["DocStringExtensions"]
@@ -2200,16 +2403,26 @@ version = "3.5.0+0"
 # ╟─a0387438-cd1b-4c70-b02c-582d568f0813
 # ╟─5888cf92-0a95-4a17-b83d-600b93dbd1ed
 # ╟─86c926de-ac8c-4df5-8b63-2b93a8ee2e0d
+# ╟─d09419ba-ae90-4fbe-9b12-661d40662a37
 # ╟─d595f1e5-fae1-420c-8163-6a60c121c6a4
 # ╟─3462e85a-b14e-4622-ae58-b9ead3b21944
 # ╟─92052050-5edd-46c9-bb48-ee61b35c3184
 # ╟─6438d22f-dbb9-470f-93e2-ef7330aca17a
 # ╟─2e44d2ee-466b-49e9-acdf-c9e231f7c800
+# ╟─947283d5-1ffb-49d6-8d9d-d637476670d2
+# ╟─7d060746-4cfe-42e8-b272-47e0b8ccda94
+# ╟─9b0f1cc0-4440-43b6-85b7-d4e7a85f5537
+# ╟─d9d85ce6-17ed-4e9a-94c1-0ab907940a4d
+# ╟─d1482799-e268-4480-9227-0dad31b76615
+# ╟─a056b520-13bc-4c7a-99ab-29d3008e89bc
 # ╟─7fcbe3a3-c6e8-4345-8e90-e6bacedcf54e
-# ╠═d4055357-74e9-412b-af9a-38d9090e1e65
-# ╠═7cd3fc72-6e24-43df-ab7f-dcb55908ff1e
-# ╠═63f1af64-b4ea-4ab2-a288-cc1931f149e4
-# ╠═29122e73-142e-465e-94b7-6e656cc87b7a
+# ╟─d4055357-74e9-412b-af9a-38d9090e1e65
 # ╟─259bd6c5-2ea9-4e3e-863b-98df5618cc76
+# ╟─d069eede-afdd-4f88-b3ac-fb8c7e03120d
+# ╟─f9b0f36f-2427-4a0a-930a-e075b8660040
+# ╠═3739ed10-d3b0-4cea-9522-c11eecde7d07
+# ╟─df06b2ae-1157-43e4-a895-be328d788c16
+# ╟─16b2896c-d5f5-419c-b728-76fefdc47b50
+# ╠═277bb20b-7e9d-40fe-ae33-457afad338ea
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
