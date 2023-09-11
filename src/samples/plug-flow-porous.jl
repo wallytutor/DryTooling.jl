@@ -11,6 +11,7 @@ begin
     using Interpolations
     using ModelingToolkit
     using Polynomials
+    using PlutoUI
 end
 
 # ╔═╡ a876e9c0-5082-11ee-069b-d756666798d2
@@ -34,6 +35,9 @@ md"""
 
 Import all required tools on top so keeping track of them is easier.
 """
+
+# ╔═╡ 2ffa29c6-ff14-4c78-abae-f1abb12145f5
+TableOfContents()
 
 # ╔═╡ 5888cf92-0a95-4a17-b83d-600b93dbd1ed
 "Inlet composition of reference atmosphere"
@@ -68,6 +72,8 @@ const M̄ = 0.001 ./ sum(@. Y0 / MW)
 # ╔═╡ a0387438-cd1b-4c70-b02c-582d568f0813
 md"""
 ## Materials properties
+
+### Combustion flue gases
 
 The properties provided in this section for gas phase were prepared to fit a composition described by the following mass fractions. This approximates certain combustion flue gas composition.
 
@@ -113,6 +119,14 @@ const μ_gas = Polynomial([
     -7.058723563087003e-19
 ], :T)
 
+# ╔═╡ f2bd4d19-c3c4-4c0b-b762-83f1d1073686
+md"""
+### Solids bed
+"""
+
+# ╔═╡ 1513683c-a721-4b19-b046-a2cafcb5ffea
+
+
 # ╔═╡ 6438d22f-dbb9-470f-93e2-ef7330aca17a
 md"""
 ## General conditions
@@ -124,7 +138,7 @@ A parameter that is of particular interest here is the porosity level Φ, which 
 
 # ╔═╡ 2e44d2ee-466b-49e9-acdf-c9e231f7c800
 "Porosity volume fraction in terms of position"
-Φ(z) = 0.35
+Φ(z) = 0.65
 
 # ╔═╡ 947283d5-1ffb-49d6-8d9d-d637476670d2
 "Reference initial gas temperature Tg₀ = $(Tg₀) K"
@@ -375,6 +389,7 @@ CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 DifferentialEquations = "0c46a032-eb83-5123-abaf-570d42b7fbaa"
 Interpolations = "a98d9a8b-a2ab-59e6-89dd-64a1c18fca59"
 ModelingToolkit = "961ee093-0014-501f-94e3-6117800e7a78"
+PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 Polynomials = "f27b6e38-b328-58d1-80ce-0feddd5e7a45"
 
 [compat]
@@ -382,6 +397,7 @@ CairoMakie = "~0.10.8"
 DifferentialEquations = "~7.9.1"
 Interpolations = "~0.14.7"
 ModelingToolkit = "~8.68.0"
+PlutoUI = "~0.7.52"
 Polynomials = "~4.0.3"
 """
 
@@ -391,7 +407,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.8.1"
 manifest_format = "2.0"
-project_hash = "77f32d2a56f1b65a6900dc87105b7871d553070c"
+project_hash = "1b782b9c9226f3456802c32b66d3004ca8bbefeb"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "d68758475ff90600488eb975b5ac222709a7dd6f"
@@ -414,6 +430,12 @@ version = "1.5.0"
 git-tree-sha1 = "f35684b7349da49fcc8a9e520e30e45dbb077166"
 uuid = "398f06c4-4d28-53ec-89ca-5b2656b7603d"
 version = "0.2.1"
+
+[[deps.AbstractPlutoDingetjes]]
+deps = ["Pkg"]
+git-tree-sha1 = "91bd53c39b9cbfb5ef4b015e8b582d344532bd0a"
+uuid = "6e696c72-6542-2067-7265-42206c756150"
+version = "1.2.0"
 
 [[deps.AbstractTrees]]
 git-tree-sha1 = "faa260e4cb5aba097a73fab382dd4b5819d8ec8c"
@@ -1071,6 +1093,24 @@ git-tree-sha1 = "f218fe3736ddf977e0e772bc9a586b2383da2685"
 uuid = "34004b35-14d8-5ef3-9330-4cdb6864b03a"
 version = "0.3.23"
 
+[[deps.Hyperscript]]
+deps = ["Test"]
+git-tree-sha1 = "8d511d5b81240fc8e6802386302675bdf47737b9"
+uuid = "47d2ed2b-36de-50cf-bf87-49c2cf4b8b91"
+version = "0.0.4"
+
+[[deps.HypertextLiteral]]
+deps = ["Tricks"]
+git-tree-sha1 = "c47c5fa4c5308f27ccaac35504858d8914e102f9"
+uuid = "ac1192a8-f4b3-4bfe-ba22-af5b92cd3ab2"
+version = "0.9.4"
+
+[[deps.IOCapture]]
+deps = ["Logging", "Random"]
+git-tree-sha1 = "d75853a0bdbfb1ac815478bacd89cd27b550ace6"
+uuid = "b5f81e59-6552-4d32-b1f0-c071b021bf89"
+version = "0.2.3"
+
 [[deps.IfElse]]
 git-tree-sha1 = "debdd00ffef04665ccbb3e150747a77560e8fad1"
 uuid = "615f187c-cbe4-4ef1-ba3b-2fcf58d6d173"
@@ -1404,6 +1444,11 @@ git-tree-sha1 = "c88a4afe1703d731b1c4fdf4e3c7e77e3b176ea2"
 uuid = "bdcacae8-1622-11e9-2a5c-532679323890"
 version = "0.12.165"
 
+[[deps.MIMEs]]
+git-tree-sha1 = "65f28ad4b594aebe22157d6fac869786a255b7eb"
+uuid = "6c6e2e6c-3030-632d-7369-2d6c69616d65"
+version = "0.1.4"
+
 [[deps.MKL_jll]]
 deps = ["Artifacts", "IntelOpenMP_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "Pkg"]
 git-tree-sha1 = "eb006abbd7041c28e0d16260e50a24f8f9104913"
@@ -1704,6 +1749,12 @@ deps = ["ColorSchemes", "Colors", "Dates", "PrecompileTools", "Printf", "Random"
 git-tree-sha1 = "f92e1315dadf8c46561fb9396e525f7200cdc227"
 uuid = "995b91a9-d308-5afd-9ec6-746e21dbc043"
 version = "1.3.5"
+
+[[deps.PlutoUI]]
+deps = ["AbstractPlutoDingetjes", "Base64", "ColorTypes", "Dates", "FixedPointNumbers", "Hyperscript", "HypertextLiteral", "IOCapture", "InteractiveUtils", "JSON", "Logging", "MIMEs", "Markdown", "Random", "Reexport", "URIs", "UUIDs"]
+git-tree-sha1 = "e47cd150dbe0443c3a3651bc5b9cbd5576ab75b7"
+uuid = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
+version = "0.7.52"
 
 [[deps.PoissonRandom]]
 deps = ["Random"]
@@ -2470,6 +2521,7 @@ version = "3.5.0+0"
 # ╟─a876e9c0-5082-11ee-069b-d756666798d2
 # ╟─45569fc8-8d5b-44f4-a20e-c34b79832dd2
 # ╠═7529d5a2-f27d-4630-be2e-4c2cfe87ae06
+# ╠═2ffa29c6-ff14-4c78-abae-f1abb12145f5
 # ╟─a0387438-cd1b-4c70-b02c-582d568f0813
 # ╟─5888cf92-0a95-4a17-b83d-600b93dbd1ed
 # ╟─86c926de-ac8c-4df5-8b63-2b93a8ee2e0d
@@ -2477,6 +2529,8 @@ version = "3.5.0+0"
 # ╟─d595f1e5-fae1-420c-8163-6a60c121c6a4
 # ╟─3462e85a-b14e-4622-ae58-b9ead3b21944
 # ╟─92052050-5edd-46c9-bb48-ee61b35c3184
+# ╟─f2bd4d19-c3c4-4c0b-b762-83f1d1073686
+# ╠═1513683c-a721-4b19-b046-a2cafcb5ffea
 # ╟─6438d22f-dbb9-470f-93e2-ef7330aca17a
 # ╟─2e44d2ee-466b-49e9-acdf-c9e231f7c800
 # ╟─947283d5-1ffb-49d6-8d9d-d637476670d2
