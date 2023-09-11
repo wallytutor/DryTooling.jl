@@ -3,24 +3,20 @@ import CairoMakie as cm
 import DryTooling as dry
 using YAML
 
-data = YAML.load_file("rotary-kiln-concept.yaml")
-
-
 ##############################################################################
 # Barr - Case T4
 ##############################################################################
 
-transshell = dry.MaterialTransportProperties(;
-    k = (T) -> 50.0,
-    ε = (T) -> 0.790
-)
+data = YAML.load_file("rotary-kiln-concept.yaml")
 
-transrefractory = dry.MaterialTransportProperties(;
-    k = (T) -> 0.2475 * (1.0 + 5.85e-04 * T),
-    ε = (T) -> 0.850
-)
+entry = data["material_shell"]["transport"]
+transshell = dry.MaterialTransportProperties(entry)
 
-silica = dry.MaterialPowderBed(data["material_powder_bed"])
+entry = data["material_refractory"]["transport"]
+transrefractory = dry.MaterialTransportProperties(entry)
+
+entry = data["material_powder_bed"]
+silica = dry.MaterialPowderBed(entry)
 
 L   = 5.500              # Kiln length [m]
 D   = 0.417              # Kiln diameter [m]
@@ -44,28 +40,8 @@ bed = dry.solvelinearkramersmodel(;
     d     = d / 1000.0
 )
 
-base = tan(β) * bed.z
-prof = base + bed.h
-
 dry.plotlinearkramersmodel(bed; backend = :plots)
-
-fig = let
-    fig = cm.Figure()
-    ax = cm.Axis(
-        fig[1, 1],
-        title  = "Kramers model solution",
-        xlabel = "Coordinate [m]",
-        ylabel = "Bed profile [m]"
-    )
-
-    cm.lines!(ax, bed.z, prof, color = :red, label = "Profile")
-    cm.lines!(ax, bed.z, base, color = :black, label = "Base radius")
-
-    cm.limits!(ax, (0.0, L), (0.0, D/2))
-    cm.axislegend(position = :lt)
-
-    fig
-end
+dry.plotlinearkramersmodel(bed; backend = :makie, normz = true)
 
 # "gas_flow_rate": 0.072651,
 # "gas_leak_rate": 0.00,

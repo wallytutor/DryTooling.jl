@@ -222,7 +222,6 @@ function plotlinearkramersmodel(
         backend::Symbol = :plots
     )::Any
     z = model.z
-    # h = model.h
     h = tan(model.β) * z + model.h
 
     z = normz ? (100z / maximum(z[end])) : z
@@ -242,7 +241,7 @@ function plotlinearkramersmodel(
     if backend == :plots
         return plot_Plots(model, z, h, title, xlab, ylab, normz, normh)
     elseif backend == :makie
-    
+        return plot_Makie(model, z, h, title, xlab, ylab, normz, normh)
     else
         println("Unknown backend $(backend)")
     end
@@ -268,20 +267,16 @@ function plot_Plots(model, z, h, title, xlab, ylab, normz, normh)
     return p
 end
 
-# function plotlinearkramersmodel_CairoMakie()
-#     fig = cm.Figure()
-#     ax = cm.Axis(
-#         fig[1, 1],
-#         title  = "Kramers model solution",
-#         xlabel = "Coordinate [m]",
-#         ylabel = "Bed profile [m]"
-#     )
+function plot_Makie(model, z, h, title, xlab, ylab, normz, normh)
+    xlims = (normz) ? (0.0, 100.0) : (0.0, model.z[end])
+    ylims = (normh) ? (0.0, 100.0) : (0.0, round(maximum(h)+1))
 
-#     cm.lines!(ax, bed.z, prof, color = :red, label = "Profile")
-#     cm.lines!(ax, bed.z, base, color = :black, label = "Base radius")
+    fig = CM.Figure()
+    ax = CM.Axis(fig[1, 1], title = title, xlabel = xlab, ylabel = ylab,
+                 xticks = range(xlims..., 6), yticks = range(ylims..., 6))
+    CM.lines!(ax, z, h, color = :red, label = "Profile")
+    CM.limits!(ax, xlims, ylims)
+    CM.axislegend(position = :lt)
 
-#     cm.limits!(ax, (0.0, L), (0.0, D/2))
-#     cm.axislegend(position = :lt)
-
-#     fig
-# end
+    return fig
+end

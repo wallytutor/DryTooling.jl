@@ -29,13 +29,13 @@ struct MaterialShomate <: AbstractSolidThermo
 
     """ Molar entropy [J/K]. """
     s::Function
-    
+
     """ Low temperature range Shomate coefficients. """
     a_lo::Vector{Float64}
 
     """ High temperature range Shomate coefficients. """
     a_hi::Vector{Float64}
-    
+
     """ Temperature of range change for evaluation. """
     T_ch::Float64
 
@@ -76,10 +76,10 @@ $(TYPEDFIELDS)
 struct MaterialTransportProperties <: AbstractSolidTransport
     """ Thermal conductivity [W/(m.K)]. """
     k::Function
-    
+
     """ Emissivity [-]. """
     ε::Function
-    
+
     function MaterialTransportProperties(;
             k::Function,
             ε::Function
@@ -170,7 +170,8 @@ function MaterialTransportProperties(data::Dict{Any, Any})
 end
 
 function MaterialPowderBed(data::Dict{Any, Any})
-    model = getfield(DryTooling, Symbol(data["thermo"]["type"]))
+    thermomodel = getfield(DryTooling, Symbol(data["thermo"]["type"]))
+    transportmodel = getfield(DryTooling, Symbol(data["transport"]["type"]))
 
     return MaterialPowderBed(;
         ρ = data["density"],
@@ -178,8 +179,8 @@ function MaterialPowderBed(data::Dict{Any, Any})
         ϕ = data["solid_filling"],
         d = data["particle_diam"],
         M = data["molar_mass"],
-        thermo = model(data["thermo"]),
-        transport = MaterialTransportProperties(data["transport"])
+        thermo = thermomodel(data["thermo"]),
+        transport = transportmodel(data["transport"])
     )
 end
 
