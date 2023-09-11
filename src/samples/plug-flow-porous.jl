@@ -12,6 +12,8 @@ begin
     using ModelingToolkit
     using Polynomials
     using PlutoUI
+
+    TableOfContents()
 end
 
 # ╔═╡ a876e9c0-5082-11ee-069b-d756666798d2
@@ -27,17 +29,129 @@ In this note we study the behavior of a conceptual counter current plug-flow rea
 - Include the effect of pressure drop over main inlet flow
 - Add solid-gas mass exchange model (``\mathrm{H_2O}``, ``\mathrm{CO_2}``,...)
 - Compare solids heating kinetics to a 3D CFD model
-"""
-
-# ╔═╡ 45569fc8-8d5b-44f4-a20e-c34b79832dd2
-md"""
-## Required tools
 
 Import all required tools on top so keeping track of them is easier.
 """
 
-# ╔═╡ 2ffa29c6-ff14-4c78-abae-f1abb12145f5
-TableOfContents()
+# ╔═╡ 7fcbe3a3-c6e8-4345-8e90-e6bacedcf54e
+md"""
+## Low-dimensional models
+
+### Basic plug-flow model
+
+Hypotheses:
+
+1. Constant reactor cross-section
+1. No reactions in gas phase
+1. No mass flow changes (*injections* over length)
+1. Constant imposed wall temperature over length
+
+Under these conditions the standard plug-flow energy equation can be written as
+
+```math
+\rho{}u{}c_{p}(T)\frac{dT}{dz}=\frac{\hat{h}P}{A_{c}}\left(T_{w}-T\right)
+```
+
+Since this is a simple ODE, let's start with a basic ModelingToolkit implementation.
+"""
+
+# ╔═╡ 757a04f9-acc4-4440-815f-f1ebaf54abc4
+md"""
+### Counter-flow heat transfer
+
+Hypotheses:
+
+1. Constant reactor cross-section per phase
+1. No reactions in gas phase nor in solids
+1. No mass flow changes (*injections* over length)
+1. Constant imposed wall temperature over length
+1. Solids transfer heat only with gas phase
+
+Here we modify the standard plug-flow energy equation to be
+
+```math
+\begin{align}
+%
+\dot{Q}_{g-w} &=
+    \left(\frac{\hat{h}P}{A}\right)_{g-w}\left(T_{w}-T_{g}\right)
+\\[12pt]
+%
+\dot{Q}_{g-s} &=
+    \left(\frac{\hat{h}P}{A}\right)_{g-s}\left(T_{s}-T_{g}\right)
+\\[12pt]
+%
+\rho_{g}u_{g}c_{p,g}(T_{g})\frac{dT_{g}}{dz} &=
+    \dot{Q}_{g-w}^{(z)} + \dot{Q}_{g-s}^{(z)}
+\\[12pt]
+%
+-\rho_{s}u_{s}c_{p,s}(T_{s})\frac{dT_{s}}{dz} &=
+    -\dot{Q}_{g-s}^{(L-z)}
+%
+\end{align}
+```
+
+Since this is a simple ODE, let's start with a basic ModelingToolkit implementation.
+
+"""
+
+# ╔═╡ 259bd6c5-2ea9-4e3e-863b-98df5618cc76
+md"""
+### Heat losses through solids
+
+### Mass flow injections over length
+
+### Modeling of pressure drop
+
+### Solid-gas mass exchanges
+
+## Comparisong agains CFD model
+"""
+
+# ╔═╡ 412b34dd-8189-4dde-8584-482c65b6ebd8
+md"""
+## Appendix
+"""
+
+# ╔═╡ 6438d22f-dbb9-470f-93e2-ef7330aca17a
+md"""
+### General conditions
+
+In this section we provide those quantities that specify the problem and are intended to be held constant all along this study.
+
+A parameter that is of particular interest here is the porosity level Φ, which is specified below as a function of position (because there might be *a priori* knowledge of its evolution over reactor length).
+"""
+
+# ╔═╡ 2e44d2ee-466b-49e9-acdf-c9e231f7c800
+"Porosity volume fraction in terms of position"
+Φ(z) = 0.65
+
+# ╔═╡ 947283d5-1ffb-49d6-8d9d-d637476670d2
+"Reference initial gas temperature Tg₀ = $(Tg₀) K"
+const Tg₀ = 2073.0
+
+# ╔═╡ bbb12163-d62c-4968-80b7-36ea1cb73f48
+"Reference initial solids temperature Ts₀ = $(Ts₀) K"
+const Ts₀ = 313.0
+
+# ╔═╡ 7d060746-4cfe-42e8-b272-47e0b8ccda94
+"Reference inlet gas flow rate ṁ_ref = $(ṁ_ref) kg/s"
+const ṁ_ref = 8.0
+
+# ╔═╡ 9b0f1cc0-4440-43b6-85b7-d4e7a85f5537
+"Reactor length L = $(L) m"
+const L = 9.0
+
+# ╔═╡ d9d85ce6-17ed-4e9a-94c1-0ab907940a4d
+"Reactor external environment temperature Tenv = $(Tenv) K"
+const Tenv = 313.0
+
+# ╔═╡ d1482799-e268-4480-9227-0dad31b76615
+"Reactor retangular area dimensions $(section) m"
+const section = (depth = 2.1, width = 6.7)
+
+# ╔═╡ a056b520-13bc-4c7a-99ab-29d3008e89bc
+"Coordinates to retrieve all solutions"
+const saveat = range(0, 9, 91)
 
 # ╔═╡ 5888cf92-0a95-4a17-b83d-600b93dbd1ed
 "Inlet composition of reference atmosphere"
@@ -71,9 +185,7 @@ const M̄ = 0.001 ./ sum(@. Y0 / MW)
 
 # ╔═╡ a0387438-cd1b-4c70-b02c-582d568f0813
 md"""
-## Materials properties
-
-### Combustion flue gases
+### Properties of combustion gases
 
 The properties provided in this section for gas phase were prepared to fit a composition described by the following mass fractions. This approximates certain combustion flue gas composition.
 
@@ -121,124 +233,15 @@ const μ_gas = Polynomial([
 
 # ╔═╡ f2bd4d19-c3c4-4c0b-b762-83f1d1073686
 md"""
-### Solids bed
+### Properties of solids bed
 """
 
-# ╔═╡ 1513683c-a721-4b19-b046-a2cafcb5ffea
+# ╔═╡ ee3126ec-d09f-48dd-9f95-7befe3efbfc5
 
-
-# ╔═╡ 6438d22f-dbb9-470f-93e2-ef7330aca17a
-md"""
-## General conditions
-
-In this section we provide those quantities that specify the problem and are intended to be held constant all along this study.
-
-A parameter that is of particular interest here is the porosity level Φ, which is specified below as a function of position (because there might be *a priori* knowledge of its evolution over reactor length).
-"""
-
-# ╔═╡ 2e44d2ee-466b-49e9-acdf-c9e231f7c800
-"Porosity volume fraction in terms of position"
-Φ(z) = 0.65
-
-# ╔═╡ 947283d5-1ffb-49d6-8d9d-d637476670d2
-"Reference initial gas temperature Tg₀ = $(Tg₀) K"
-const Tg₀ = 2073.0
-
-# ╔═╡ 7d060746-4cfe-42e8-b272-47e0b8ccda94
-"Reference inlet gas flow rate ṁ_ref = $(ṁ_ref) kg/s"
-const ṁ_ref = 8.0
-
-# ╔═╡ 9b0f1cc0-4440-43b6-85b7-d4e7a85f5537
-"Reactor length L = $(L) m"
-const L = 9.0
-
-# ╔═╡ d9d85ce6-17ed-4e9a-94c1-0ab907940a4d
-"Reactor external environment temperature Tenv = $(Tenv) K"
-const Tenv = 313.0
-
-# ╔═╡ d1482799-e268-4480-9227-0dad31b76615
-"Reactor retangular area dimensions $(section) m"
-const section = (depth = 2.1, width = 6.7)
-
-# ╔═╡ a056b520-13bc-4c7a-99ab-29d3008e89bc
-"Coordinates to retrieve all solutions"
-const saveat = range(0, 9, 91)
-
-# ╔═╡ 7fcbe3a3-c6e8-4345-8e90-e6bacedcf54e
-md"""
-## Basic plug-flow model
-
-Hypotheses:
-
-1. Constant reactor cross-section
-1. No reactions in gas phase
-1. No mass flow changes (*injections* over length)
-1. Constant imposed wall temperature over length
-
-Under these conditions the standard plug-flow energy equation can be written as
-
-```math
-\rho{}u{}c_{p}(T)\frac{dT}{dz}=\frac{\hat{h}P}{A_{c}}\left(T_{w}-T\right)
-```
-
-Since this is a simple ODE, let's start with a basic ModelingToolkit implementation.
-"""
-
-# ╔═╡ 757a04f9-acc4-4440-815f-f1ebaf54abc4
-md"""
-## Counter-flow heat transfer
-
-Hypotheses:
-
-1. Constant reactor cross-section per phase
-1. No reactions in gas phase nor in solids
-1. No mass flow changes (*injections* over length)
-1. Constant imposed wall temperature over length
-1. Solids transfer heat only with gas phase
-
-Here we modify the standard plug-flow energy equation to be
-
-```math
-\begin{align}
-%
-\dot{Q}_{g-w} &=
-    \left(\frac{\hat{h}P}{A}\right)_{g-w}\left(T_{w}-T_{g}\right)
-\\[12pt]
-%
-\dot{Q}_{g-s} &=
-    \left(\frac{\hat{h}P}{A}\right)_{g-s}\left(T_{s}-T_{g}\right)
-\\[12pt]
-%
-\rho_{g}u_{g}c_{p,g}(T_{g})\frac{dT_{g}}{dz} &=
-    \dot{Q}_{g-w}^{(z)} + \dot{Q}_{g-s}^{(z)}
-\\[12pt]
-%
--\rho_{s}u_{s}c_{p,s}(T_{s})\frac{dT_{s}}{dz} &=
-    -\dot{Q}_{g-s}^{(L-z)}
-%
-\end{align}
-```
-
-Since this is a simple ODE, let's start with a basic ModelingToolkit implementation.
-
-"""
-
-# ╔═╡ 259bd6c5-2ea9-4e3e-863b-98df5618cc76
-md"""
-## Heat losses through solids
-
-## Mass flow injections over length
-
-## Modleign of pressure drop
-
-## Solid-gas mass exchanges
-
-## Comparisong agains CFD model
-"""
 
 # ╔═╡ d069eede-afdd-4f88-b3ac-fb8c7e03120d
 md"""
-## Utilities
+### Utilities
 """
 
 # ╔═╡ f9b0f36f-2427-4a0a-930a-e075b8660040
@@ -346,6 +349,9 @@ let
     P_num = perim(section)
     A_num = area(section)
     ṁ_num = ṁ_ref
+
+    T_sol_guess = Ts₀ * ones(length(saveat))
+    T_sol = linear_interpolation(saveat, T_sol_guess)
 
     pars = @parameters ĥ P A ṁ Tw
     vars = @variables z T(z) p Ρ u
@@ -2519,36 +2525,36 @@ version = "3.5.0+0"
 
 # ╔═╡ Cell order:
 # ╟─a876e9c0-5082-11ee-069b-d756666798d2
-# ╟─45569fc8-8d5b-44f4-a20e-c34b79832dd2
 # ╠═7529d5a2-f27d-4630-be2e-4c2cfe87ae06
-# ╠═2ffa29c6-ff14-4c78-abae-f1abb12145f5
-# ╟─a0387438-cd1b-4c70-b02c-582d568f0813
-# ╟─5888cf92-0a95-4a17-b83d-600b93dbd1ed
-# ╟─86c926de-ac8c-4df5-8b63-2b93a8ee2e0d
-# ╟─d09419ba-ae90-4fbe-9b12-661d40662a37
-# ╟─d595f1e5-fae1-420c-8163-6a60c121c6a4
-# ╟─3462e85a-b14e-4622-ae58-b9ead3b21944
-# ╟─92052050-5edd-46c9-bb48-ee61b35c3184
-# ╟─f2bd4d19-c3c4-4c0b-b762-83f1d1073686
-# ╠═1513683c-a721-4b19-b046-a2cafcb5ffea
-# ╟─6438d22f-dbb9-470f-93e2-ef7330aca17a
-# ╟─2e44d2ee-466b-49e9-acdf-c9e231f7c800
-# ╟─947283d5-1ffb-49d6-8d9d-d637476670d2
-# ╟─7d060746-4cfe-42e8-b272-47e0b8ccda94
-# ╟─9b0f1cc0-4440-43b6-85b7-d4e7a85f5537
-# ╟─d9d85ce6-17ed-4e9a-94c1-0ab907940a4d
-# ╟─d1482799-e268-4480-9227-0dad31b76615
-# ╟─a056b520-13bc-4c7a-99ab-29d3008e89bc
 # ╟─7fcbe3a3-c6e8-4345-8e90-e6bacedcf54e
 # ╟─d4055357-74e9-412b-af9a-38d9090e1e65
 # ╟─757a04f9-acc4-4440-815f-f1ebaf54abc4
 # ╠═1690cd11-1183-41f8-85c8-090812634592
 # ╟─259bd6c5-2ea9-4e3e-863b-98df5618cc76
+# ╟─412b34dd-8189-4dde-8584-482c65b6ebd8
+# ╟─6438d22f-dbb9-470f-93e2-ef7330aca17a
+# ╟─2e44d2ee-466b-49e9-acdf-c9e231f7c800
+# ╟─947283d5-1ffb-49d6-8d9d-d637476670d2
+# ╟─bbb12163-d62c-4968-80b7-36ea1cb73f48
+# ╟─7d060746-4cfe-42e8-b272-47e0b8ccda94
+# ╟─9b0f1cc0-4440-43b6-85b7-d4e7a85f5537
+# ╟─d9d85ce6-17ed-4e9a-94c1-0ab907940a4d
+# ╟─d1482799-e268-4480-9227-0dad31b76615
+# ╟─a056b520-13bc-4c7a-99ab-29d3008e89bc
+# ╟─a0387438-cd1b-4c70-b02c-582d568f0813
+# ╟─5888cf92-0a95-4a17-b83d-600b93dbd1ed
+# ╟─d09419ba-ae90-4fbe-9b12-661d40662a37
+# ╟─86c926de-ac8c-4df5-8b63-2b93a8ee2e0d
+# ╟─d595f1e5-fae1-420c-8163-6a60c121c6a4
+# ╟─3462e85a-b14e-4622-ae58-b9ead3b21944
+# ╟─92052050-5edd-46c9-bb48-ee61b35c3184
+# ╟─f2bd4d19-c3c4-4c0b-b762-83f1d1073686
+# ╠═ee3126ec-d09f-48dd-9f95-7befe3efbfc5
 # ╟─d069eede-afdd-4f88-b3ac-fb8c7e03120d
 # ╟─f9b0f36f-2427-4a0a-930a-e075b8660040
-# ╠═3739ed10-d3b0-4cea-9522-c11eecde7d07
+# ╟─3739ed10-d3b0-4cea-9522-c11eecde7d07
 # ╟─df06b2ae-1157-43e4-a895-be328d788c16
 # ╟─16b2896c-d5f5-419c-b728-76fefdc47b50
-# ╠═277bb20b-7e9d-40fe-ae33-457afad338ea
+# ╟─277bb20b-7e9d-40fe-ae33-457afad338ea
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
