@@ -6,17 +6,18 @@ using InteractiveUtils
 
 # ╔═╡ 7529d5a2-f27d-4630-be2e-4c2cfe87ae06
 begin
-	using CairoMakie
-	using DifferentialEquations: solve
-	using ModelingToolkit
-	using Polynomials
+    using CairoMakie
+    using DifferentialEquations: solve
+    using Interpolations
+    using ModelingToolkit
+    using Polynomials
 end
 
 # ╔═╡ a876e9c0-5082-11ee-069b-d756666798d2
 md"""
 # Porous medium plug-flow reactor
 
-In this note we study the behavior of a conceptual counter current plug-flow reactor with a moving porous solid and gas phases. The following goals are 
+In this note we study the behavior of a conceptual counter current plug-flow reactor with a moving porous solid and gas phases. The following goals are
 
 - Solve a basic plug-flow with wall heat exchanges
 - Model heat transfer between phases in counter-flow problem
@@ -41,23 +42,23 @@ const Y0 = [0.192, 0.016, 0.076, 0.012, 0.704]
 # ╔═╡ 86c926de-ac8c-4df5-8b63-2b93a8ee2e0d
 "Molar masses of species ordered as per `Y0`"
 const MW = let
-	mass = [
-		1.008
-		12.011
-		14.007
-		15.999
-	    39.95
-	]
+    mass = [
+        1.008
+        12.011
+        14.007
+        15.999
+        39.95
+    ]
 
-	compounds = [
-		0 1 0 2 0
-	 	0 0 0 2 0
-		2 0 0 1 0
-		0 0 0 0 1
-		0 0 1 0 0
-	]
+    compounds = [
+        0 1 0 2 0
+         0 0 0 2 0
+        2 0 0 1 0
+        0 0 0 0 1
+        0 0 2 0 0
+    ]
 
-	compounds * mass
+    compounds * mass
 end
 
 # ╔═╡ d09419ba-ae90-4fbe-9b12-661d40662a37
@@ -84,32 +85,32 @@ In what follows, ideal gas law is assumed valid, limiting the model range to nea
 
 # ╔═╡ d595f1e5-fae1-420c-8163-6a60c121c6a4
 "Gas phase specific heat [J/(kg.K)]"
-cₚ_gas = Polynomial([
-        959.8458126240355,
-        0.3029051601580761,
-        3.988896105280984e-05,
-        -6.093647929461819e-08,
-        1.0991100692950414e-11
+const cₚ_gas = Polynomial([
+    959.8458126240355,
+    0.3029051601580761,
+    3.988896105280984e-05,
+    -6.093647929461819e-08,
+    1.0991100692950414e-11
 ], :T)
 
 # ╔═╡ 3462e85a-b14e-4622-ae58-b9ead3b21944
 "Gas phase thermal conductivity [W/(m.K)]"
-k_gas = Polynomial([
-        0.002951812556801408,
-        7.402801713925036e-05,
-        -2.5519055137003943e-09,
-        -1.4679327713347819e-12,
-        2.27325692450161e-16
+const k_gas = Polynomial([
+    0.002951812556801408,
+    7.402801713925036e-05,
+    -2.5519055137003943e-09,
+    -1.4679327713347819e-12,
+    2.27325692450161e-16
 ], :T)
 
 # ╔═╡ 92052050-5edd-46c9-bb48-ee61b35c3184
 "Gas phase viscosity [Pa.s]"
-μ_gas = Polynomial([
-        2.1249668087785053e-06,
-        5.423882435038814e-08,
-        -2.0189391494480477e-11,
-        5.936917557684934e-15,
-        -7.058723563087003e-19
+const μ_gas = Polynomial([
+    2.1249668087785053e-06,
+    5.423882435038814e-08,
+    -2.0189391494480477e-11,
+    5.936917557684934e-15,
+    -7.058723563087003e-19
 ], :T)
 
 # ╔═╡ 6438d22f-dbb9-470f-93e2-ef7330aca17a
@@ -158,7 +159,7 @@ Hypotheses:
 1. Constant reactor cross-section
 1. No reactions in gas phase
 1. No mass flow changes (*injections* over length)
-1. Constant temperature wall
+1. Constant imposed wall temperature over length
 
 Under these conditions the standard plug-flow energy equation can be written as
 
@@ -166,25 +167,50 @@ Under these conditions the standard plug-flow energy equation can be written as
 \rho{}u{}c_{p}(T)\frac{dT}{dz}=\frac{\hat{h}P}{A_{c}}\left(T_{w}-T\right)
 ```
 
-Because of the third point above and because ``\dot{m}=\rho{}u{}A_{c}``
+Since this is a simple ODE, let's start with a basic ModelingToolkit implementation.
+"""
+
+# ╔═╡ 757a04f9-acc4-4440-815f-f1ebaf54abc4
+md"""
+## Counter-flow heat transfer
+
+Hypotheses:
+
+1. Constant reactor cross-section per phase
+1. No reactions in gas phase nor in solids
+1. No mass flow changes (*injections* over length)
+1. Constant imposed wall temperature over length
+1. Solids transfer heat only with gas phase
+
+Under these conditions the standard plug-flow energy equation can be written as
 
 ```math
-c_{p}(T)\frac{dT}{dz}=\frac{\hat{h}P}{\dot{m}}\left(T_{w}-T\right)
-```
-
-or simplifying further by the introduction of ``C_{1}=\hat{h}P\dot{m}^{-1}``
-
-```math
-c_{p}(T)\frac{dT}{dz}=C_{1}\left(T_{w}-T\right)
+\begin{align}
+%
+\dot{Q}_{g-w} &=
+    \left(\frac{\hat{h}P}{A}\right)_{g-w}\left(T_{w}-T_{g}\right)
+\\[12pt]
+%
+\dot{Q}_{g-s} &=
+    \left(\frac{\hat{h}P}{A}\right)_{g-s}\left(T_{s}-T_{g}\right)
+\\[12pt]
+%
+\rho_{g}u_{g}c_{p,g}(T_{g})\frac{dT_{g}}{dz} &=
+    \dot{Q}_{g-w}^{(z)} + \dot{Q}_{g-s}^{(z)}
+\\[12pt]
+%
+-\rho_{s}u_{s}c_{p,s}(T_{s})\frac{dT_{s}}{dz} &=
+    -\dot{Q}_{g-s}^{(L-z)}
+%
+\end{align}
 ```
 
 Since this is a simple ODE, let's start with a basic ModelingToolkit implementation.
+
 """
 
 # ╔═╡ 259bd6c5-2ea9-4e3e-863b-98df5618cc76
 md"""
-## Counter-flow heat transfer
-
 ## Heat losses through solids
 
 ## Mass flow injections over length
@@ -220,84 +246,126 @@ area(s) = s.depth * s.width
 # ╔═╡ 277bb20b-7e9d-40fe-ae33-457afad338ea
 "Plot results of standard PFR solution"
 function plotpfr(sol)
-	z = sol[:z]
-	T = sol[:T]
-	u = sol[:u]
-	Ρ = sol[:Ρ]
-	p = sol[:p] .- 101_325.0
+    z = sol[:z]
+    T = sol[:T]
+    u = sol[:u]
+    Ρ = sol[:Ρ]
+    p = sol[:p] .- 101_325.0
 
-	xlaba = "Position [m]"
-	ylab1 = "Temperature [K]"
-	ylab2 = "Velocity [m/s]"
-	ylab3 = "Density [kg/m³]"
-	ylab4 = "Pressure [Pa]"
+    xlaba = "Position [m]"
+    ylab1 = "Temperature [K]"
+    ylab2 = "Velocity [m/s]"
+    ylab3 = "Density [kg/m³]"
+    ylab4 = "Pressure [Pa]"
 
-	xlims = (0.0, L)
-	xticks = range(xlims..., 6)
-	
-	fig = Figure(resolution = (1000, 700))
-	axes = fig[1, 1] = GridLayout()
-	
-	ax1 = Axis(axes[1, 1], ylabel = ylab1, xlabel = xlaba, xticks = xticks)
-	ax2 = Axis(axes[2, 1], ylabel = ylab2, xlabel = xlaba, xticks = xticks)
-	ax3 = Axis(axes[1, 2], ylabel = ylab3, xlabel = xlaba, xticks = xticks)
-	ax4 = Axis(axes[2, 2], ylabel = ylab4, xlabel = xlaba, xticks = xticks)
+    xlims = (0.0, L)
+    xticks = range(xlims..., 6)
 
-	xlims!(ax1, xlims)
-	xlims!(ax2, xlims)
-	xlims!(ax3, xlims)
-	xlims!(ax4, xlims)
-	
-	linkxaxes!(ax1, ax2, ax3, ax4)
+    fig = Figure(resolution = (1000, 700))
+    axes = fig[1, 1] = GridLayout()
 
-	lines!(ax1, z, T)
-	lines!(ax2, z, u)
-	lines!(ax3, z, Ρ)
-	lines!(ax4, z, p)
+    ax1 = Axis(axes[1, 1], ylabel = ylab1, xlabel = xlaba, xticks = xticks)
+    ax2 = Axis(axes[2, 1], ylabel = ylab2, xlabel = xlaba, xticks = xticks)
+    ax3 = Axis(axes[1, 2], ylabel = ylab3, xlabel = xlaba, xticks = xticks)
+    ax4 = Axis(axes[2, 2], ylabel = ylab4, xlabel = xlaba, xticks = xticks)
 
-	return fig
+    xlims!(ax1, xlims)
+    xlims!(ax2, xlims)
+    xlims!(ax3, xlims)
+    xlims!(ax4, xlims)
+
+    linkxaxes!(ax1, ax2, ax3, ax4)
+
+    lines!(ax1, z, T)
+    lines!(ax2, z, u)
+    lines!(ax3, z, Ρ)
+    lines!(ax4, z, p)
+
+    return fig
 end
 
 # ╔═╡ d4055357-74e9-412b-af9a-38d9090e1e65
 let
-	ĥ_num = 20.0
-	P_num = perim(section)
-	A_num = area(section)
-	ṁ_num = ṁ_ref
-	
-	pars = @parameters ĥ P A ṁ Tw
-	vars = @variables z T(z) p Ρ u
+    ĥ_num = 20.0
+    P_num = perim(section)
+    A_num = area(section)
+    ṁ_num = ṁ_ref
+
+    pars = @parameters ĥ P A ṁ Tw
+    vars = @variables z T(z) p Ρ u
 
     D = Differential(z)
-	
+
     eqs = [
-		p ~ 101_325.0
-		Ρ ~ ρ(p, T)
-		u ~ ṁ / (Ρ * A)
+        p ~ 101_325.0
+        Ρ ~ ρ(p, T)
+        u ~ ṁ / (Ρ * A)
         D(T) ~ ĥ * P * (Tw - T) / (Ρ * u * A * cₚ_gas(T))
     ]
 
-	tspan = (saveat[1], saveat[end])
-	
-	u0 = [T => Tg₀]
-	
-	p = [
-		ĥ => ĥ_num,
-		P => P_num,
-		A => A_num,
-		ṁ => ṁ_num, 
-		Tw => Tenv
-	]
-	
-	@named model = ODESystem(eqs, z, [T], pars)
+    tspan = (saveat[1], saveat[end])
 
-	sys = structural_simplify(model)
-	
-	prob = ODEProblem(sys, u0, tspan, p)
-	
-	sol = solve(prob; saveat=saveat)
+    u0 = [T => Tg₀]
 
-	plotpfr(sol)
+    p = [
+        ĥ => ĥ_num,
+        P => P_num,
+        A => A_num,
+        ṁ => ṁ_num,
+        Tw => Tenv
+    ]
+
+    @named model = ODESystem(eqs, z, [T], pars)
+
+    sys = structural_simplify(model)
+
+    prob = ODEProblem(sys, u0, tspan, p)
+
+    sol = solve(prob; saveat=saveat)
+
+    plotpfr(sol)
+end
+
+# ╔═╡ 1690cd11-1183-41f8-85c8-090812634592
+let
+    ĥ_num = 20.0
+    P_num = perim(section)
+    A_num = area(section)
+    ṁ_num = ṁ_ref
+
+    pars = @parameters ĥ P A ṁ Tw
+    vars = @variables z T(z) p Ρ u
+
+    D = Differential(z)
+
+    eqs = [
+        p ~ 101_325.0
+        Ρ ~ ρ(p, T)
+        u ~ ṁ / (Ρ * A)
+        D(T) ~ ĥ * P * (Tw - T) / (Ρ * u * A * cₚ_gas(T))
+    ]
+
+    tspan = (saveat[1], saveat[end])
+
+    u0 = [T => Tg₀]
+
+    p = [
+        ĥ => ĥ_num,
+        P => P_num,
+        A => A_num,
+        ṁ => ṁ_num,
+        Tw => Tenv
+    ]
+
+    @named model = ODESystem(eqs, z, [T], pars)
+
+    sys = structural_simplify(model)
+
+    prob = ODEProblem(sys, u0, tspan, p)
+
+    sol = solve(prob; saveat=saveat)
+
+    plotpfr(sol)
 end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
@@ -305,12 +373,14 @@ PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 DifferentialEquations = "0c46a032-eb83-5123-abaf-570d42b7fbaa"
+Interpolations = "a98d9a8b-a2ab-59e6-89dd-64a1c18fca59"
 ModelingToolkit = "961ee093-0014-501f-94e3-6117800e7a78"
 Polynomials = "f27b6e38-b328-58d1-80ce-0feddd5e7a45"
 
 [compat]
 CairoMakie = "~0.10.8"
 DifferentialEquations = "~7.9.1"
+Interpolations = "~0.14.7"
 ModelingToolkit = "~8.68.0"
 Polynomials = "~4.0.3"
 """
@@ -321,7 +391,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.8.1"
 manifest_format = "2.0"
-project_hash = "8d9d36783caf4e60f765eb925c3cc8f76cef00f5"
+project_hash = "77f32d2a56f1b65a6900dc87105b7871d553070c"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "d68758475ff90600488eb975b5ac222709a7dd6f"
@@ -2417,6 +2487,8 @@ version = "3.5.0+0"
 # ╟─a056b520-13bc-4c7a-99ab-29d3008e89bc
 # ╟─7fcbe3a3-c6e8-4345-8e90-e6bacedcf54e
 # ╟─d4055357-74e9-412b-af9a-38d9090e1e65
+# ╟─757a04f9-acc4-4440-815f-f1ebaf54abc4
+# ╠═1690cd11-1183-41f8-85c8-090812634592
 # ╟─259bd6c5-2ea9-4e3e-863b-98df5618cc76
 # ╟─d069eede-afdd-4f88-b3ac-fb8c7e03120d
 # ╟─f9b0f36f-2427-4a0a-930a-e075b8660040
