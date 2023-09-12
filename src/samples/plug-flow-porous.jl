@@ -97,58 +97,6 @@ Since this is a simple ODE, let's start with a basic ModelingToolkit implementat
     See this [link](https://github.com/SciML/ModelingToolkit.jl/issues/1354) for a partial solution of interpolation function registration.
 """
 
-# ╔═╡ 1690cd11-1183-41f8-85c8-090812634592
-# let
-#     ĥ_num = 20.0
-#     P_num = perim(section)
-#     A_num = area(section)
-#     ṁ_num = ṁ_ref
-
-#     # Ts_try = Ts₀ * ones(length(saveat))
-#     # Ts_fun = linear_interpolation(saveat, Ts_try)
-
-#     pars = @parameters ĥ Pgw Pgs Ac ṁg ṁs Tw
-#     obsr = @variables pg Ρg ug Acg Acs Qgw Qgs
-#     vars = @variables z Tg(z) Ts(z)
-
-#     D = Differential(z)
-
-#     eqs = [
-#         pg ~ 101_325.0
-#         Ρg ~ ρ(pg, Tg)
-
-#         Acg ~ Ac * Φ(z)
-#         Acs ~ Ac - Acg
-
-#         ug ~ ṁg / (Ρg * Acg)
-
-#         Qgw ~ ĥ * Pgw * (Tw - Tg)
-#         Qgs ~ ĥ * Pgs * (Ts - Tg)
-
-#         D(Tg) ~ (Qgw + Qgs) / (Ρg * ug * Acg * cₚ_gas(Tg))
-#         D(Ts) ~ (     -Qgs) / (3000 * 0.001 * Acs * 900)
-#     ]
-
-#     p = [
-#         ĥ   => ĥ_num,
-#         Pgw => P_num,
-#         Pgs => 10P_num,
-#         Ac  => A_num,
-#         ṁg  => ṁ_num,
-#         ṁs  => ṁ_num,
-#         Tw  => Tenv
-#     ]
-
-#     @named model = ODESystem(eqs, z, [Tg], pars)
-#     sys = structural_simplify(model)
-#     prob = ODEProblem(sys, [Tg => Tg₀, Ts => Ts₀], zspan, p)
-#     gas = solve(prob; saveat=saveat)
-
-#     # T_gas = linear_interpolation(gas[:z], gas[:Tg])
-
-#     plotpfr(gas)
-# end
-
 # ╔═╡ 259bd6c5-2ea9-4e3e-863b-98df5618cc76
 md"""
 ### Heat losses through solids
@@ -196,6 +144,57 @@ const ṁ_ref = 8.0
 "Reactor length L = $(L) m"
 const L = 9.0
 
+# ╔═╡ 36b4aa1e-40b0-4f6b-b060-ffa7223f8ea1
+"Solid phase PFR model"
+struct ModelSolid
+    ĥ::Num
+    Ac::Num
+    ṁ::Num
+    Tw::Num
+    Pgs::Num
+    Ρ::Num
+    cₚ::Num
+    z::Num
+    T::Num
+    sys::ODESystem
+
+    function ModelSolid(Tg_f)
+        # Independent variables.
+        @variables z
+
+        # Dependent variables.
+        @variables T(z)
+
+        # External coupling.
+        @variables Tg
+
+        # Observables.
+        @variables Qgs u A
+
+        # Model parameters.
+        pars = @parameters ĥ Ac ṁ Tw Pgs Ρ cₚ
+
+        # Space derivative.
+        D = Differential(z)
+
+        # System of equations
+        eqs = [
+            Tg ~ Tg_f(L-z)
+            Qgs ~ ĥ * Pgs * (T - Tg)
+
+            A ~ Ac * (1.0 - Φ(L-z))
+            u ~ ṁ / (Ρ * A)
+
+            D(T) ~ -Qgs / (Ρ * u * A * cₚ)
+        ]
+
+        @named model = ODESystem(eqs, z, [T], pars)
+        model = structural_simplify(model)
+
+        return new(ĥ, Ac, ṁ, Tw, Pgs, Ρ, cₚ, z, T, model)
+    end
+end
+
 # ╔═╡ d9d85ce6-17ed-4e9a-94c1-0ab907940a4d
 "Reactor external environment temperature Tenv = $(Tenv) K"
 const Tenv = 313.0
@@ -211,6 +210,41 @@ const zspan = (0.0, L)
 # ╔═╡ a056b520-13bc-4c7a-99ab-29d3008e89bc
 "Coordinates to retrieve all solutions"
 const saveat = range(zspan..., 91)
+
+# ╔═╡ 3e3a597f-2dc3-4714-94bc-156bfb078edb
+function solvegas(model, ĥ_num, P_num, A_num, ṁ_num)
+    T = [model.T => Tg₀]
+
+    p = [
+        model.ĥ   => ĥ_num,
+        model.Ac  => A_num,
+        model.ṁ   => ṁ_num,
+        model.Tw  => Tenv,
+        model.Pgw => P_num,
+        model.Pgs => P_num  # FIXME
+    ]
+
+    prob = ODEProblem(model.sys, T, zspan, p)
+    return solve(prob; saveat=saveat)
+end
+
+# ╔═╡ 54b6a18f-6320-4cbb-917c-dea7a1ec36d6
+function solvesolid(model, ĥ_num, P_num, A_num, ṁ_num)
+    T = [model.T => Ts₀]
+
+    p = [
+        model.ĥ   => ĥ_num,
+        model.Ac  => A_num,
+        model.ṁ   => ṁ_num,
+        model.Tw  => Tenv,
+        model.Pgs => P_num,  # FIXME
+        model.Ρ   => 3000.0,
+        model.cₚ  => 900.0,
+    ]
+
+    prob = ODEProblem(model.sys, T, zspan, p)
+    return solve(prob; saveat=saveat)
+end
 
 # ╔═╡ 5888cf92-0a95-4a17-b83d-600b93dbd1ed
 "Inlet composition of reference atmosphere"
@@ -311,6 +345,60 @@ const GAS_CONSTANT = 8.314_462_618_153_24
 "Ideal gas specific mass of mixture [kg/m³]"
 ρ(p, T) = p * M̄ / (GAS_CONSTANT * T)
 
+# ╔═╡ f48957cb-bbd9-494b-a8d3-5dd54ed75db3
+"Gas phase PFR model"
+struct ModelGas
+    ĥ::Num
+    Ac::Num
+    ṁ::Num
+    Tw::Num
+    Pgs::Num
+    Pgw::Num
+    z::Num
+    T::Num
+    sys::ODESystem
+
+    function ModelGas(Ts_f)
+        # Independent variables.
+        @variables z
+
+        # Dependent variables.
+        @variables T(z)
+
+        # External coupling.
+        @variables Ts
+
+        # Observables.
+        @variables Qgw Qgs u A p Ρ
+
+        # Model parameters.
+        pars = @parameters ĥ Ac ṁ Tw Pgs Pgw
+
+        # Space derivative.
+        D = Differential(z)
+
+        # System of equations
+        eqs = [
+            Ts ~ Ts_f(z)
+            Qgw ~ ĥ * Pgw * (Tw - T)
+            Qgs ~ ĥ * Pgs * (Ts - T)
+
+            A ~ Ac * Φ(z)
+            u ~ ṁ / (Ρ * A)
+
+            p ~ 101_325.0
+            Ρ ~ ρ(p, T)
+
+            D(T) ~ (Qgw + Qgs) / (Ρ * u * A * cₚ_gas(T))
+        ]
+
+        @named model = ODESystem(eqs, z, [T], pars)
+        model = structural_simplify(model)
+
+        return new(ĥ, Ac, ṁ, Tw, Pgs, Pgw, z, T, model)
+    end
+end
+
 # ╔═╡ df06b2ae-1157-43e4-a895-be328d788c16
 "Perimeter of a rectangle [m]"
 perim(s) = 2 * (s.depth + s.width)
@@ -321,12 +409,7 @@ area(s) = s.depth * s.width
 
 # ╔═╡ 277bb20b-7e9d-40fe-ae33-457afad338ea
 "Plot results of standard PFR solution"
-function plotpfr(; gas, bed = nothing)
-    z = gas[:z]
-    T = gas[:Tg]
-    u = gas[:ug]
-    Ρ = gas[:Ρg]
-    p = gas[:pg] .- 101_325.0
+function plotpfr(; gas, sol = nothing)
 
     xlaba = "Position [m]"
     ylab1 = "Temperature [K]"
@@ -352,10 +435,25 @@ function plotpfr(; gas, bed = nothing)
 
     linkxaxes!(ax1, ax2, ax3, ax4)
 
+    z = gas[:z]
+    T = gas[:T]
+    u = gas[:u]
+    Ρ = gas[:Ρ]
+    p = gas[:p] .- 101_325.0
+
     lines!(ax1, z, T)
     lines!(ax2, z, u)
     lines!(ax3, z, Ρ)
     lines!(ax4, z, p)
+
+    if !isnothing(sol)
+        z = sol[:z]
+        T = sol[:T]
+        u = sol[:u]
+
+        lines!(ax1, z, T)
+        lines!(ax2, z, u)
+    end
 
     return fig
 end
@@ -367,29 +465,29 @@ let
     A_num = area(section)
     ṁ_num = ṁ_ref
 
-    pars = @parameters ĥ Pg Ac ṁg Tw
-    vars = @variables z Tg(z) pg Ρg ug
+    pars = @parameters ĥ P A ṁ Tw
+    vars = @variables z T(z) p Ρ u
 
     D = Differential(z)
 
     eqs = [
-        pg ~ 101_325.0
-        Ρg ~ ρ(pg, Tg)
-        ug ~ ṁg / (Ρg * Ac)
-        D(Tg) ~ ĥ * Pg * (Tw - Tg) / (Ρg * ug * Ac * cₚ_gas(Tg))
+        p ~ 101_325.0
+        Ρ ~ ρ(p, T)
+        u ~ ṁ / (Ρ * A)
+        D(T) ~ ĥ * P * (Tw - T) / (Ρ * u * A * cₚ_gas(T))
     ]
 
-    u0 = [Tg => Tg₀]
+    u0 = [T => Tg₀]
 
     p = [
-        ĥ => ĥ_num,
-        Pg => P_num,
-        Ac => A_num,
-        ṁg => ṁ_num,
+        ĥ  => ĥ_num,
+        P  => P_num,
+        A  => A_num,
+        ṁ  => ṁ_num,
         Tw => Tenv
     ]
 
-    @named model = ODESystem(eqs, z, [Tg], pars)
+    @named model = ODESystem(eqs, z, [T], pars)
     sys = structural_simplify(model)
     prob = ODEProblem(sys, u0, zspan, p)
     gas = solve(prob; saveat=saveat)
@@ -430,62 +528,35 @@ begin
     A_num = area(section)
     ṁ_num = ṁ_ref
 
+    # Allocate memory of interpolation arrays.
     z_num = collect(saveat)
     Ts_num = Ts₀ * ones(length(z_num))
     Tg_num = Tg₀ * ones(length(z_num))
 
+    # Create interpolation objects.
     Ts_fun = TemperatureInterpolator(z_num, Ts_num)
     Tg_fun = TemperatureInterpolator(z_num, Tg_num)
 
-    interp_linear_Ts(zz) = Ts_fun(zz)
-    interp_linear_Tg(zz) = Tg_fun(zz)
+    # Wrap interpolation call at global scope.
+    interp_linear_Ts(z) = Ts_fun(z)
+    interp_linear_Tg(z) = Tg_fun(z)
 
-    vars = @variables z Tg(z) Ts(z)
-    obsr = @variables pg Ρg ug Acg Qgw Qgs
-    pars = @parameters ĥ Pgw Pgs Ac ṁg ṁs Tw
-
+    # Register global symbolic interfaces.
     @register_symbolic interp_linear_Ts(z)
     @register_symbolic interp_linear_Tg(z)
 
-    D = Differential(z)
+    gas_model = ModelGas(interp_linear_Ts)
+    sol_model = ModelSolid(interp_linear_Tg)
 
-    eqs = [
-        Ts ~ interp_linear_Ts(z)
+    # Solution loop.
+    gas = solvegas(gas_model, ĥ_num, P_num, A_num, ṁ_num)
+    update!(Tg_fun, gas[:z], gas[:T])
 
-        pg ~ 101_325.0
-        Ρg ~ ρ(pg, Tg)
+    sol = solvesolid(sol_model, ĥ_num, P_num, A_num, ṁ_num)
+    update!(Ts_fun, sol[:z], sol[:T])
 
-        Acg ~ Ac * Φ(z)
-        ug ~ ṁg / (Ρg * Acg)
-
-        Qgw ~ ĥ * Pgw * (Tw - Tg)
-        Qgs ~ ĥ * Pgs * (Ts - Tg)
-
-        D(Tg) ~ (Qgw + Qgs) / (Ρg * ug * Acg * cₚ_gas(Tg))
-    ]
-
-    p = [
-        ĥ   => ĥ_num,
-        Pgw => P_num,
-        Pgs => P_num,
-        Ac  => A_num,
-        ṁg  => ṁ_num,
-        ṁs  => ṁ_num,
-        Tw  => Tenv
-    ]
-
-    @named model = ODESystem(eqs, z, [Tg], pars)
-    sys = structural_simplify(model)
-    prob = ODEProblem(sys, [Tg => Tg₀], zspan, p)
-    gas = solve(prob; saveat=saveat)
-
-    update!(Tg_fun, gas[:z], gas[:Tg])
-
-    plotpfr(; gas = gas)
+    plotpfr(; gas = gas, sol = sol)
 end
-
-# ╔═╡ c5f5e652-9ffd-4ee9-b712-161edf99d7d0
-methods(interp_linear_Ts)
 
 # ╔═╡ 3a193274-f5d0-418c-ad9a-582aca4b3cba
 md"""
@@ -2868,9 +2939,11 @@ version = "3.5.0+0"
 # ╟─7fcbe3a3-c6e8-4345-8e90-e6bacedcf54e
 # ╟─d4055357-74e9-412b-af9a-38d9090e1e65
 # ╟─757a04f9-acc4-4440-815f-f1ebaf54abc4
-# ╠═dfc1ff2c-7695-41c7-bd0a-fd818eaf5087
-# ╠═c5f5e652-9ffd-4ee9-b712-161edf99d7d0
-# ╠═1690cd11-1183-41f8-85c8-090812634592
+# ╟─f48957cb-bbd9-494b-a8d3-5dd54ed75db3
+# ╟─36b4aa1e-40b0-4f6b-b060-ffa7223f8ea1
+# ╟─3e3a597f-2dc3-4714-94bc-156bfb078edb
+# ╟─54b6a18f-6320-4cbb-917c-dea7a1ec36d6
+# ╟─dfc1ff2c-7695-41c7-bd0a-fd818eaf5087
 # ╟─259bd6c5-2ea9-4e3e-863b-98df5618cc76
 # ╟─412b34dd-8189-4dde-8584-482c65b6ebd8
 # ╟─6438d22f-dbb9-470f-93e2-ef7330aca17a
@@ -2897,7 +2970,7 @@ version = "3.5.0+0"
 # ╟─3739ed10-d3b0-4cea-9522-c11eecde7d07
 # ╟─df06b2ae-1157-43e4-a895-be328d788c16
 # ╟─16b2896c-d5f5-419c-b728-76fefdc47b50
-# ╟─277bb20b-7e9d-40fe-ae33-457afad338ea
+# ╠═277bb20b-7e9d-40fe-ae33-457afad338ea
 # ╟─7bcc4099-bcad-4ed1-bf11-db24054480c6
 # ╟─0258b67b-4854-4471-b349-6bfc3dfe9a66
 # ╟─3a193274-f5d0-418c-ad9a-582aca4b3cba
