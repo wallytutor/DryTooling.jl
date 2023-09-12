@@ -245,8 +245,25 @@ md"""
 ### Properties of solids bed
 """
 
-# ╔═╡ ee3126ec-d09f-48dd-9f95-7befe3efbfc5
+# ╔═╡ 61459519-2dc6-4008-ab48-5ab24a8f7fb5
+"Characteristic block size [m]"
+const BLOCK_SIZE = 0.1
 
+# ╔═╡ ee3126ec-d09f-48dd-9f95-7befe3efbfc5
+"Solids specific mass [kg/m³]"
+const ρₛ = 3000.0
+
+# ╔═╡ 2e5f2df9-04ee-4c40-97bc-da3a781e6cbc
+"Solids phase specific heat [J/(kg.K)]"
+const cₚ_sol = Polynomial([
+    900.0,
+], :T)
+
+# ╔═╡ 475253d3-60ab-49ec-84ca-806594d3a54a
+"Solids phase thermal conductivity [W/(m.K)]"
+const k_sol = Polynomial([
+    3.0
+], :T)
 
 # ╔═╡ d069eede-afdd-4f88-b3ac-fb8c7e03120d
 md"""
@@ -260,6 +277,20 @@ const GAS_CONSTANT = 8.314_462_618_153_24
 # ╔═╡ 4d3c23f9-5549-4a0b-a5d9-2cd8c15051e7
 "Reference atmospheric pressure [Pa]"
 const P_ATMOSPHERE = 101_325.0
+
+# ╔═╡ fd371936-5d1a-4fdd-bdba-cacb9f57ef92
+"Perimeter of solids per unit of wall $(BLOCK_PERIM_PER_WALL)"
+const BLOCK_PERIM_PER_WALL = begin
+    # Don't even bother rounding here...
+    nrows = section.depth / BLOCK_SIZE
+    ncols = section.width / BLOCK_SIZE
+
+    # Compute number of extra interfaces...
+    total = nrows * section.depth + ncols * section.width
+
+    # Pfff... divide by ten, just because...
+    total / 10
+end
 
 # ╔═╡ 3739ed10-d3b0-4cea-9522-c11eecde7d07
 "Ideal gas specific mass of mixture [kg/m³]"
@@ -588,12 +619,6 @@ struct CounterFlowPFRSolidModel
     "Reactor gas-solid perimeter [m]"
     Pgs::Num
 
-    "Solids specific mass [kg/m³]"
-    Ρ::Num
-
-    "Solids constant specific heat [J/(kg.K)]"
-    cₚ::Num
-
     "Reactor axis coordinate [m]"
     z::Num
 
@@ -617,7 +642,7 @@ struct CounterFlowPFRSolidModel
         @variables Qgs u A
 
         # Model parameters.
-        pars = @parameters ĥ Ac ṁ Tw Pgs Ρ cₚ
+        pars = @parameters ĥ Ac ṁ Tw Pgs
 
         # Space derivative.
         D = Differential(z)
@@ -627,15 +652,15 @@ struct CounterFlowPFRSolidModel
             Tg ~ Tg_f(L-z)
             Qgs ~ ĥ * Pgs * (T - Tg)
             A ~ Ac * (1.0 - Φ(L-z))
-            u ~ ṁ / (Ρ * A)
-            D(T) ~ -Qgs / (Ρ * u * A * cₚ)
+            u ~ ṁ / (ρₛ * A)
+            D(T) ~ -Qgs / (ρₛ * u * A * cₚ_sol(T))
         ]
 
         # Assembly and simplify system.
         @named sys = ODESystem(eqs, z, [T], pars)
         sys = structural_simplify(sys)
 
-        return new(ĥ, Ac, ṁ, Tw, Pgs, Ρ, cₚ, z, T, sys)
+        return new(ĥ, Ac, ṁ, Tw, Pgs, z, T, sys)
     end
 end
 
@@ -679,7 +704,7 @@ function solvecounterflowpfrgas(model, ĥ_num, P_num, A_num, ṁ_num)
         model.ṁ   => ṁ_num,
         model.Tw  => Tenv,
         model.Pgw => P_num,
-        model.Pgs => 10P_num  # FIXME
+        model.Pgs => P_num * BLOCK_PERIM_PER_WALL
     ]
 
     prob = ODEProblem(model.sys, T, zspan, p)
@@ -696,9 +721,7 @@ function solvecounterflowpfrsolid(model, ĥ_num, P_num, A_num, ṁ_num)
         model.Ac  => A_num,
         model.ṁ   => ṁ_num,
         model.Tw  => Tenv,
-        model.Pgs => 10P_num,  # FIXME
-        model.Ρ   => 3000.0,
-        model.cₚ  => 900.0,
+        model.Pgs => P_num * BLOCK_PERIM_PER_WALL
     ]
 
     prob = ODEProblem(model.sys, T, zspan, p)
@@ -738,7 +761,7 @@ counterflowpfr = begin
     atol = 1.0e-02
 
     # Model parameters.
-    ĥ_num = 20.0
+    ĥ_num = 2.0
     P_num = perim(section)
     A_num = area(section)
     ṁ_num = ṁ_ref
@@ -793,7 +816,7 @@ let
     gashist, solhist = counterflowpfr[2:3]
 
     numiter = length(gashist)
-    fig = Figure(resolution = (800, 600))
+    fig = Figure(resolution = (720, 400))
     ax = Axis(fig[1, 1], yscale = log10,
               ylabel = "RMSE(ΔT)",
               xlabel = "Iteration")
@@ -828,9 +851,6 @@ let
 
     println("PASSED: interpolator update works")
 end
-
-# ╔═╡ 6b81e37f-03cf-4b1c-9f98-9d23d1337cc4
-
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -3001,10 +3021,14 @@ version = "3.5.0+0"
 # ╟─3462e85a-b14e-4622-ae58-b9ead3b21944
 # ╟─92052050-5edd-46c9-bb48-ee61b35c3184
 # ╟─f2bd4d19-c3c4-4c0b-b762-83f1d1073686
-# ╠═ee3126ec-d09f-48dd-9f95-7befe3efbfc5
+# ╟─61459519-2dc6-4008-ab48-5ab24a8f7fb5
+# ╟─ee3126ec-d09f-48dd-9f95-7befe3efbfc5
+# ╟─2e5f2df9-04ee-4c40-97bc-da3a781e6cbc
+# ╟─475253d3-60ab-49ec-84ca-806594d3a54a
 # ╟─d069eede-afdd-4f88-b3ac-fb8c7e03120d
 # ╟─f9b0f36f-2427-4a0a-930a-e075b8660040
 # ╟─4d3c23f9-5549-4a0b-a5d9-2cd8c15051e7
+# ╟─fd371936-5d1a-4fdd-bdba-cacb9f57ef92
 # ╟─3739ed10-d3b0-4cea-9522-c11eecde7d07
 # ╟─df06b2ae-1157-43e4-a895-be328d788c16
 # ╟─16b2896c-d5f5-419c-b728-76fefdc47b50
@@ -3020,11 +3044,10 @@ version = "3.5.0+0"
 # ╟─f48957cb-bbd9-494b-a8d3-5dd54ed75db3
 # ╟─36b4aa1e-40b0-4f6b-b060-ffa7223f8ea1
 # ╟─ede59bf2-70c2-46fe-affe-7aabfc7112f6
-# ╠═3e3a597f-2dc3-4714-94bc-156bfb078edb
-# ╠═54b6a18f-6320-4cbb-917c-dea7a1ec36d6
+# ╟─3e3a597f-2dc3-4714-94bc-156bfb078edb
+# ╟─54b6a18f-6320-4cbb-917c-dea7a1ec36d6
 # ╟─4900d90f-15d0-459e-9e42-3c64df394bb0
 # ╟─3a193274-f5d0-418c-ad9a-582aca4b3cba
 # ╟─b531b71d-f7ee-45bc-b46a-6f6cbff3c7a2
-# ╠═6b81e37f-03cf-4b1c-9f98-9d23d1337cc4
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
