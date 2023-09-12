@@ -6,6 +6,8 @@ using InteractiveUtils
 
 # ╔═╡ 7529d5a2-f27d-4630-be2e-4c2cfe87ae06
 begin
+    println("Import all required tools on top so keeping track of them is easier.")
+
     using CairoMakie
     using DifferentialEquations: solve
     using DocStringExtensions: TYPEDFIELDS
@@ -31,8 +33,6 @@ In this note we study the behavior of a conceptual counter current plug-flow rea
 - Include the effect of pressure drop over main inlet flow
 - Add solid-gas mass exchange model (``\mathrm{H_2O}``, ``\mathrm{CO_2}``,...)
 - Compare solids heating kinetics to a 3D CFD model
-
-Import all required tools on top so keeping track of them is easier.
 """
 
 # ╔═╡ eb3e42d2-f871-4197-9aa9-433ecb9863e5
@@ -99,17 +99,31 @@ Below we solve the problem with help of both `CounterFlowPFRGasModel` and
 `CounterFlowPFRSolidModel` in an iterative fashion.
 """
 
+# ╔═╡ c3e88fca-7163-48de-9b22-f8ed86204162
+md"""
+### Heat losses through walls
+"""
+
+# ╔═╡ 2907d71b-4488-4969-8544-bea2a0b70be2
+
+
 # ╔═╡ 259bd6c5-2ea9-4e3e-863b-98df5618cc76
 md"""
-### Heat losses through solids
-
 ### Mass flow injections over length
+
+**TODO**
 
 ### Modeling of pressure drop
 
+**TODO**
+
 ### Solid-gas mass exchanges
 
+**TODO**
+
 ## Comparisong agains CFD model
+
+**TODO**
 """
 
 # ╔═╡ 412b34dd-8189-4dde-8584-482c65b6ebd8
@@ -278,20 +292,6 @@ const GAS_CONSTANT = 8.314_462_618_153_24
 "Reference atmospheric pressure [Pa]"
 const P_ATMOSPHERE = 101_325.0
 
-# ╔═╡ fd371936-5d1a-4fdd-bdba-cacb9f57ef92
-"Perimeter of solids per unit of wall $(BLOCK_PERIM_PER_WALL)"
-const BLOCK_PERIM_PER_WALL = begin
-    # Don't even bother rounding here...
-    nrows = section.depth / BLOCK_SIZE
-    ncols = section.width / BLOCK_SIZE
-
-    # Compute number of extra interfaces...
-    total = nrows * section.depth + ncols * section.width
-
-    # Pfff... divide by ten, just because...
-    total / 10
-end
-
 # ╔═╡ 3739ed10-d3b0-4cea-9522-c11eecde7d07
 "Ideal gas specific mass of mixture [kg/m³]"
 ρ(p, T) = p * M̄ / (GAS_CONSTANT * T)
@@ -303,6 +303,37 @@ perim(s) = 2 * (s.depth + s.width)
 # ╔═╡ 16b2896c-d5f5-419c-b728-76fefdc47b50
 "Area of a rectangle"
 area(s) = s.depth * s.width
+
+# ╔═╡ fd371936-5d1a-4fdd-bdba-cacb9f57ef92
+"Perimeter of solids per unit of wall $(BLOCK_PERIM_PER_WALL)"
+const BLOCK_PERIM_PER_WALL = let
+    # Surface area of a single block.
+    αᵦ = 6BLOCK_SIZE^2
+
+    # Volume of a single block.
+    νᵦ = BLOCK_SIZE^3
+
+    # Vertical cross-section.
+    Aᵥ = area(section)
+
+    # Vertical volume.
+    Vᵥ = Aᵥ * L
+
+    # Volume of all blocks.
+    Vᵦ = (1 - Φ(L/2)) * Vᵥ
+
+    # Number of blocks in vertical.
+    Nᵦ = Vᵦ / νᵦ
+
+    # Area of all blocks.
+    Aᵦ = Nᵦ * αᵦ
+
+    # Estimator of block perimeter in slice.
+    Pᵦ = Aᵦ / L
+
+    # Relative block to wall perimeter.
+    σ = round(Pᵦ / perim(section))
+end
 
 # ╔═╡ 277bb20b-7e9d-40fe-ae33-457afad338ea
 "Plot results of standard PFR solution"
@@ -756,12 +787,12 @@ counterflowpfr = begin
     println("Solving CounterFlowPFR(Gas|Solid)")
 
     # Solution controls.
-    α = 0.2
+    α = 0.3
     maxiter = 1000
     atol = 1.0e-02
 
     # Model parameters.
-    ĥ_num = 2.0
+    ĥ_num = 5.0
     P_num = perim(section)
     A_num = area(section)
     ṁ_num = ṁ_ref
@@ -805,10 +836,10 @@ counterflowpfr = begin
     end
 
     # Solution loop.
-    gashist, solhist = solvecounterflowpfr(; gassolver, solsolver, maxiter, atol)
+    @time hist = solvecounterflowpfr(; gassolver, solsolver, maxiter, atol)
 
     fig = plotpfr(; gas = gassolver()[1], sol = solsolver()[1])
-    fig, gashist, solhist
+    (fig, hist...)
 end;
 
 # ╔═╡ 1f3eee88-eded-452a-825d-5e6ea78399b6
@@ -2993,7 +3024,7 @@ version = "3.5.0+0"
 
 # ╔═╡ Cell order:
 # ╟─a876e9c0-5082-11ee-069b-d756666798d2
-# ╠═7529d5a2-f27d-4630-be2e-4c2cfe87ae06
+# ╟─7529d5a2-f27d-4630-be2e-4c2cfe87ae06
 # ╟─eb3e42d2-f871-4197-9aa9-433ecb9863e5
 # ╟─7fcbe3a3-c6e8-4345-8e90-e6bacedcf54e
 # ╟─d4055357-74e9-412b-af9a-38d9090e1e65
@@ -3001,6 +3032,8 @@ version = "3.5.0+0"
 # ╟─dfc1ff2c-7695-41c7-bd0a-fd818eaf5087
 # ╟─1f3eee88-eded-452a-825d-5e6ea78399b6
 # ╟─b93ab73a-e9e3-49ea-bf4b-996b845f650d
+# ╟─c3e88fca-7163-48de-9b22-f8ed86204162
+# ╠═2907d71b-4488-4969-8544-bea2a0b70be2
 # ╟─259bd6c5-2ea9-4e3e-863b-98df5618cc76
 # ╟─412b34dd-8189-4dde-8584-482c65b6ebd8
 # ╟─6438d22f-dbb9-470f-93e2-ef7330aca17a
