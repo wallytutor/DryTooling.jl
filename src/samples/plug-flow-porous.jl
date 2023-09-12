@@ -307,19 +307,24 @@ function plotpfr(; gas, sol = nothing)
     Ρ = gas[:Ρ]
     p = gas[:p] .- 101_325.0
 
-    lines!(ax1, z, T)
-    lines!(ax2, z, u)
-    lines!(ax3, z, Ρ)
-    lines!(ax4, z, p)
+    lines!(ax1, z, T, label = "Gas")
+    lines!(ax2, z, u, label = "Gas")
+    lines!(ax3, z, Ρ, label = "Gas")
+    lines!(ax4, z, p, label = "Gas")
 
     if !isnothing(sol)
-        z = sol[:z]
+        z = reverse(sol[:z])
         T = sol[:T]
         u = sol[:u]
 
-        lines!(ax1, z, T)
-        lines!(ax2, z, u)
+        lines!(ax1, z, T, label = "Solid")
+        lines!(ax2, z, u, label = "Solid")
     end
+
+    axislegend(ax1)
+    axislegend(ax2)
+    axislegend(ax3)
+    axislegend(ax4)
 
     return fig
 end
@@ -335,7 +340,9 @@ md"""
 !!! important
 
     See this [link](https://github.com/SciML/ModelingToolkit.jl/issues/1354)
-    for a partial solution of interpolation function registration.
+    for a partial solution of interpolation function registration. I am still
+    unable to register functions in a local scope (using the `let` keyword to
+    encapsulate the cell or a function).
 """
 
 # ╔═╡ 7bcc4099-bcad-4ed1-bf11-db24054480c6
@@ -538,7 +545,7 @@ struct CounterFlowPFRGasModel
 
         # System of equations
         eqs = [
-            Ts ~ Ts_f(z)
+            Ts ~ Ts_f(L-z)
             Qgw ~ ĥ * Pgw * (Tw - T)
             Qgs ~ ĥ * Pgs * (Ts - T)
             A ~ Ac * Φ(z)
@@ -672,7 +679,7 @@ function solvecounterflowpfrgas(model, ĥ_num, P_num, A_num, ṁ_num)
         model.ṁ   => ṁ_num,
         model.Tw  => Tenv,
         model.Pgw => P_num,
-        model.Pgs => P_num  # FIXME
+        model.Pgs => 10P_num  # FIXME
     ]
 
     prob = ODEProblem(model.sys, T, zspan, p)
@@ -689,7 +696,7 @@ function solvecounterflowpfrsolid(model, ĥ_num, P_num, A_num, ṁ_num)
         model.Ac  => A_num,
         model.ṁ   => ṁ_num,
         model.Tw  => Tenv,
-        model.Pgs => P_num,  # FIXME
+        model.Pgs => 10P_num,  # FIXME
         model.Ρ   => 3000.0,
         model.cₚ  => 900.0,
     ]
@@ -722,13 +729,13 @@ function solvecounterflowpfr(;
 end
 
 # ╔═╡ dfc1ff2c-7695-41c7-bd0a-fd818eaf5087
-plotcounterflowpfr, gashist, solhist = begin
+counterflowpfr = begin
     println("Solving CounterFlowPFR(Gas|Solid)")
 
     # Solution controls.
-    α = 0.4
-    maxiter = 100
-    atol = 1.0e-03
+    α = 0.2
+    maxiter = 1000
+    atol = 1.0e-02
 
     # Model parameters.
     ĥ_num = 20.0
@@ -750,8 +757,8 @@ plotcounterflowpfr, gashist, solhist = begin
     interp_linear_Tg(z) = Tg_fun(z)
 
     # Register global symbolic interfaces.
-    @register_symbolic interp_linear_Ts(z)
-    @register_symbolic interp_linear_Tg(z)
+    @register interp_linear_Ts(z)
+    @register interp_linear_Tg(z)
 
     # Create models with registered interpolators.
     gas_model = CounterFlowPFRGasModel(interp_linear_Ts)
@@ -783,6 +790,8 @@ end;
 
 # ╔═╡ 1f3eee88-eded-452a-825d-5e6ea78399b6
 let
+    gashist, solhist = counterflowpfr[2:3]
+
     numiter = length(gashist)
     fig = Figure(resolution = (800, 600))
     ax = Axis(fig[1, 1], yscale = log10,
@@ -791,14 +800,14 @@ let
 
     lines!(ax, 1:numiter, gashist, label = "Gas")
     lines!(ax, 1:numiter, solhist, label = "Solid")
-    xlims!(ax, (0, numiter))
+    xlims!(ax, (0, numiter+1))
     axislegend(ax)
 
     fig
 end
 
 # ╔═╡ b93ab73a-e9e3-49ea-bf4b-996b845f650d
-plotcounterflowpfr
+counterflowpfr[1]
 
 # ╔═╡ 3a193274-f5d0-418c-ad9a-582aca4b3cba
 md"""
@@ -819,6 +828,9 @@ let
 
     println("PASSED: interpolator update works")
 end
+
+# ╔═╡ 6b81e37f-03cf-4b1c-9f98-9d23d1337cc4
+
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -2997,7 +3009,7 @@ version = "3.5.0+0"
 # ╟─df06b2ae-1157-43e4-a895-be328d788c16
 # ╟─16b2896c-d5f5-419c-b728-76fefdc47b50
 # ╟─277bb20b-7e9d-40fe-ae33-457afad338ea
-# ╠═c8987a75-afac-40f0-80cc-582d1bd2c291
+# ╟─c8987a75-afac-40f0-80cc-582d1bd2c291
 # ╟─499eead4-a91a-47c2-aaef-ab3732c36d04
 # ╟─7bcc4099-bcad-4ed1-bf11-db24054480c6
 # ╟─0258b67b-4854-4471-b349-6bfc3dfe9a66
@@ -3008,10 +3020,11 @@ version = "3.5.0+0"
 # ╟─f48957cb-bbd9-494b-a8d3-5dd54ed75db3
 # ╟─36b4aa1e-40b0-4f6b-b060-ffa7223f8ea1
 # ╟─ede59bf2-70c2-46fe-affe-7aabfc7112f6
-# ╟─3e3a597f-2dc3-4714-94bc-156bfb078edb
-# ╟─54b6a18f-6320-4cbb-917c-dea7a1ec36d6
+# ╠═3e3a597f-2dc3-4714-94bc-156bfb078edb
+# ╠═54b6a18f-6320-4cbb-917c-dea7a1ec36d6
 # ╟─4900d90f-15d0-459e-9e42-3c64df394bb0
 # ╟─3a193274-f5d0-418c-ad9a-582aca4b3cba
 # ╟─b531b71d-f7ee-45bc-b46a-6f6cbff3c7a2
+# ╠═6b81e37f-03cf-4b1c-9f98-9d23d1337cc4
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
