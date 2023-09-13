@@ -89,7 +89,7 @@ Here we modify the standard plug-flow energy equation to be
     \dot{Q}_{g-w}^{(z)} + \dot{Q}_{g-s}^{(z)}
 \\[12pt]
 %
--\rho_{s}u_{s}c_{p,s}(T_{s})\frac{dT_{s}}{dz} &=
+\rho_{s}u_{s}c_{p,s}(T_{s})\frac{dT_{s}}{dz} &=
     -\dot{Q}_{g-s}^{(L-z)}
 %
 \end{align}
@@ -306,9 +306,17 @@ const P_ATMOSPHERE = 101_325.0
 "Perimeter of a rectangle [m]"
 perim(s) = 2 * (s.depth + s.width)
 
+# ╔═╡ 3b83faf0-44ea-4363-ad07-6e52eede3c87
+"Reactor section perimeter $(REACTOR_PERIMETER) m"
+const REACTOR_PERIMETER = perim(section)
+
 # ╔═╡ 16b2896c-d5f5-419c-b728-76fefdc47b50
 "Area of a rectangle"
 area(s) = s.depth * s.width
+
+# ╔═╡ 41830f2a-133f-4947-bbba-dbf430c6264a
+"Reactor section area $(REACTOR_CROSSAREA) m²"
+const REACTOR_CROSSAREA = area(section)
 
 # ╔═╡ fd371936-5d1a-4fdd-bdba-cacb9f57ef92
 "Perimeter of solids per unit of wall $(BLOCK_PERIM_PER_WALL)"
@@ -793,23 +801,23 @@ counterflowpfr = begin
     println("Solving CounterFlowPFR(Gas|Solid)")
 
     # Solution controls.
-    α = 0.05
-    maxiter = 10_000
-    atol = 1.0e-02
+    local α = 0.05
+    local maxiter = 10_000
+    local atol = 1.0e-02
 
     # Model parameters.
-    ĥ_num = 50.0
-    P_num = perim(section)
-    A_num = area(section)
+    local ĥ = 50.0
+    local P = REACTOR_PERIMETER
+    local A = REACTOR_CROSSAREA
 
     # Allocate memory of interpolation arrays.
-    z_num = collect(saveat)
-    Ts_num = Ts₀ * ones(length(z_num))
-    Tg_num = Tg₀ * ones(length(z_num))
+    local z_num = collect(saveat)
+    local Ts_num = Ts₀ * ones(length(z_num))
+    local Tg_num = Tg₀ * ones(length(z_num))
 
     # Create interpolation objects.
-    Ts_fun = TemperatureInterpolator(z_num, Ts_num)
-    Tg_fun = TemperatureInterpolator(z_num, Tg_num)
+    local Ts_fun = TemperatureInterpolator(z_num, Ts_num)
+    local Tg_fun = TemperatureInterpolator(z_num, Tg_num)
 
     # Wrap interpolation call at global scope.
     interp_linear_Ts(z) = Ts_fun(z)
@@ -820,30 +828,30 @@ counterflowpfr = begin
     @register interp_linear_Tg(z)
 
     # Create models with registered interpolators.
-    gas_model = CounterFlowPFRGasModel(interp_linear_Ts)
-    sol_model = CounterFlowPFRSolidModel(interp_linear_Tg)
+    local gas_model = CounterFlowPFRGasModel(interp_linear_Ts)
+    local sol_model = CounterFlowPFRSolidModel(interp_linear_Tg)
 
     # Create error trackers/solution updaters.
-    gaserror = ErrorUpdater(Tg_fun, z_num; α = α)
-    solerror = ErrorUpdater(Ts_fun, z_num; α = α)
+    local gaserror = ErrorUpdater(Tg_fun, z_num; α = α)
+    local solerror = ErrorUpdater(Ts_fun, z_num; α = α)
 
     # Wrap models in base interface.
-    gassolver() = begin
-        gas = solvecounterflowpfrgas(gas_model, ĥ_num, P_num, A_num, ṁ_ref)
+    local gassolver() = begin
+        gas = solvecounterflowpfrgas(gas_model, ĥ, P, A, ṁ_ref)
         εgas = gaserror(gas[:T])
         gas, εgas
     end
 
-    solsolver() = begin
-        sol = solvecounterflowpfrsolid(sol_model, ĥ_num, P_num, A_num, ṁ_sol)
+    local solsolver() = begin
+        sol = solvecounterflowpfrsolid(sol_model, ĥ, P, A, ṁ_sol)
         εsol = solerror(sol[:T])
         sol, εsol
     end
 
     # Solution loop.
-    @time history = solvecounterflowpfr(; gassolver, solsolver, maxiter, atol)
+    @time local history = solvecounterflowpfr(; gassolver, solsolver, maxiter, atol)
 
-    fig = plotpfr(; gas = gassolver()[1], sol = solsolver()[1])
+    local fig = plotpfr(; gas = gassolver()[1], sol = solsolver()[1])
     (fig, history...)
 end;
 
@@ -3287,6 +3295,8 @@ version = "3.5.0+0"
 # ╟─9b0f1cc0-4440-43b6-85b7-d4e7a85f5537
 # ╟─d9d85ce6-17ed-4e9a-94c1-0ab907940a4d
 # ╟─d1482799-e268-4480-9227-0dad31b76615
+# ╟─3b83faf0-44ea-4363-ad07-6e52eede3c87
+# ╟─41830f2a-133f-4947-bbba-dbf430c6264a
 # ╟─11b3f426-c867-41db-b276-e9a98c57b8b0
 # ╟─a056b520-13bc-4c7a-99ab-29d3008e89bc
 # ╟─a0387438-cd1b-4c70-b02c-582d568f0813
