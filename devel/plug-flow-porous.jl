@@ -9,7 +9,7 @@ begin
     import Pkg
     Pkg.activate(Base.current_project())
     Pkg.instantiate()
-
+    
     using CairoMakie
     using DifferentialEquations: solve
     using DocStringExtensions: TYPEDFIELDS
@@ -864,7 +864,7 @@ counterflowpfr[1]
 md"""
 ### Heat losses through walls
 
-**TODO**
+**TODO** 
 
 ### Mass flow injections over length
 
