@@ -39,98 +39,14 @@ In this note we study the behavior of a conceptual counter current plug-flow rea
 
 # ╔═╡ eb3e42d2-f871-4197-9aa9-433ecb9863e5
 md"""
-## Low-dimensional models
-"""
+## Low-dimensional model
 
-# ╔═╡ 7fcbe3a3-c6e8-4345-8e90-e6bacedcf54e
-md"""
-### Basic plug-flow model
-
-Hypotheses:
-
-1. Constant reactor cross-section
-1. No reactions in gas phase
-1. No mass flow changes (*injections* over length)
-1. Constant imposed wall temperature over length
-
-Under these conditions the standard plug-flow energy equation can be written as
-
-```math
-\rho{}u{}c_{p}(T)\frac{dT}{dz}=\frac{\hat{h}P}{A_{c}}\left(T_{w}-T\right)
-```
-
-Below we solve the problem with help of `BasePlugFlowModel`.
-"""
-
-# ╔═╡ 757a04f9-acc4-4440-815f-f1ebaf54abc4
-md"""
-### Counter-flow heat transfer
-
-Hypotheses:
-
-1. Constant reactor cross-section per phase
-1. No reactions in gas phase nor in solids
-1. No mass flow changes (*injections* over length)
-1. Constant imposed wall temperature over length
-1. Solids transfer heat only with gas phase
-
-Here we modify the standard plug-flow energy equation to be
-
-```math
-\begin{align}
-%
-\dot{Q}_{g-w} &=
-    \left(\frac{\hat{h}P}{A}\right)_{g-w}\left(T_{w}-T_{g}\right)
-\\[12pt]
-%
-\dot{Q}_{g-s} &=
-    \left(\frac{\hat{h}P}{A}\right)_{g-s}\left(T_{s}-T_{g}\right)
-\\[12pt]
-%
-\rho_{g}u_{g}c_{p,g}(T_{g})\frac{dT_{g}}{dz} &=
-    \dot{Q}_{g-w}^{(z)} + \dot{Q}_{g-s}^{(z)}
-\\[12pt]
-%
-\rho_{s}u_{s}c_{p,s}(T_{s})\frac{dT_{s}}{dz} &=
-    -\dot{Q}_{g-s}^{(L-z)}
-%
-\end{align}
-```
-
-Below we solve the problem with help of both `CounterFlowPFRGasModel` and
-`CounterFlowPFRSolidModel` in an iterative fashion.
-"""
-
-# ╔═╡ c3e88fca-7163-48de-9b22-f8ed86204162
-md"""
-### Heat losses through walls
-"""
-
-# ╔═╡ 2907d71b-4488-4969-8544-bea2a0b70be2
-
-
-# ╔═╡ 259bd6c5-2ea9-4e3e-863b-98df5618cc76
-md"""
-### Mass flow injections over length
-
-**TODO**
-
-### Modeling of pressure drop
-
-**TODO**
-
-### Solid-gas mass exchanges
-
-**TODO**
-
-## Comparisong agains CFD model
-
-**TODO**
+*Ongoing work...*
 """
 
 # ╔═╡ 412b34dd-8189-4dde-8584-482c65b6ebd8
 md"""
-## Appendix
+## Appendix A - Utilities
 """
 
 # ╔═╡ 6438d22f-dbb9-470f-93e2-ef7330aca17a
@@ -483,7 +399,6 @@ struct ErrorUpdater
         u.T_new[:] = relax(u.T_old, T_new, u.α)
         update!(u.f, u.z, u.T_new)
 
-        # ε = rmsd(u.T_new, u.T_old)
         ε = maximum(abs, u.T_new - u.T_old)
 
         u.T_old[:] = u.T_new[:]
@@ -497,9 +412,29 @@ struct ErrorUpdater
     end
 end
 
-# ╔═╡ d2b89b7c-65a6-4ac1-b7e0-da61a46098cc
+# ╔═╡ 11ccbbd8-b631-4377-8623-52f0ca15f0f8
 md"""
-### Models and solvers
+## Appendix B - Simple models
+"""
+
+# ╔═╡ 7fcbe3a3-c6e8-4345-8e90-e6bacedcf54e
+md"""
+### Basic plug-flow model
+
+Hypotheses:
+
+1. Constant reactor cross-section
+1. No reactions in gas phase
+1. No mass flow changes (*injections* over length)
+1. Constant imposed wall temperature over length
+
+Under these conditions the standard plug-flow energy equation can be written as
+
+```math
+\rho{}u{}c_{p}(T)\frac{dT}{dz}=\frac{\hat{h}P}{A_{c}}\left(T_{w}-T\right)
+```
+
+Below we solve the problem with help of `BasePlugFlowModel`.
 """
 
 # ╔═╡ 3ba75ef3-2385-4c73-a73c-cfd8dab93e11
@@ -567,6 +502,74 @@ struct BasePlugFlowModel
         return new(ĥ, P, A, ṁ, Tw, z, T, sys)
     end
 end
+
+# ╔═╡ ede59bf2-70c2-46fe-affe-7aabfc7112f6
+"Integrator with standard parameters for `BasePlugFlowModel`"
+function solvebaseplugflow(; model, ĥ, P, A, ṁ)
+    T = [model.T => Tg₀]
+
+    p = [
+        model.ĥ  => ĥ,
+        model.P  => P,
+        model.A  => A,
+        model.ṁ  => ṁ,
+        model.Tw => Tenv
+    ]
+
+    prob = ODEProblem(model.sys, T, zspan, p)
+    return solve(prob; saveat=saveat)
+end
+
+# ╔═╡ d4055357-74e9-412b-af9a-38d9090e1e65
+let
+    plotpfr(; gas = solvebaseplugflow(;
+            model = BasePlugFlowModel(),
+            ĥ = 20.0,
+            P = perim(section),
+            A = area(section),
+            ṁ = ṁ_ref
+        )
+    )
+end
+
+# ╔═╡ 757a04f9-acc4-4440-815f-f1ebaf54abc4
+md"""
+### Counter-flow heat transfer
+
+Hypotheses:
+
+1. Constant reactor cross-section per phase
+1. No reactions in gas phase nor in solids
+1. No mass flow changes (*injections* over length)
+1. Constant imposed wall temperature over length
+1. Solids transfer heat only with gas phase
+
+Here we modify the standard plug-flow energy equation to be
+
+```math
+\begin{align}
+%
+\dot{Q}_{g-w} &=
+    \left(\frac{\hat{h}P}{A}\right)_{g-w}\left(T_{w}-T_{g}\right)
+\\[12pt]
+%
+\dot{Q}_{g-s} &=
+    \left(\frac{\hat{h}P}{A}\right)_{g-s}\left(T_{s}-T_{g}\right)
+\\[12pt]
+%
+\rho_{g}u_{g}c_{p,g}(T_{g})\frac{dT_{g}}{dz} &=
+    \dot{Q}_{g-w}^{(z)} + \dot{Q}_{g-s}^{(z)}
+\\[12pt]
+%
+\rho_{s}u_{s}c_{p,s}(T_{s})\frac{dT_{s}}{dz} &=
+    -\dot{Q}_{g-s}^{(L-z)}
+%
+\end{align}
+```
+
+Below we solve the problem with help of both `CounterFlowPFRGasModel` and
+`CounterFlowPFRSolidModel` in an iterative fashion.
+"""
 
 # ╔═╡ f48957cb-bbd9-494b-a8d3-5dd54ed75db3
 """
@@ -714,35 +717,6 @@ struct CounterFlowPFRSolidModel
     end
 end
 
-# ╔═╡ ede59bf2-70c2-46fe-affe-7aabfc7112f6
-"Integrator with standard parameters for `BasePlugFlowModel`"
-function solvebaseplugflow(; model, ĥ, P, A, ṁ)
-    T = [model.T => Tg₀]
-
-    p = [
-        model.ĥ  => ĥ,
-        model.P  => P,
-        model.A  => A,
-        model.ṁ  => ṁ,
-        model.Tw => Tenv
-    ]
-
-    prob = ODEProblem(model.sys, T, zspan, p)
-    return solve(prob; saveat=saveat)
-end
-
-# ╔═╡ d4055357-74e9-412b-af9a-38d9090e1e65
-let
-    plotpfr(; gas = solvebaseplugflow(;
-            model = BasePlugFlowModel(),
-            ĥ = 20.0,
-            P = perim(section),
-            A = area(section),
-            ṁ = ṁ_ref
-        )
-    )
-end
-
 # ╔═╡ 3e3a597f-2dc3-4714-94bc-156bfb078edb
 "Integrator with standard parameters for `CounterFlowPFRGasModel`"
 function solvecounterflowpfrgas(model, ĥ_num, P_num, A_num, ṁ_num)
@@ -886,9 +860,32 @@ end
 # ╔═╡ b93ab73a-e9e3-49ea-bf4b-996b845f650d
 counterflowpfr[1]
 
+# ╔═╡ 259bd6c5-2ea9-4e3e-863b-98df5618cc76
+md"""
+### Heat losses through walls
+
+**TODO**
+
+### Mass flow injections over length
+
+**TODO**
+
+### Modeling of pressure drop
+
+**TODO**
+
+### Solid-gas mass exchanges
+
+**TODO**
+
+## Comparison against CFD model
+
+**TODO**
+"""
+
 # ╔═╡ 3a193274-f5d0-418c-ad9a-582aca4b3cba
 md"""
-### Testing
+## Appendix C - Testing
 """
 
 # ╔═╡ b531b71d-f7ee-45bc-b46a-6f6cbff3c7a2
@@ -908,17 +905,7 @@ end
 
 # ╔═╡ Cell order:
 # ╟─a876e9c0-5082-11ee-069b-d756666798d2
-# ╟─7529d5a2-f27d-4630-be2e-4c2cfe87ae06
 # ╟─eb3e42d2-f871-4197-9aa9-433ecb9863e5
-# ╟─7fcbe3a3-c6e8-4345-8e90-e6bacedcf54e
-# ╟─d4055357-74e9-412b-af9a-38d9090e1e65
-# ╟─757a04f9-acc4-4440-815f-f1ebaf54abc4
-# ╠═dfc1ff2c-7695-41c7-bd0a-fd818eaf5087
-# ╟─1f3eee88-eded-452a-825d-5e6ea78399b6
-# ╟─b93ab73a-e9e3-49ea-bf4b-996b845f650d
-# ╟─c3e88fca-7163-48de-9b22-f8ed86204162
-# ╠═2907d71b-4488-4969-8544-bea2a0b70be2
-# ╟─259bd6c5-2ea9-4e3e-863b-98df5618cc76
 # ╟─412b34dd-8189-4dde-8584-482c65b6ebd8
 # ╟─6438d22f-dbb9-470f-93e2-ef7330aca17a
 # ╟─2e44d2ee-466b-49e9-acdf-c9e231f7c800
@@ -958,14 +945,22 @@ end
 # ╟─7bcc4099-bcad-4ed1-bf11-db24054480c6
 # ╟─0258b67b-4854-4471-b349-6bfc3dfe9a66
 # ╟─cda59a70-852b-4358-9133-e4344577fcda
-# ╠═2553b8a8-929b-4420-aa40-17e6878efaf1
-# ╟─d2b89b7c-65a6-4ac1-b7e0-da61a46098cc
+# ╟─2553b8a8-929b-4420-aa40-17e6878efaf1
+# ╟─11ccbbd8-b631-4377-8623-52f0ca15f0f8
+# ╟─7fcbe3a3-c6e8-4345-8e90-e6bacedcf54e
+# ╟─d4055357-74e9-412b-af9a-38d9090e1e65
 # ╟─3ba75ef3-2385-4c73-a73c-cfd8dab93e11
+# ╟─ede59bf2-70c2-46fe-affe-7aabfc7112f6
+# ╟─757a04f9-acc4-4440-815f-f1ebaf54abc4
+# ╟─dfc1ff2c-7695-41c7-bd0a-fd818eaf5087
+# ╟─1f3eee88-eded-452a-825d-5e6ea78399b6
+# ╟─b93ab73a-e9e3-49ea-bf4b-996b845f650d
 # ╟─f48957cb-bbd9-494b-a8d3-5dd54ed75db3
 # ╟─36b4aa1e-40b0-4f6b-b060-ffa7223f8ea1
-# ╟─ede59bf2-70c2-46fe-affe-7aabfc7112f6
 # ╟─3e3a597f-2dc3-4714-94bc-156bfb078edb
 # ╟─54b6a18f-6320-4cbb-917c-dea7a1ec36d6
 # ╟─4900d90f-15d0-459e-9e42-3c64df394bb0
+# ╟─259bd6c5-2ea9-4e3e-863b-98df5618cc76
 # ╟─3a193274-f5d0-418c-ad9a-582aca4b3cba
 # ╟─b531b71d-f7ee-45bc-b46a-6f6cbff3c7a2
+# ╟─7529d5a2-f27d-4630-be2e-4c2cfe87ae06
