@@ -38,13 +38,6 @@ In this note we study the behavior of a conceptual counter current plug-flow rea
 - Compare solids heating kinetics to a 3D CFD model
 """
 
-# ╔═╡ eb3e42d2-f871-4197-9aa9-433ecb9863e5
-md"""
-## Low-dimensional model
-
-*Ongoing work...*
-"""
-
 # ╔═╡ 412b34dd-8189-4dde-8584-482c65b6ebd8
 md"""
 ## Appendix A - Utilities
@@ -906,7 +899,6 @@ end
 
 # ╔═╡ Cell order:
 # ╟─a876e9c0-5082-11ee-069b-d756666798d2
-# ╟─eb3e42d2-f871-4197-9aa9-433ecb9863e5
 # ╟─412b34dd-8189-4dde-8584-482c65b6ebd8
 # ╟─6438d22f-dbb9-470f-93e2-ef7330aca17a
 # ╟─2e44d2ee-466b-49e9-acdf-c9e231f7c800
