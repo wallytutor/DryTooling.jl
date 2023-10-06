@@ -7,6 +7,7 @@ import json
 import cantera as ct
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 
 # Both manometric pressure and temperature range will be shared across the mixtures.
 
@@ -106,6 +107,10 @@ class SubstanceFit:
 
         fig.tight_layout()
 
+    def specific_heat(self, T):
+        """ Evaluate substance specific heat. """
+        return np.polyval(self._fits["cp_mass"], T)
+
     def to_solution(self, T=1000, P=P):
         """ Get simple solution from mixture. """
         sol = ct.Solution(self._sol.source)
@@ -158,6 +163,10 @@ class Mixture:
         self._sol = [s.to_solution(T=t) for s, t in zip(subs, T)]
         self._qty = [ct.Quantity(s, mass=y) for s, y in zip(self._sol, Y)]
 
+        self._mw = np.array([q.mean_molecular_weight for q in self._qty])
+        self._mu = np.array([q.viscosity for q in self._qty])
+        self._kg = np.array([q.thermal_conductivity for q in self._qty])
+
         # Create a new object, Cantera is leaking (?!?!?)!
         self._mix = ct.Quantity(self._sol[0], mass=Y[0])
 
@@ -165,27 +174,222 @@ class Mixture:
         for qk in self._qty[1:]:
             self._mix += qk
 
+        self._Y = np.array(Y)
+        self._X = self._Y * self._mw / self._mix.mean_molecular_weight
+
+    @property
+    def Y(self):
+        """ Access mass fractions of solutions. """
+        return self._Y
+
+    @property
+    def X(self):
+        """ Access mole fractions of solutions. """
+        return self._X
+
+    @property
+    def mean_molecular_weight(self):
+        """ Access mixture mean molecular mass. """
+        return self._mix.mean_molecular_weight
+
     @property
     def mixture(self):
         """ Access to internal mixture object. """
         return self._mix
 
+    def mass_weighted_specific_heat(self):
+        """ Mass weighted specific heat model. """
+        # For isothermal mixtures this would be enough.
+        # return sum([q.cp_mass * q.mass for q in self._qty])
+        K = len(mix._Y)
+
+        den = [self._Y[k] * self._qty[k].cp_mass for k in range(K)]
+        num = [den[k] * self._qty[k].T for k in range(K)]
+        Tm = sum(num) / sum(den)
+
+        cp = 0
+        for k, s in enumerate(self._sol):
+            Told = s.T
+            s.TP = Tm, None
+            cp += s.cp_mass * self._Y[k]
+            s.TP = Told, None
+
+        return cp
+
+    def mass_weighted_viscosity(self):
+        """ Mass weighted viscosity model. """
+        return sum([q.viscosity * q.mass for q in self._qty])
+
+    def mass_weighted_thermal_conductivity(self):
+        """ Mass weighted thermal conductivity model. """
+        return sum([q.thermal_conductivity * q.mass for q in self._qty])
+
+    def mole_weighted_viscosity(self):
+        """ Mole weighted viscosity model. """
+        return sum([q.viscosity * self._X[k]
+                    for k, q in enumerate(self._qty)])
+
+    def mole_weighted_thermal_conductivity(self):
+        """ Mole weighted thermal conductivity model. """
+        return sum([q.thermal_conductivity * self._X[k]
+                    for k, q in enumerate(self._qty)])
+
+    def wilke_bird_viscosity(self):
+        """ Wilke-Bird viscosity model. """
+        X, W, mu = self._X, self._mw, self._mu
+
+        def phi_kj(muk, muj, wk, wj):
+            s = (1 + (muk/muj)**(1/2) * (wj/wk)**(1/4))**2
+            return s / (8 * (1 + wk/wj))**(1/2)
+
+        m = 0
+        for k in range(len(X)):
+            d = sum(X[j] * phi_kj(mu[k], mu[j], W[k], W[j])
+                    for j in range(len(X)))
+            m += (X[k] * mu[k] / d)
+
+        return m
+
+    def mathur_thermal_condictivity(self):
+        """ Mathur et al. thermal conductivity model. """
+        X, k = self._X, self._kg
+        return (1/2)*((X @ k) + 1 / sum(X / k))
+
 
 # ### Case: isothermal mixture
 
-tmix = 1000
-mix = Mixture([mix0, mix1, mix2],
-              [tmix, tmix, tmix],
-              [ 0.2,  0.1,  0.7])
+# +
+tmix = [500]*3
+comp = [0.1, 0.1, 0.8]
+mix = Mixture([mix0, mix1, mix2], tmix, comp)
 
-sol = mix.mixture
-np.allclose(sol.cp_mass, sum([q.cp_mass * q.mass for q in mix._qty]))
+print(mix.mixture.cp_mass,
+      mix.mass_weighted_specific_heat())
 
-(sol.viscosity, sum([q.viscosity * q.mass for q in mix._qty]))
+print(mix.mixture.viscosity,
+      mix.mass_weighted_viscosity(),
+      mix.mole_weighted_viscosity(),
+      mix.wilke_bird_viscosity())
 
-(sol.thermal_conductivity, sum([q.thermal_conductivity * q.mass for q in mix._qty]))
+print(mix.mixture.thermal_conductivity,
+      mix.mass_weighted_thermal_conductivity(),
+      mix.mole_weighted_thermal_conductivity(),
+      mix.mathur_thermal_condictivity())
+# -
+
+# Now we test it over a broad range of temperatures of interest.
+
+temperatures = np.arange(300, 2001, 100)
+mixtures = [Mixture([mix0, mix1, mix2], [tk]*3, comp)
+            for tk in temperatures]
+
+# We recover arrays of properties in a organized format.
+
+# +
+mus = np.array([
+        [mix.mixture.viscosity,
+         mix.mass_weighted_viscosity(),
+         mix.mole_weighted_viscosity(),
+         mix.wilke_bird_viscosity()]
+         for mix in mixtures
+        ])
+
+kgs = np.array([
+        [mix.mixture.thermal_conductivity,
+         mix.mass_weighted_thermal_conductivity(),
+         mix.mole_weighted_thermal_conductivity(),
+         mix.mathur_thermal_condictivity()]
+         for mix in mixtures
+        ])
 
 
+# -
+
+# Finally we compute the mean relative squared error of the models...
+
+# +
+def mrse(a, b):
+    """ Metric for model performance comparison. """
+    return sum(((a - b) / a)**2)
+
+
+mus_err = (mrse(mus[:, 0], mus[:, 1]),
+           mrse(mus[:, 0], mus[:, 2]),
+           mrse(mus[:, 0], mus[:, 3]))
+
+kgs_err = (mrse(kgs[:, 0], kgs[:, 1]),
+           mrse(kgs[:, 0], kgs[:, 2]),
+           mrse(kgs[:, 0], kgs[:, 3]))
+# -
+
+# ...and display the results for taking a conclusion.
+
+# +
+plt.close("all")
+plt.style.use("seaborn-white")
+fig, ax = plt.subplots(2, 1, figsize=(10, 8), sharex=True)
+
+ax[0].plot(temperatures, mus[:, 0], "ko", label="Reference")
+ax[1].plot(temperatures, kgs[:, 0], "ko", label="Reference")
+
+ax[0].plot(temperatures, mus[:, 1], "r", label=f"Mass weighted {mus_err[0]:.3e}")
+ax[1].plot(temperatures, kgs[:, 1], "r", label=f"Mass weighted  {kgs_err[0]:.3e}")
+
+ax[0].plot(temperatures, mus[:, 2], "b", label=f"Mole weighted {mus_err[1]:.3e}")
+ax[1].plot(temperatures, kgs[:, 2], "b", label=f"Mole weighted {kgs_err[1]:.3e}")
+
+ax[0].plot(temperatures, mus[:, 3], "g", label=f"Model {mus_err[2]:.3e}")
+ax[1].plot(temperatures, kgs[:, 3], "g", label=f"Model {kgs_err[2]:.3e}")
+
+ax[0].grid(linestyle=":")
+ax[1].grid(linestyle=":")
+
+ax[0].set_ylabel("Viscosity [Pa.s]")
+ax[1].set_ylabel("Conductivity [W/(m.K)]")
+
+ax[0].legend(loc=4)
+ax[1].legend(loc=4)
+
+ax[0].set_xlim(300, 2000)
+ax[0].set_xticks(range(300, 2001, 100))
+
+fig.tight_layout()
+# -
+
+# Because of good performance in both cases, a mass weighted model is recommended for use with PFR's under a simplified framework. Furthermore, this is the least expensive model to be computed.
+
+# ### Case: non-isothermal mixture
+
+# +
+Ya = 0.1
+
+tmix = [500, 1000]
+comp = [Ya, 1-Ya]
+mix = Mixture([mix0, mix2], tmix, comp)
+
+print(mix.mixture.cp_mass,
+      mix.mass_weighted_specific_heat())
+
+# +
+# TODO understand the deviations below and scan composition.
+
+# +
+cp_contriba = comp[0]*mix0.specific_heat(tmix[0])
+cp_contribb = comp[1]*mix2.specific_heat(tmix[1])
+
+a = cp_contriba * tmix[0]
+b = cp_contribb * tmix[1]
+
+Tm = (a + b) / (cp_contriba + cp_contribb)
+
+cp_contriba = comp[0]*mix0.specific_heat(Tm)
+cp_contribb = comp[1]*mix2.specific_heat(Tm)
+
+cp_contriba + cp_contribb, Tm
+
+# +
+# specific_heat(mix)
+# -
 
 # ## Create database
 
@@ -195,5 +399,3 @@ with open("mixtures.json", "w") as fp:
         "mix1": mix1.coefficients,
         "mix2": mix2.coefficients
     }, fp, indent=4)
-
-
