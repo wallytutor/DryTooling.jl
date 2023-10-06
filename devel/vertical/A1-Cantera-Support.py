@@ -60,6 +60,9 @@ class SubstanceFit:
         self._refs = {p: getattr(sol, p) for p, d in degs.items()}
         self._fits = {p: fitrefs(p, d)   for p, d in degs.items()}
         self._coef = {
+            "mech": mech,
+            "Y": self._Y,
+            "W": self._mw,
             "cp": list(reversed(self._fits["cp_mass"])),
             "kg": list(reversed(self._fits["thermal_conductivity"])),
             "mu": list(reversed(self._fits["viscosity"]))
@@ -72,7 +75,7 @@ class SubstanceFit:
         """ Graphic evaluation of fitting for a substance. """
         T = self._sol.T
         xlims = T[0], T[-1]
-        xtick = np.arange(T[0], T[-1]+1, 400.0)
+        xtick = np.arange(T[0], T[-1]+1, dT)
 
         cpr = self._refs["cp_mass"]
         mur = self._refs["viscosity"]
