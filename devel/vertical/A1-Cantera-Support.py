@@ -7,6 +7,7 @@ import json
 import cantera as ct
 import matplotlib.pyplot as plt
 import numpy as np
+import yaml
 
 # Both manometric pressure and temperature range will be shared across the mixtures.
 
@@ -227,7 +228,7 @@ class Mixture:
         """ Mass weighted specific heat model. """
         # For isothermal mixtures this would be enough.
         # return sum([q.cp_mass * q.mass for q in self._qty])
-        K = len(mix._Y)
+        K = len(self._Y)
 
         if not usepoly:
             cps = [self._qty[k].cp_mass for k in range(K)]
@@ -394,23 +395,43 @@ fig.tight_layout()
 # Because of good performance in both cases, a mass weighted model is recommended for use with PFR's under a simplified framework. Furthermore, this is the least expensive model to be computed.
 
 # ### Case: non-isothermal mixture
+#
+# To conclude, we verify the approach properly estimates mixtures with different temperatures.
 
 # +
-Ya = 0.1
-
-tmix = [500, 1000]
-comp = [Ya, 1-Ya]
-mixs = [mix0, mix2]
-mix = Mixture(mixs, tmix, comp)
+Ya = 0.8
+tmix = [1200, 1000]
+mix = Mixture([mix0, mix2], tmix, [Ya, 1-Ya])
 
 print(mix.mixture.cp_mass,
       mix.mass_weighted_specific_heat(usepoly=True))
 
+
+# -
+
+def cp_error(m):
+    """ Relateive difference between Cantera and interpolated values. """
+    cp1 = m.mixture.cp_mass
+    cp2 = m.mass_weighted_specific_heat(usepoly=True)
+    return 100 * abs(cp1 - cp2) / cp1
+
+
+# Below we scan the composition range and verify that error lays below 2%.
+
 # +
-# TODO scan composition.
+tol = 2.0
+
+mix = [Mixture([mix0, mix2], [500, 1500], [Ya, 1-Ya])
+       for Ya in np.arange(0.0, 1.01, 0.2)]
+
+sum([cp_error(m) < tol for m in mix]) == len(mix)
 # -
 
 # ## Create database
+
+# +
+# For some Numpyish problem I need to write this intermediate
+# file before reading back in a Pythonic format and dump YAML.
 
 with open("mixtures.json", "w") as fp:
     json.dump({
@@ -418,3 +439,9 @@ with open("mixtures.json", "w") as fp:
         "mix1": mix1.coefficients,
         "mix2": mix2.coefficients
     }, fp, indent=4)
+
+with open("mixtures.json", "r") as fp:
+    data = json.load(fp)
+
+with open("mixtures.yaml", "w") as fp:
+    yaml.dump(data, fp)
