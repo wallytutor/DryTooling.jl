@@ -7,7 +7,6 @@ import json
 import cantera as ct
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 
 # Both manometric pressure and temperature range will be shared across the mixtures.
 
@@ -50,6 +49,8 @@ class SubstanceFit:
         sol = ct.SolutionArray(gas, shape=T.shape)
         sol.TPY = T, ct.one_atm + P, Y
 
+        # Store internally the solution array for conversion later.
+        # Since all elements have the same `mw`, keep first only.
         self._sol = sol
         self._mw = sol.mean_molecular_weight[1]
         self._Y = Y
@@ -59,6 +60,9 @@ class SubstanceFit:
 
         self._refs = {p: getattr(sol, p) for p, d in degs.items()}
         self._fits = {p: fitrefs(p, d)   for p, d in degs.items()}
+
+        # Store coefficients with enough infor for reproducible builds.
+        # Mean molecular weights are required for PFR mixing laws.
         self._coef = {
             "mech": mech,
             "Y": self._Y,
@@ -111,11 +115,11 @@ class SubstanceFit:
         fig.tight_layout()
 
     def specific_heat(self, T):
-        """ Evaluate substance specific heat. """
+        """ Evaluate substance specific heat through polynomial. """
         return np.polyval(self._fits["cp_mass"], T)
 
-    def to_solution(self, T=1000, P=P):
-        """ Get simple solution from mixture. """
+    def to_solution(self, T=1000.0, P=P):
+        """ Get standard Cantera solution from mixture. """
         sol = ct.Solution(self._sol.source)
         sol.TPY = T, P, self._Y
         return sol
@@ -179,6 +183,9 @@ class Mixture:
         if not np.allclose(sum(Y), 1.0):
             raise ValueError(f"Mass fractions must add up to 1.0: {Y}")
 
+        self._sub = subs
+        self._T = T
+
         self._sol = [s.to_solution(T=t) for s, t in zip(subs, T)]
         self._qty = [ct.Quantity(s, mass=y) for s, y in zip(self._sol, Y)]
 
@@ -216,22 +223,31 @@ class Mixture:
         """ Access to internal mixture object. """
         return self._mix
 
-    def mass_weighted_specific_heat(self):
+    def mass_weighted_specific_heat(self, usepoly=False):
         """ Mass weighted specific heat model. """
         # For isothermal mixtures this would be enough.
         # return sum([q.cp_mass * q.mass for q in self._qty])
         K = len(mix._Y)
 
-        den = [self._Y[k] * self._qty[k].cp_mass for k in range(K)]
+        if not usepoly:
+            cps = [self._qty[k].cp_mass for k in range(K)]
+        else:
+            cps = [self._sub[k].specific_heat(self._T[k])  for k in range(K)]
+
+        den = [self._Y[k] * cps[k]  for k in range(K)]
         num = [den[k] * self._qty[k].T for k in range(K)]
         Tm = sum(num) / sum(den)
 
         cp = 0
         for k, s in enumerate(self._sol):
-            Told = s.T
-            s.TP = Tm, None
-            cp += s.cp_mass * self._Y[k]
-            s.TP = Told, None
+            if not usepoly:
+                Told = s.T
+                s.TP = Tm, None
+                cp += s.cp_mass * self._Y[k]
+                s.TP = Told, None
+            else:
+                f = self._sub[k].specific_heat
+                cp += f(Tm) * self._Y[k]
 
         return cp
 
@@ -384,30 +400,14 @@ Ya = 0.1
 
 tmix = [500, 1000]
 comp = [Ya, 1-Ya]
-mix = Mixture([mix0, mix2], tmix, comp)
+mixs = [mix0, mix2]
+mix = Mixture(mixs, tmix, comp)
 
 print(mix.mixture.cp_mass,
-      mix.mass_weighted_specific_heat())
+      mix.mass_weighted_specific_heat(usepoly=True))
 
 # +
-# TODO understand the deviations below and scan composition.
-
-# +
-cp_contriba = comp[0]*mix0.specific_heat(tmix[0])
-cp_contribb = comp[1]*mix2.specific_heat(tmix[1])
-
-a = cp_contriba * tmix[0]
-b = cp_contribb * tmix[1]
-
-Tm = (a + b) / (cp_contriba + cp_contribb)
-
-cp_contriba = comp[0]*mix0.specific_heat(Tm)
-cp_contribb = comp[1]*mix2.specific_heat(Tm)
-
-cp_contriba + cp_contribb, Tm
-
-# +
-# specific_heat(mix)
+# TODO scan composition.
 # -
 
 # ## Create database
