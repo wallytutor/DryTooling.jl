@@ -3,14 +3,26 @@ using CairoMakie
 using Polynomials
 using YAML
 
+##############################################################################
+# CONSTANTS
+##############################################################################
+
 const ZEROCELSIUS::Float64 = 273.15
 
 const ONEATM::Float64 = 101_325.0
 
 const GASCONSTANT::Float64 = 8314.462_618_153_24
 
+##############################################################################
+# ABSTRACT TYPES
+##############################################################################
+
 abstract type Substance end
 abstract type Mixture end
+
+##############################################################################
+# STATELESS MODELS
+##############################################################################
 
 struct GasComponent <: Substance
     "Mean molecular mass [g/mol]"
@@ -47,35 +59,8 @@ struct GasMixture <: Mixture
     "Storage of gas component objects."
     s::Vector{GasComponent}
 
-    "Gas mixture mass fractions [-]"
-    Y::Vector{Float64}
-
-    "Gas mixture temperature [K]"
-    T::Base.RefValue{Float64}
-
-    "Gas mixture pressure [Pa]"
-    P::Base.RefValue{Float64}
-
-    "Gas mixture pressure [Pa]"
-    W::Base.RefValue{Float64}
-
-    function GasMixture(;
-            components::Vector{GasComponent},
-            T::Float64 = ZEROCELSIUS,
-            P::Float64 = ONEATM,
-            Y::Vector{Float64} = Float64[]
-        )
-        K = length(components)
-
-        if length(Y) != K
-            @warn "Bad size of mass fractions array... resetting!"
-            Y = zeros(Float64, K)
-            Y[end] = 1.0
-        end
-
-        W = meanmolecularmass(Y, map(x->getproperty(x, :W), components))
-
-        return new(K, components, Y, Ref(T), Ref(P), Ref(W))
+    function GasMixture(; components::Vector{GasComponent})
+        return new(length(components), components)
     end
 end
 
@@ -83,36 +68,102 @@ function GasComponent(d::Dict{Any, Any})
     return GasComponent(; W = d["W"], μ = d["mu"], k = d["kg"], c = d["cp"])
 end
 
-function GasMixture(d::Dict{Any, Any})
-    return GasMixture(; components = map(GasComponent, values(d)))
+function GasMixture(d::Dict{Any, Any}; order::Any = nothing)
+    order = isnothing(order) ? keys(d) : order
+    components = map(k->GasComponent(d[k]), order)
+    return GasMixture(; components = components)
 end
 
-function meanmolecularmass(Y::Vector{Float64}, W::Vector{Float64})::Float64
+##############################################################################
+# METHODS
+##############################################################################
+
+function molecularmasses(m::GasMixture)::Vector{Float64}
+    return map(x->x.W, m.s)
+end
+
+function meanmolecularmass(
+        Y::Union{Vector{Float64},SubArray},
+        W::Vector{Float64}
+    )::Float64
     return 1.0 / sum(y / w for (y, w) in zip(Y, W))
 end
 
-function meanmolecularmass(m::GasMixture)::Float64
-    return 1.0 / sum(y / c.W for (y, c) in zip(m.Y, m.s))
+function idealgasdensity(T::Float64, P::Float64, W::Float64)::Float64
+    return P * W / (GASCONSTANT * T)
 end
 
-function setstate(m::GasMixture, T::Float64, P::Float64, Y::Vector{Float64})
-    @assert m.K == length(Y) "Mass fractions shape is wrong!"
-    @assert sum(Y) ≈ 1.0     "Mass fractions do not add up to unit!"
-    m.Y[1:end] = Y
-    m.T[] = T
-    m.P[] = P
-    m.W[] = meanmolecularmass(m)
-    return nothing
+function idealgasdensity(
+        T::Float64,
+        P::Float64,
+        Y::Union{Vector{Float64},SubArray};
+        W::Vector{Float64}
+    )::Float64
+    return idealgasdensity(T, P, meanmolecularmass(Y, W))
 end
 
-function densitymass(m::GasMixture)
-    return m.P[] * m.W[] / (GASCONSTANT * m.T[])
+function thermophysicalproperties(s::GasComponent, T::Float64)::Matrix{Float64}
+    return [s.μ(T) s.k(T) s.c(T)]
 end
 
-mix = GasMixture(YAML.load_file("mixtures.yaml"))
+function thermophysicalproperties(
+        m::GasMixture,
+        T::Float64,
+        Y::Union{Vector{Float64},SubArray}
+    )::Matrix{Float64}
+    return sum(y*thermophysicalproperties(s, T) for (s, y) in zip(m.s, Y))
+end
 
-setstate(mix, ZEROCELSIUS, ONEATM, [1.0, 0.0, 0.0])
-densitymass(mix)
+function mixtureproperties(
+        T::Float64,
+        P::Float64,
+        Y::Union{Vector{Float64},SubArray};
+        m::GasMixture,
+        W::Vector{Float64}
+    )::Matrix{Float64}
+    ρ = idealgasdensity(T, P, Y; W=W)
+    μ, k, c = thermophysicalproperties(m, T, Y)
+    return [ρ μ k c]
+end
 
-setstate(mix, 1000.0+ZEROCELSIUS, ONEATM, [1.0, 0.0, 0.0])
-densitymass(mix)
+function mixtureproperties(
+        T::Vector{Float64},
+        P::Vector{Float64},
+        Y::Matrix{Float64};
+        m::GasMixture,
+        W::Vector{Float64}
+    )::Vector{Matrix{Float64}}
+    return mixtureproperties.(T, P, eachrow(Y); m = m, W = W)
+end
+
+##############################################################################
+# DEVEL
+##############################################################################
+
+data = YAML.load_file("mixtures.yaml")
+mix = GasMixture(data, order = ["fumes", "co2"])
+
+W = molecularmasses(mix)
+
+T = ZEROCELSIUS
+P = ONEATM
+Y = [1.0, 0.0]
+ρ = idealgasdensity(T, P, Y; W = W)
+
+K = 20
+T = collect(range(300.0, 3000.0, K))
+P = collect(range(300.0, 3000.0, K)) .+ ONEATM
+Y = [range(0.0, 1.0, K) range(1.0, 0.0, K)]
+ρ = idealgasdensity.(T, P, eachrow(Y); W = W)
+
+K = 20
+T = (ZEROCELSIUS + 25.0) * ones(K)
+P = ONEATM * ones(K)
+Y = [range(0.0, 1.0, K) range(1.0, 0.0, K)]
+ρ, μ, k, c = zip(mixtureproperties(T, P, Y; m = mix, W = W)...)
+
+K = 20
+T = collect(range(300.0, 2000.0, K))
+P = ONEATM * ones(K)
+Y = [ones(Float64, K) zeros(Float64, K)]
+ρ, μ, k, c = zip(mixtureproperties(T, P, Y; m = mix, W = W)...)
