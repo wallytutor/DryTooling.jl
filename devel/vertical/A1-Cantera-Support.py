@@ -435,9 +435,9 @@ sum([cp_error(m) < tol for m in mix]) == len(mix)
 
 with open("mixtures.json", "w") as fp:
     json.dump({
-        "mix0": mix0.coefficients,
-        "mix1": mix1.coefficients,
-        "mix2": mix2.coefficients
+        "co2": mix0.coefficients,
+        "h2o": mix1.coefficients,
+        "fumes": mix2.coefficients
     }, fp, indent=4)
 
 with open("mixtures.json", "r") as fp:
