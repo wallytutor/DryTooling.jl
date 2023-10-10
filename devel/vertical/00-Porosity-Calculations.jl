@@ -4,6 +4,16 @@
 using Markdown
 using InteractiveUtils
 
+# This Pluto notebook uses @bind for interactivity. When running this notebook outside of Pluto, the following 'mock version' of @bind gives bound variables a default value (instead of an error).
+macro bind(def, element)
+    quote
+        local iv = try Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value catch; b -> missing; end
+        local el = $(esc(element))
+        global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : iv(el)
+        el
+    end
+end
+
 # ╔═╡ 52d557a4-8ef1-4b50-a145-7995745502c6
 begin
     import Pkg
@@ -11,6 +21,9 @@ begin
     Pkg.resolve()
     Pkg.instantiate()
 
+    using CairoMakie
+    using Distributions
+    using Random
     using Symbolics
     using PlutoUI
     include("parameters.jl")
@@ -98,53 +111,173 @@ The blocks perimeter *per unit height* required in the PFR model is simply
 """
 
 # ╔═╡ 48d89f5c-80e7-4c79-869a-c9dcd87b5c77
-Pₛ = Aₛ / H
+Aₛ / H
 
-# ╔═╡ 855ddbc6-cbb5-4e6f-a9ac-f7f2bfb3a8a3
+# ╔═╡ b6efc1d0-f5cc-42ac-b46b-920f6ce6e72e
 md"""
-For the model implementation the ratio of perimeters ``σ`` can be interesting
+Because reactor cross-section is constant, we simplify the expression per unit area:
 """
 
-# ╔═╡ ba293489-93fb-4e65-8f5b-446c0f13552d
-σ = Pₛ / Pᵥ
+# ╔═╡ 2e4ce97e-2ec1-4691-a0f2-451915f9fd2f
+Pₛ = Aₛ / Vᵥ
 
-# ╔═╡ 4dcf432f-a13e-4c25-8f30-5ac16befaf10
+# ╔═╡ 8d78856b-0a9c-4909-bb30-fc530197b9ca
 md"""
-We conclude this step by compiling a function for oerimeter evaluation.
+Actually this is exactly the same result as found by Gunn (1978), thus we express their expression in terms of ``Pₛ`` to ensure a proper estimation of the channel radius which is found to be:
 """
 
-# ╔═╡ 078c50a8-4efa-463d-9110-61a6a38431bd
-"Evaluates the perimeter of solids per unit height of reactor."
-relativeperimeter = build_function(σ, args...; expression = Val{false})
+# ╔═╡ 66de140a-3a62-4b74-9b2b-97efaff2f3a5
+Dᵧ = 2 * 2ϕ / Pₛ
+
+# ╔═╡ e118a6e8-9b69-4987-801e-f2035687c41f
+md"""
+The factor ``2`` in the above equation reflects the use of a diameter instead of a radius.
+"""
 
 # ╔═╡ 5fcd5364-5d57-4711-9c63-8be40607aa56
 md"""
 ## Statistical considerations
 """
 
-# ╔═╡ bf57201f-ff60-408c-a15b-b4388c07da48
+# ╔═╡ 738db443-ad85-4f10-8864-9ba9b653fae6
+md"""
+New symbols are introduced to compute the uncertainties on parameters:
+"""
 
+# ╔═╡ 4983a5d8-1129-423e-8427-320edb206956
+delta = @variables δϕ δl
 
-# ╔═╡ 0d81315f-9962-450e-b42a-af7525754408
+# ╔═╡ 7206a2a0-4c77-4861-988c-49249966d047
+md"""
+The associated differentials are declared to perform a sensitivity analysis:
+"""
 
+# ╔═╡ c758b980-9aba-41dc-a696-4fa0ed8cee9e
+ddϕ, ddl = let
+    ddϕ = Differential(ϕ)
+    ddl = Differential(l)
+    ddϕ, ddl
+end
 
-# ╔═╡ 9b99bd14-8b19-4069-bac9-ebe147b6b515
+# ╔═╡ d33a74c4-bb51-44ba-b61a-3bddadb30730
+md"""
+In what follows, this section provides functions for the evaluation of model parameters uncertainty.
+"""
 
+# ╔═╡ c1661200-1e5c-45b2-984e-56c91100c220
+md"""
+### Solids perimeter uncertainty
 
-# ╔═╡ c7eaa50c-0aaf-49c0-bd71-69246cf42bff
+The total derivative of perimeter with respect to ``ϕ`` and ``l`` is given by:
+"""
 
+# ╔═╡ f76010d5-491a-4e38-b111-daa78f15f34a
+dPₛ = expand_derivatives(ddl(Pₛ)*δl + ddϕ(Pₛ)*δϕ)
 
-# ╔═╡ b4bfb25d-0acc-4411-b461-366cac5ee7f7
+# ╔═╡ 944c1d88-edf7-4bba-8cb6-0490347b9f88
+md"""
+### Channel diameter uncertainty
+"""
 
+# ╔═╡ cf128a15-dae6-44fc-a28d-c861a57fef91
+md"""
+The same approach is now applied to channel diameter:
+"""
 
-# ╔═╡ 975eddf5-9ced-47a8-8dff-8f90593c9feb
+# ╔═╡ 88769a22-d80b-4f3e-88cd-519400c47de9
 
+dDᵧ = expand_derivatives(ddl(Dᵧ)*δl + ddϕ(Dᵧ)*δϕ)
 
 # ╔═╡ 5cb8cc6e-1097-47a9-a0c0-ec93fbf711ef
-let
-    σₙ = relativeperimeter(ϕₛ, blocksize, REACTOR.D, REACTOR.W, REACTOR.H)
-    σₙ, σₙ * REACTOR.P
+md"""
+## Numerical evaluation
+"""
+
+# ╔═╡ f7b401c6-a28d-4a3c-9dae-0cf471d7b162
+md"""
+
+|    |    |
+|---:|:---|
+ Voidage relative error [%]    | $(@bind δϕn PlutoUI.Slider(0.0:1.0:40.0, default = 10.0, show_value = true))
+ Block size relative error [%] | $(@bind δln PlutoUI.Slider(0.0:1.0:40.0, default = 10.0, show_value = true))
+
+"""
+
+# ╔═╡ eb8e27b4-a2cd-422b-995e-3465478c3f70
+porosityparameters(ϕₛ, blocksize, A = REACTOR.A)
+
+# ╔═╡ 0948d221-cbac-4f6e-ae9f-c6a3ff3f0705
+md"""
+## Functions
+"""
+
+# ╔═╡ 078c50a8-4efa-463d-9110-61a6a38431bd
+begin
+    funPₛ = build_function(Pₛ, args...; expression = Val{false})
+
+    "Evaluates the perimeter of solids per unit height of reactor."
+    function solidsperim(; ϕ, l)
+        return funPₛ(ϕ, l, REACTOR.D, REACTOR.W, REACTOR.H)
+    end
 end
+
+# ╔═╡ 65c99f9b-0322-4229-a108-ead8525c4091
+begin
+    funDᵧ = build_function(Dᵧ, args...; expression = Val{false})
+
+    "Evaluates the channel diameter estimation in cross-section."
+    function channeldiam(; ϕ, l)
+        return funDᵧ(ϕ, l, REACTOR.D, REACTOR.W, REACTOR.H)
+    end
+end
+
+# ╔═╡ 0d81315f-9962-450e-b42a-af7525754408
+begin
+    fundPₛ = build_function(dPₛ, args..., delta...; expression = Val{false})
+
+    "Evaluate blocks perimeter uncertainty from sizes and porosity."
+    function Δsolidsperim(; ϕ, l, δϕ, δl)
+        return fundPₛ(ϕ, l, REACTOR.D, REACTOR.W, REACTOR.H, δϕ, δl)
+    end
+end
+
+# ╔═╡ c7eaa50c-0aaf-49c0-bd71-69246cf42bff
+begin
+    fundDᵧ = build_function(dDᵧ, args..., delta...; expression = Val{false})
+
+    "Evaluate blocks perimeter uncertainty from sizes and porosity."
+    function Δchanneldiam(; ϕ, l, δϕ, δl)
+        return fundDᵧ(ϕ, l, REACTOR.D, REACTOR.W, REACTOR.H, δϕ, δl)
+    end
+end
+
+# ╔═╡ 9b99bd14-8b19-4069-bac9-ebe147b6b515
+μP, μD, σP, σD = let
+    ϕ = ϕₛ
+    l = blocksize
+    δϕ = 0.5ϕ * δϕn / 100.0
+    δl = 0.5l * δln / 100.0
+
+    μP = solidsperim(; ϕ, l)
+    μD = channeldiam(; ϕ, l)
+
+    σP = abs(Δsolidsperim(; ϕ, l, δϕ, δl = δl) / 3)
+    σD = abs(Δchanneldiam(; ϕ, l, δϕ, δl = δl) / 3)
+
+    μP *= REACTOR.A
+    σP *= REACTOR.A
+
+    Prng = sort([μP, μP + 3σP, μP - 3σP])
+    Drng = sort([μD, μD + 3σD, μD - 3σD])
+
+    @info "Perimeter range ... $(Prng)"
+    @info "Diameter range .... $(Drng)"
+
+    μP, μD, σP, σD
+end
+
+# ╔═╡ b431e329-b37d-4e9f-b26f-b5028f5a38d3
+
 
 # ╔═╡ 21ab6e10-9438-46b1-8ac7-3d93e4c70d89
 md"""
@@ -170,17 +303,31 @@ md"""
 # ╟─d003c1fb-2c61-4031-b7bc-9c11d6e2dcc2
 # ╟─5ff1e62f-2a34-4dee-b2de-12fa670212c1
 # ╟─48d89f5c-80e7-4c79-869a-c9dcd87b5c77
-# ╟─855ddbc6-cbb5-4e6f-a9ac-f7f2bfb3a8a3
-# ╟─ba293489-93fb-4e65-8f5b-446c0f13552d
-# ╟─4dcf432f-a13e-4c25-8f30-5ac16befaf10
-# ╟─078c50a8-4efa-463d-9110-61a6a38431bd
+# ╟─b6efc1d0-f5cc-42ac-b46b-920f6ce6e72e
+# ╟─2e4ce97e-2ec1-4691-a0f2-451915f9fd2f
+# ╟─8d78856b-0a9c-4909-bb30-fc530197b9ca
+# ╟─66de140a-3a62-4b74-9b2b-97efaff2f3a5
+# ╟─e118a6e8-9b69-4987-801e-f2035687c41f
 # ╟─5fcd5364-5d57-4711-9c63-8be40607aa56
-# ╠═bf57201f-ff60-408c-a15b-b4388c07da48
-# ╠═0d81315f-9962-450e-b42a-af7525754408
-# ╠═9b99bd14-8b19-4069-bac9-ebe147b6b515
-# ╠═c7eaa50c-0aaf-49c0-bd71-69246cf42bff
-# ╠═b4bfb25d-0acc-4411-b461-366cac5ee7f7
-# ╠═975eddf5-9ced-47a8-8dff-8f90593c9feb
-# ╠═5cb8cc6e-1097-47a9-a0c0-ec93fbf711ef
+# ╟─738db443-ad85-4f10-8864-9ba9b653fae6
+# ╟─4983a5d8-1129-423e-8427-320edb206956
+# ╟─7206a2a0-4c77-4861-988c-49249966d047
+# ╟─c758b980-9aba-41dc-a696-4fa0ed8cee9e
+# ╟─d33a74c4-bb51-44ba-b61a-3bddadb30730
+# ╟─c1661200-1e5c-45b2-984e-56c91100c220
+# ╟─f76010d5-491a-4e38-b111-daa78f15f34a
+# ╟─944c1d88-edf7-4bba-8cb6-0490347b9f88
+# ╟─cf128a15-dae6-44fc-a28d-c861a57fef91
+# ╟─88769a22-d80b-4f3e-88cd-519400c47de9
+# ╟─5cb8cc6e-1097-47a9-a0c0-ec93fbf711ef
+# ╟─f7b401c6-a28d-4a3c-9dae-0cf471d7b162
+# ╟─9b99bd14-8b19-4069-bac9-ebe147b6b515
+# ╟─eb8e27b4-a2cd-422b-995e-3465478c3f70
+# ╟─0948d221-cbac-4f6e-ae9f-c6a3ff3f0705
+# ╟─078c50a8-4efa-463d-9110-61a6a38431bd
+# ╟─65c99f9b-0322-4229-a108-ead8525c4091
+# ╟─0d81315f-9962-450e-b42a-af7525754408
+# ╟─c7eaa50c-0aaf-49c0-bd71-69246cf42bff
+# ╠═b431e329-b37d-4e9f-b26f-b5028f5a38d3
 # ╟─21ab6e10-9438-46b1-8ac7-3d93e4c70d89
-# ╠═52d557a4-8ef1-4b50-a145-7995745502c6
+# ╟─52d557a4-8ef1-4b50-a145-7995745502c6

@@ -157,57 +157,54 @@ area(s) = s.depth * s.width
 
 # ╔═╡ 2e44d2ee-466b-49e9-acdf-c9e231f7c800
 begin
-	@info "Already migrated!"
-	Φ(z) = 0.65
-	const Tg₀ = 2073.0
-	const Ts₀ = 313.0
-	const ṁ_sol = 470e3/24/3600
-	const ṁ_ref = 8.0
-	const L = 10.0
-	const Tenv = 313.0
-	const section = (depth = 2.1, width = 6.7)
-	const REACTOR_PERIMETER = perim(section)
-	const REACTOR_CROSSAREA = area(section)
-	const BLOCK_SIZE = 0.1
-	const ρₛ = 3000.0
-	const cₚ_sol = Polynomial([900.0,], :T)
-	const k_sol = Polynomial([3.0], :T)
-	
-	@info "Not used in what follows"
-	const zspan = (0.0, L)
-	const saveat = range(zspan..., 101)
-end
+    @info "Already migrated!"
+    Φ(z) = 0.65
+    const Tg₀ = 2073.0
+    const Ts₀ = 313.0
+    const ṁ_sol = 470e3/24/3600
+    const ṁ_ref = 8.0
+    const L = 10.0
+    const Tenv = 313.0
+    const section = (depth = 2.1, width = 6.7)
+    const REACTOR_PERIMETER = perim(section)
+    const REACTOR_CROSSAREA = area(section)
+    const BLOCK_SIZE = 0.1
+    const ρₛ = 3000.0
+    const cₚ_sol = Polynomial([900.0,], :T)
+    const k_sol = Polynomial([3.0], :T)
+    const BLOCK_PERIM_PER_WALL = let
+        # Surface area of a single block.
+        αᵦ = 6BLOCK_SIZE^2
 
-# ╔═╡ fd371936-5d1a-4fdd-bdba-cacb9f57ef92
-"Perimeter of solids per unit of wall $(BLOCK_PERIM_PER_WALL)"
-const BLOCK_PERIM_PER_WALL = let
-    # Surface area of a single block.
-    αᵦ = 6BLOCK_SIZE^2
+        # Volume of a single block.
+        νᵦ = BLOCK_SIZE^3
 
-    # Volume of a single block.
-    νᵦ = BLOCK_SIZE^3
+        # Vertical cross-section.
+        Aᵥ = area(section)
 
-    # Vertical cross-section.
-    Aᵥ = area(section)
+        # Vertical volume.
+        Vᵥ = Aᵥ * L
 
-    # Vertical volume.
-    Vᵥ = Aᵥ * L
+        # Volume of all blocks.
+        Vᵦ = (1 - Φ(L/2)) * Vᵥ
 
-    # Volume of all blocks.
-    Vᵦ = (1 - Φ(L/2)) * Vᵥ
+        # Number of blocks in vertical.
+        Nᵦ = Vᵦ / νᵦ
 
-    # Number of blocks in vertical.
-    Nᵦ = Vᵦ / νᵦ
+        # Area of all blocks.
+        Aᵦ = Nᵦ * αᵦ
 
-    # Area of all blocks.
-    Aᵦ = Nᵦ * αᵦ
+        # Estimator of block perimeter in slice.
+        Pᵦ = Aᵦ / L
 
-    # Estimator of block perimeter in slice.
-    Pᵦ = Aᵦ / L
+        # Relative block to wall perimeter.
+        σ = round(Pᵦ / perim(section))
+    end
 
-    # Relative block to wall perimeter.
-    σ = round(Pᵦ / perim(section))
-end
+    @info "Not used in what follows"
+    const zspan = (0.0, L)
+    const saveat = range(zspan..., 101)
+end;
 
 # ╔═╡ 277bb20b-7e9d-40fe-ae33-457afad338ea
 "Plot results of standard PFR solution"
@@ -802,29 +799,6 @@ end
 # ╔═╡ b93ab73a-e9e3-49ea-bf4b-996b845f650d
 counterflowpfr[1]
 
-# ╔═╡ 259bd6c5-2ea9-4e3e-863b-98df5618cc76
-md"""
-### Heat losses through walls
-
-**TODO**
-
-### Mass flow injections over length
-
-**TODO**
-
-### Modeling of pressure drop
-
-**TODO**
-
-### Solid-gas mass exchanges
-
-**TODO**
-
-## Comparison against CFD model
-
-**TODO**
-"""
-
 # ╔═╡ 3a193274-f5d0-418c-ad9a-582aca4b3cba
 md"""
 ## Appendix C - Testing
@@ -849,7 +823,7 @@ end
 # ╟─a876e9c0-5082-11ee-069b-d756666798d2
 # ╟─412b34dd-8189-4dde-8584-482c65b6ebd8
 # ╟─6438d22f-dbb9-470f-93e2-ef7330aca17a
-# ╠═2e44d2ee-466b-49e9-acdf-c9e231f7c800
+# ╟─2e44d2ee-466b-49e9-acdf-c9e231f7c800
 # ╟─a0387438-cd1b-4c70-b02c-582d568f0813
 # ╟─5888cf92-0a95-4a17-b83d-600b93dbd1ed
 # ╟─d09419ba-ae90-4fbe-9b12-661d40662a37
@@ -860,10 +834,9 @@ end
 # ╟─d069eede-afdd-4f88-b3ac-fb8c7e03120d
 # ╟─f9b0f36f-2427-4a0a-930a-e075b8660040
 # ╟─4d3c23f9-5549-4a0b-a5d9-2cd8c15051e7
-# ╠═fd371936-5d1a-4fdd-bdba-cacb9f57ef92
-# ╠═3739ed10-d3b0-4cea-9522-c11eecde7d07
-# ╠═df06b2ae-1157-43e4-a895-be328d788c16
-# ╠═16b2896c-d5f5-419c-b728-76fefdc47b50
+# ╟─3739ed10-d3b0-4cea-9522-c11eecde7d07
+# ╟─df06b2ae-1157-43e4-a895-be328d788c16
+# ╟─16b2896c-d5f5-419c-b728-76fefdc47b50
 # ╟─277bb20b-7e9d-40fe-ae33-457afad338ea
 # ╟─c8987a75-afac-40f0-80cc-582d1bd2c291
 # ╟─499eead4-a91a-47c2-aaef-ab3732c36d04
@@ -885,7 +858,6 @@ end
 # ╟─3e3a597f-2dc3-4714-94bc-156bfb078edb
 # ╟─54b6a18f-6320-4cbb-917c-dea7a1ec36d6
 # ╟─4900d90f-15d0-459e-9e42-3c64df394bb0
-# ╟─259bd6c5-2ea9-4e3e-863b-98df5618cc76
 # ╟─3a193274-f5d0-418c-ad9a-582aca4b3cba
 # ╟─b531b71d-f7ee-45bc-b46a-6f6cbff3c7a2
 # ╟─7529d5a2-f27d-4630-be2e-4c2cfe87ae06

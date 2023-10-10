@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 using CairoMakie
+using Distributions
 using Polynomials
+using Random
 using YAML
 
 ##############################################################################
@@ -137,33 +139,99 @@ function mixtureproperties(
 end
 
 ##############################################################################
+# REACTOR DATA
+##############################################################################
+
+"Geometric description of vertical reactor bounding volume."
+struct VerticalReactorGeometry
+    "Reactor total height [m]"
+    H::Float64
+
+    "Reactor cross-section depth [m]"
+    D::Float64
+
+    "Reactor cross-section width [m]"
+    W::Float64
+
+    "Reactor cross-section perimeter [m]"
+    P::Float64
+
+    "Reactor cross-section area [m²]"
+    A::Float64
+
+    "Reactor total volume [m³]"
+    V::Float64
+
+    function VerticalReactorGeometry(; H, D, W)
+        P = 2 * (D + W)
+        A = D * W
+        V = A * H
+        return new(H, D, W, P, A, V)
+    end
+end
+
+##############################################################################
+# POROSITY EVALUATION
+##############################################################################
+
+function porosityparameters(
+        ϕ::Float64,
+        l::Float64;
+        A::Float64
+    )::Tuple{Float64, Float64}
+    P = A * 6 * (1.0 - ϕ) / l
+    D = 4 * ϕ * A / P
+    return (P, D)
+end
+
+function porositysampler(;
+        A::Float64,
+        ϕ::Float64,
+        l::Float64,
+        N::Union{Int64, Nothing} = nothing,
+        σϕ::Union{Float64, Nothing} = nothing,
+        σl::Union{Float64, Nothing} = nothing,
+        ϕlims::Tuple{Float64, Float64} = (0.4, 0.6)
+        llims::Tuple{Float64, Float64} = (0.0, 0.3)
+    )
+    if !isnothing(σϕ) && !isnothing(σl) && !isnothing(N)
+        ϕ = rand(truncated(Normal(ϕ, σϕ), ϕlims...), N)
+        l = rand(truncated(Normal(l, σl), llims...), N)
+        f = (ϕ, l) -> porosityparameters(ϕ, l; A = A)
+        return broadcast(f, ϕ, l)
+    end
+
+    return porosityparameters(ϕ, l; A = A)
+end
+
+##############################################################################
 # DEVEL
 ##############################################################################
 
-data = YAML.load_file("mixtures.yaml")
-mix = GasMixture(data, order = ["fumes", "co2"])
+# data = YAML.load_file("mixtures.yaml")
+# mix = GasMixture(data, order = ["fumes", "co2"])
 
-W = molecularmasses(mix)
+# W = molecularmasses(mix)
 
-T = ZEROCELSIUS
-P = ONEATM
-Y = [1.0, 0.0]
-ρ = idealgasdensity(T, P, Y; W = W)
+# T = ZEROCELSIUS
+# P = ONEATM
+# Y = [1.0, 0.0]
+# ρ = idealgasdensity(T, P, Y; W = W)
 
-K = 20
-T = collect(range(300.0, 3000.0, K))
-P = collect(range(300.0, 3000.0, K)) .+ ONEATM
-Y = [range(0.0, 1.0, K) range(1.0, 0.0, K)]
-ρ = idealgasdensity.(T, P, eachrow(Y); W = W)
+# K = 20
+# T = collect(range(300.0, 3000.0, K))
+# P = collect(range(300.0, 3000.0, K)) .+ ONEATM
+# Y = [range(0.0, 1.0, K) range(1.0, 0.0, K)]
+# ρ = idealgasdensity.(T, P, eachrow(Y); W = W)
 
-K = 20
-T = (ZEROCELSIUS + 25.0) * ones(K)
-P = ONEATM * ones(K)
-Y = [range(0.0, 1.0, K) range(1.0, 0.0, K)]
-ρ, μ, k, c = zip(mixtureproperties(T, P, Y; m = mix, W = W)...)
+# K = 20
+# T = (ZEROCELSIUS + 25.0) * ones(K)
+# P = ONEATM * ones(K)
+# Y = [range(0.0, 1.0, K) range(1.0, 0.0, K)]
+# ρ, μ, k, c = zip(mixtureproperties(T, P, Y; m = mix, W = W)...)
 
-K = 20
-T = collect(range(300.0, 2000.0, K))
-P = ONEATM * ones(K)
-Y = [ones(Float64, K) zeros(Float64, K)]
-ρ, μ, k, c = zip(mixtureproperties(T, P, Y; m = mix, W = W)...)
+# K = 20
+# T = collect(range(300.0, 2000.0, K))
+# P = ONEATM * ones(K)
+# Y = [ones(Float64, K) zeros(Float64, K)]
+# ρ, μ, k, c = zip(mixtureproperties(T, P, Y; m = mix, W = W)...)
