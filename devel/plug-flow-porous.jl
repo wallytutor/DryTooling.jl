@@ -52,48 +52,6 @@ In this section we provide those quantities that specify the problem and are int
 A parameter that is of particular interest here is the porosity level Φ, which is specified below as a function of position (because there might be *a priori* knowledge of its evolution over reactor length).
 """
 
-# ╔═╡ 2e44d2ee-466b-49e9-acdf-c9e231f7c800
-"Porosity volume fraction in terms of position"
-Φ(z) = 0.65
-
-# ╔═╡ 947283d5-1ffb-49d6-8d9d-d637476670d2
-"Reference initial gas temperature Tg₀ = $(Tg₀) K"
-const Tg₀ = 2073.0
-
-# ╔═╡ bbb12163-d62c-4968-80b7-36ea1cb73f48
-"Reference initial solids temperature Ts₀ = $(Ts₀) K"
-const Ts₀ = 313.0
-
-# ╔═╡ 00060453-4c16-41f1-b905-05b797bd091e
-const ṁ_sol = let
-
-    470e3/24/3600
-end
-
-# ╔═╡ 7d060746-4cfe-42e8-b272-47e0b8ccda94
-"Reference inlet gas flow rate ṁ_ref = $(ṁ_ref) kg/s"
-const ṁ_ref = 8.0
-
-# ╔═╡ 9b0f1cc0-4440-43b6-85b7-d4e7a85f5537
-"Reactor length L = $(L) m"
-const L = 10.0
-
-# ╔═╡ d9d85ce6-17ed-4e9a-94c1-0ab907940a4d
-"Reactor external environment temperature Tenv = $(Tenv) K"
-const Tenv = 313.0
-
-# ╔═╡ d1482799-e268-4480-9227-0dad31b76615
-"Reactor retangular area dimensions $(section) m"
-const section = (depth = 2.1, width = 6.7)
-
-# ╔═╡ 11b3f426-c867-41db-b276-e9a98c57b8b0
-"Limits of integration domain"
-const zspan = (0.0, L)
-
-# ╔═╡ a056b520-13bc-4c7a-99ab-29d3008e89bc
-"Coordinates to retrieve all solutions"
-const saveat = range(zspan..., 101)
-
 # ╔═╡ 5888cf92-0a95-4a17-b83d-600b93dbd1ed
 "Inlet composition of reference atmosphere"
 const Y0 = [0.192, 0.016, 0.076, 0.012, 0.704]
@@ -172,31 +130,6 @@ const μ_gas = Polynomial([
     -7.058723563087003e-19
 ], :T)
 
-# ╔═╡ f2bd4d19-c3c4-4c0b-b762-83f1d1073686
-md"""
-### Properties of solids bed
-"""
-
-# ╔═╡ 61459519-2dc6-4008-ab48-5ab24a8f7fb5
-"Characteristic block size [m]"
-const BLOCK_SIZE = 0.1
-
-# ╔═╡ ee3126ec-d09f-48dd-9f95-7befe3efbfc5
-"Solids specific mass [kg/m³]"
-const ρₛ = 3000.0
-
-# ╔═╡ 2e5f2df9-04ee-4c40-97bc-da3a781e6cbc
-"Solids phase specific heat [J/(kg.K)]"
-const cₚ_sol = Polynomial([
-    900.0,
-], :T)
-
-# ╔═╡ 475253d3-60ab-49ec-84ca-806594d3a54a
-"Solids phase thermal conductivity [W/(m.K)]"
-const k_sol = Polynomial([
-    3.0
-], :T)
-
 # ╔═╡ d069eede-afdd-4f88-b3ac-fb8c7e03120d
 md"""
 ### Constants and helper functions
@@ -218,17 +151,32 @@ const P_ATMOSPHERE = 101_325.0
 "Perimeter of a rectangle [m]"
 perim(s) = 2 * (s.depth + s.width)
 
-# ╔═╡ 3b83faf0-44ea-4363-ad07-6e52eede3c87
-"Reactor section perimeter $(REACTOR_PERIMETER) m"
-const REACTOR_PERIMETER = perim(section)
-
 # ╔═╡ 16b2896c-d5f5-419c-b728-76fefdc47b50
 "Area of a rectangle"
 area(s) = s.depth * s.width
 
-# ╔═╡ 41830f2a-133f-4947-bbba-dbf430c6264a
-"Reactor section area $(REACTOR_CROSSAREA) m²"
-const REACTOR_CROSSAREA = area(section)
+# ╔═╡ 2e44d2ee-466b-49e9-acdf-c9e231f7c800
+begin
+	@info "Already migrated!"
+	Φ(z) = 0.65
+	const Tg₀ = 2073.0
+	const Ts₀ = 313.0
+	const ṁ_sol = 470e3/24/3600
+	const ṁ_ref = 8.0
+	const L = 10.0
+	const Tenv = 313.0
+	const section = (depth = 2.1, width = 6.7)
+	const REACTOR_PERIMETER = perim(section)
+	const REACTOR_CROSSAREA = area(section)
+	const BLOCK_SIZE = 0.1
+	const ρₛ = 3000.0
+	const cₚ_sol = Polynomial([900.0,], :T)
+	const k_sol = Polynomial([3.0], :T)
+	
+	@info "Not used in what follows"
+	const zspan = (0.0, L)
+	const saveat = range(zspan..., 101)
+end
 
 # ╔═╡ fd371936-5d1a-4fdd-bdba-cacb9f57ef92
 "Perimeter of solids per unit of wall $(BLOCK_PERIM_PER_WALL)"
@@ -901,18 +849,7 @@ end
 # ╟─a876e9c0-5082-11ee-069b-d756666798d2
 # ╟─412b34dd-8189-4dde-8584-482c65b6ebd8
 # ╟─6438d22f-dbb9-470f-93e2-ef7330aca17a
-# ╟─2e44d2ee-466b-49e9-acdf-c9e231f7c800
-# ╟─947283d5-1ffb-49d6-8d9d-d637476670d2
-# ╟─bbb12163-d62c-4968-80b7-36ea1cb73f48
-# ╠═00060453-4c16-41f1-b905-05b797bd091e
-# ╟─7d060746-4cfe-42e8-b272-47e0b8ccda94
-# ╟─9b0f1cc0-4440-43b6-85b7-d4e7a85f5537
-# ╟─d9d85ce6-17ed-4e9a-94c1-0ab907940a4d
-# ╟─d1482799-e268-4480-9227-0dad31b76615
-# ╟─3b83faf0-44ea-4363-ad07-6e52eede3c87
-# ╟─41830f2a-133f-4947-bbba-dbf430c6264a
-# ╟─11b3f426-c867-41db-b276-e9a98c57b8b0
-# ╟─a056b520-13bc-4c7a-99ab-29d3008e89bc
+# ╠═2e44d2ee-466b-49e9-acdf-c9e231f7c800
 # ╟─a0387438-cd1b-4c70-b02c-582d568f0813
 # ╟─5888cf92-0a95-4a17-b83d-600b93dbd1ed
 # ╟─d09419ba-ae90-4fbe-9b12-661d40662a37
@@ -920,18 +857,13 @@ end
 # ╟─d595f1e5-fae1-420c-8163-6a60c121c6a4
 # ╟─3462e85a-b14e-4622-ae58-b9ead3b21944
 # ╟─92052050-5edd-46c9-bb48-ee61b35c3184
-# ╟─f2bd4d19-c3c4-4c0b-b762-83f1d1073686
-# ╟─61459519-2dc6-4008-ab48-5ab24a8f7fb5
-# ╟─ee3126ec-d09f-48dd-9f95-7befe3efbfc5
-# ╟─2e5f2df9-04ee-4c40-97bc-da3a781e6cbc
-# ╟─475253d3-60ab-49ec-84ca-806594d3a54a
 # ╟─d069eede-afdd-4f88-b3ac-fb8c7e03120d
 # ╟─f9b0f36f-2427-4a0a-930a-e075b8660040
 # ╟─4d3c23f9-5549-4a0b-a5d9-2cd8c15051e7
-# ╟─fd371936-5d1a-4fdd-bdba-cacb9f57ef92
-# ╟─3739ed10-d3b0-4cea-9522-c11eecde7d07
-# ╟─df06b2ae-1157-43e4-a895-be328d788c16
-# ╟─16b2896c-d5f5-419c-b728-76fefdc47b50
+# ╠═fd371936-5d1a-4fdd-bdba-cacb9f57ef92
+# ╠═3739ed10-d3b0-4cea-9522-c11eecde7d07
+# ╠═df06b2ae-1157-43e4-a895-be328d788c16
+# ╠═16b2896c-d5f5-419c-b728-76fefdc47b50
 # ╟─277bb20b-7e9d-40fe-ae33-457afad338ea
 # ╟─c8987a75-afac-40f0-80cc-582d1bd2c291
 # ╟─499eead4-a91a-47c2-aaef-ab3732c36d04
