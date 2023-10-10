@@ -21,9 +21,6 @@ begin
     Pkg.resolve()
     Pkg.instantiate()
 
-    using CairoMakie
-    using Distributions
-    using Random
     using Symbolics
     using PlutoUI
     include("parameters.jl")
@@ -276,9 +273,6 @@ end
     μP, μD, σP, σD
 end
 
-# ╔═╡ b431e329-b37d-4e9f-b26f-b5028f5a38d3
-
-
 # ╔═╡ 21ab6e10-9438-46b1-8ac7-3d93e4c70d89
 md"""
 ## Tools
@@ -328,6 +322,5 @@ md"""
 # ╟─65c99f9b-0322-4229-a108-ead8525c4091
 # ╟─0d81315f-9962-450e-b42a-af7525754408
 # ╟─c7eaa50c-0aaf-49c0-bd71-69246cf42bff
-# ╠═b431e329-b37d-4e9f-b26f-b5028f5a38d3
 # ╟─21ab6e10-9438-46b1-8ac7-3d93e4c70d89
 # ╟─52d557a4-8ef1-4b50-a145-7995745502c6
