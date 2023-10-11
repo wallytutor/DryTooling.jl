@@ -48,6 +48,8 @@ We start by declaring the relevant symbols:
 ``D`` | Depth of reactor cross-section
 ``W`` | Width of reactor cross-section
 ``H`` | Height vertical reactor
+
+The manipulations that follow are performed using [Symbolics.jl](https://symbolics.juliasymbolics.org/dev/) to automate later error analysis.
 """
 
 # ╔═╡ 5ef67a89-2d81-4863-b16f-a0f0a3c6321f
@@ -138,7 +140,7 @@ md"""
 
 # ╔═╡ 738db443-ad85-4f10-8864-9ba9b653fae6
 md"""
-New symbols are introduced to compute the uncertainties on parameters:
+New symbols are introduced to compute the uncertainties on model parameters:
 """
 
 # ╔═╡ 4983a5d8-1129-423e-8427-320edb206956
@@ -150,11 +152,7 @@ The associated differentials are declared to perform a sensitivity analysis:
 """
 
 # ╔═╡ c758b980-9aba-41dc-a696-4fa0ed8cee9e
-ddϕ, ddl = let
-    ddϕ = Differential(ϕ)
-    ddl = Differential(l)
-    ddϕ, ddl
-end
+ddϕ, ddl = Differential(ϕ), Differential(l)
 
 # ╔═╡ d33a74c4-bb51-44ba-b61a-3bddadb30730
 md"""
@@ -188,20 +186,45 @@ dDᵧ = expand_derivatives(ddl(Dᵧ)*δl + ddϕ(Dᵧ)*δϕ)
 # ╔═╡ 5cb8cc6e-1097-47a9-a0c0-ec93fbf711ef
 md"""
 ## Numerical evaluation
-"""
 
-# ╔═╡ f7b401c6-a28d-4a3c-9dae-0cf471d7b162
-md"""
+The following sliders allow for investigating the effect of parameters relative uncertainties over the model outputs. These parameters can be also interpreted as the relative deviation of measurables (voidage and block sizes), so that the functions can be used to create stochastic simulations.
 
 |    |    |
 |---:|:---|
  Voidage relative error [%]    | $(@bind δϕn PlutoUI.Slider(0.0:1.0:40.0, default = 10.0, show_value = true))
  Block size relative error [%] | $(@bind δln PlutoUI.Slider(0.0:1.0:40.0, default = 10.0, show_value = true))
+"""
 
+# ╔═╡ 84ac21f9-6e57-4022-b24b-9c0fb0b31623
+md"""
+Because these calculations are required to setup reactor simulations, the developped expressions are coded in a structure conceived for this end. Below we test the implementation of `PorosityDescriptor` function showing that the mean value as per the symbolic derivation of expressions is properly reproduced.
 """
 
 # ╔═╡ eb8e27b4-a2cd-422b-995e-3465478c3f70
-porosityparameters(ϕₛ, blocksize, A = REACTOR.A)
+PorosityDescriptor(; μϕ = ϕₛ, μl = blocksize, area = REACTOR.A)
+
+# ╔═╡ bc9118bd-84d1-4db5-8bcb-8e67d9ea1a2e
+md"""
+Stochastic modeling might be interesting in this scenario, *i.e.* discretization of reactor with a randomly varying porosity profile, the conceived structure also supports the generation of reproducible random porosities for use with the model. For doing so, it accepts the *absolute* standard deviation of the model parameters and the number of samples (reactor cells) to generate. Instead of generating multiple `PorosityDescriptor` objects in a vector, it has been chosen by design that the structure must support itself vector attributes for performance reasons.
+"""
+
+# ╔═╡ 108146ed-6c2d-4850-8488-887c06e9ac11
+porosity = PorosityDescriptor(;
+    μϕ = ϕₛ,
+    μl = blocksize,
+    σϕ = 0.03,
+    σl = 0.01,
+    N = 2,
+    ϕlims = (0.4, 0.8),
+    llims = (0.0, 0.3),
+    seed = 42,
+    area = REACTOR.A
+)
+
+# ╔═╡ 36e61f59-185b-46cc-ad6a-b6b7e3d6b996
+md"""
+The structure also implements `Base.length` for error handling in model setup so that we can call `length(porosity)` and get the value $(length(porosity)).
+"""
 
 # ╔═╡ 0948d221-cbac-4f6e-ae9f-c6a3ff3f0705
 md"""
@@ -249,7 +272,7 @@ begin
 end
 
 # ╔═╡ 9b99bd14-8b19-4069-bac9-ebe147b6b515
-μP, μD, σP, σD = let
+let
     ϕ = ϕₛ
     l = blocksize
     δϕ = 0.5ϕ * δϕn / 100.0
@@ -264,13 +287,16 @@ end
     μP *= REACTOR.A
     σP *= REACTOR.A
 
-    Prng = sort([μP, μP + 3σP, μP - 3σP])
-    Drng = sort([μD, μD + 3σD, μD - 3σD])
+    Prng = round.(sort([μP, μP + 3σP, μP - 3σP]), digits = 1)
+    Drng = round.(sort([μD, μD + 3σD, μD - 3σD]), digits = 4)
+
+    Perr = round(100*(Prng[3]-Prng[2])/Prng[2], digits = 1)
+    Derr = round(100*(Drng[3]-Drng[2])/Drng[2], digits = 1)
 
     @info "Perimeter range ... $(Prng)"
     @info "Diameter range .... $(Drng)"
-
-    μP, μD, σP, σD
+    @info "Perimeter error ... $(Perr)%"
+    @info "Diameter error .... $(Derr)%"
 end
 
 # ╔═╡ 21ab6e10-9438-46b1-8ac7-3d93e4c70d89
@@ -314,9 +340,12 @@ md"""
 # ╟─cf128a15-dae6-44fc-a28d-c861a57fef91
 # ╟─88769a22-d80b-4f3e-88cd-519400c47de9
 # ╟─5cb8cc6e-1097-47a9-a0c0-ec93fbf711ef
-# ╟─f7b401c6-a28d-4a3c-9dae-0cf471d7b162
 # ╟─9b99bd14-8b19-4069-bac9-ebe147b6b515
+# ╟─84ac21f9-6e57-4022-b24b-9c0fb0b31623
 # ╟─eb8e27b4-a2cd-422b-995e-3465478c3f70
+# ╟─bc9118bd-84d1-4db5-8bcb-8e67d9ea1a2e
+# ╟─108146ed-6c2d-4850-8488-887c06e9ac11
+# ╟─36e61f59-185b-46cc-ad6a-b6b7e3d6b996
 # ╟─0948d221-cbac-4f6e-ae9f-c6a3ff3f0705
 # ╟─078c50a8-4efa-463d-9110-61a6a38431bd
 # ╟─65c99f9b-0322-4229-a108-ead8525c4091
