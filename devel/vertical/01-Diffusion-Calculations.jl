@@ -11,13 +11,11 @@ begin
     Pkg.resolve()
     Pkg.instantiate()
 
-    using Symbolics
+    using CairoMakie
+    using Trapz
     using PlutoUI
     include("parameters.jl")
 end
-
-# ╔═╡ 12eac5ef-935d-4110-b382-20b2bb6c8aa2
-using CairoMakie
 
 # ╔═╡ b307aa70-641c-11ee-27cb-b151d31fffc9
 md"""
@@ -175,147 +173,62 @@ a_ST_S + a_RT_P = \alpha_{P}T_P^{0}+UT_\infty\quad\text{where}\quad{}a_R=\alpha_
 ```
 
 It must be noted here that ``U=4\pi{}R^2h``, where the actual heat transfer coefficient is ``h``. This should be self-evident from a dimensional analysis.
+
+!!! warn
+    Conservation analysis is showing an error of 4π! It is probably here!
+
 """
 
 # ╔═╡ 9eae615a-c10f-40ed-a590-bf328abfe6ea
 "Non-linear iteration updater for model."
-function updateinner!(
-        problem::TridiagonalProblem;
-        α::Vector{Float64},
-        β::Vector{Float64},
-        k::Function,
-        U::Float64,
-        T∞::Float64
-    )::Nothing
-    A = problem.A
-    b = problem.b
-    T = problem.x
-
+function spheretemperatureinner!(model::SphereTemperatureModel)::Nothing
     # Aliases to approach mathermatical formulation.
-    a_p = A.d
-    a_s = A.dl
-    a_n = A.du
+    a_p = model.problem.A.d
+    a_s = model.problem.A.dl
+    a_n = model.problem.A.du
 
     # Wall interpolated thermal conductivities.
-    kp = @. k(T)
+    kp = @. model.k(model.problem.x)
     ks = kp[1:end-1]
     kn = kp[2:end]
     κ = @. 2 * ks * kn / (ks + kn)
 
     # Update temperature dependency of β.
-    βₖ = @. κ * β
+    βₖ = @. κ * model.β
 
     # Main, lower and upper diagonal elements.
     a_s[1:end] = -βₖ
     a_n[1:end] = -βₖ
-    a_p[1:end] = α
+    a_p[1:end] = model.α
 
     # Update main but leave boundaries off.
     @. a_p[2:end-1] += βₖ[2:end] + βₖ[1:end-1]
 
     # Boundary conditions on main.
     a_p[1] += βₖ[1]
-    a_p[end] += βₖ[end] + U
+    a_p[end] += βₖ[end] + model.U
 
     return nothing
 end
 
 # ╔═╡ ce1817d3-5dea-4237-8be4-4770c3e08796
 "Time-step dependent updater for model."
-function updateouter!(
-        problem::TridiagonalProblem;
-        α::Vector{Float64},
-        β::Vector{Float64},
-        k::Function,
-        U::Float64,
-        T∞::Float64
+function spheretemperatureouter!(
+        model::SphereTemperatureModel,
+        nouter::Int64,
+        ts::Float64
     )::Nothing
+    # Follow surface heat flux.
+    model.Q[nouter+1] = model.U * (model.T∞ - model.problem.x[end])
+
     # Problem right-hand side.
-    @. problem.b[1:end] = α * problem.x
+    @. model.problem.b[1:end] = model.α * model.problem.x
 
     # Apply boundary condition.
-    problem.b[end] += U * T∞
+    model.problem.b[end] += model.U * model.T∞
 
     return nothing
 end
-
-# ╔═╡ d75feb8b-9722-436c-8c5b-92d71d6b926d
-begin
-    tol = 1.0e-12
-
-    # Domain sizes.
-    t = 3600.0
-    L = blocksize
-
-    # Domain discretizations.
-    N = 50
-    M = convert(Int64, round(t/10))
-
-    # Initial temperature.
-    T₀ = 300.0
-
-    # Environment temperature.
-    T∞ = 1400.0
-
-    # Material properties.
-    ρ = 3000.0
-    c = 900.0
-    k = (T) -> 3.0
-
-    # Heat transfer coefficient.
-    h = 10.0
-    U = 4π*(L/2)^2*h
-
-    # Space discretization.
-    δr = L / N
-    z = collect(0.0:δr:L)
-    w = collect(0.5δr:δr:L-0.5δr)
-    r = vcat(0.0, w, L)
-
-    # Increments.
-    δ = z[2:end-0] - z[1:end-1]
-    τ = t / M
-
-    # To handle boundaries use ``r`` for computing α.
-    α = @. (r[2:end-0]^3 - r[1:end-1]^3)*(ρ*c)/(3τ)
-
-    # For β use only internal walls ``w``.
-    β = @. w^2 / δ
-
-    problem = TridiagonalProblem(N)
-    problem.x[:] .= T₀
-
-    kwargs = (α = α, β = β, k = k, U = U, T∞ = T∞)
-
-    residuals = relaxationouterloop(;
-        problem      = problem,
-        updaterouter = updateouter!,
-        updaterinner = updateinner!,
-        tend         = t,
-        tau          = τ,
-        iters        = 2000,
-        relax        = 0.1,
-        tol          = tol,
-        metric       = maxrelativevariation,
-        kwargs...
-    )
-
-    fig = plotresiduals(residuals; ε = tol)
-end
-
-# ╔═╡ 268e6659-b789-4af8-983e-29c4915f0fa0
-struct SphereTemperatureModel
-    algebra::TridiagonalProblem
-
-    function SphereTemperatureModel()
-    end
-end
-
-# ╔═╡ 2877366e-f627-4e6f-be11-acfb1fde37cf
-ρ*c*(blocksize/2)^2/k(T₀)
-
-# ╔═╡ 09ac1638-83a4-4b86-96ba-12d2ddd00ba6
-
 
 # ╔═╡ 2ed55310-c24d-4c64-93d2-b07a852d642c
 md"""
@@ -337,6 +250,93 @@ md"""
 ## Tools
 """
 
+# ╔═╡ 09ac1638-83a4-4b86-96ba-12d2ddd00ba6
+"Plot temperature profile over sphere radius."
+function plotspheretemperature(z, T, T∞)
+    R = z[end]
+    xticks = 0.0:1.0:100R
+
+    fig = Figure(resolution = (720, 500))
+    ax = Axis(fig[1, 1], yscale = identity)
+
+    scatter!(ax, 100R, T∞, color = :red)
+    lines!(ax, 100z, T)
+
+    ax.xlabel = "Radial coordinate [cm]"
+    ax.ylabel = "Temperature [K]"
+    ax.xticks = xticks
+    xlims!(ax, (-0.2, 100R+0.2))
+
+    return fig
+end
+
+# ╔═╡ d75feb8b-9722-436c-8c5b-92d71d6b926d
+stm, figstm = let
+    @info "Simulating with `SphereTemperatureModel`"
+    tol = 1.0e-10
+
+    model = SphereTemperatureModel(;
+        N  = 100,
+        R  = 0.5blocksize,
+        ρ  = 3000.0,
+        c  = 900.0,
+        h  = 20.0,
+        T∞ = 1400.0,
+        T₀ = 300.0,
+        k  = (T) -> 3.0,
+        t  = 600.0,
+        M  = 2*600
+    )
+
+    @time residuals = relaxationouterloop(;
+        model        = model,
+        updaterouter = spheretemperatureouter!,
+        updaterinner = spheretemperatureinner!,
+        tend         = model.t,
+        tau          = model.τ,
+        iters        = 20,
+        relax        = 0.01,
+        tol          = tol,
+        metric       = maxrelativevariation
+    )
+
+    fig1 = plotresiduals(residuals; ε = tol)
+    fig2 = plotspheretemperature(model.z, model.problem.x, model.T∞)
+
+    model, (fig1, fig2)
+end;
+
+# ╔═╡ 12a1a5e9-57fe-40e9-a039-e96dc8e4a9bf
+figstm[1]
+
+# ╔═╡ ddb18f9f-58c2-4512-b8a6-43d032fb629e
+figstm[2]
+
+# ╔═╡ d5154b1b-1c99-4a3a-93cc-74fede3830c9
+begin
+    # XXX: include this conservation check in model!
+
+    R  = 0.05
+    ρ  = 3000.0
+    c  = 900.0
+    T₀ = 300.0
+    V  = (4/3) * π * R^3
+    m  = ρ * V
+
+    t = 0:stm.τ:stm.t
+    r = stm.z
+    T = stm.problem.x
+
+    # ∫₀ᵗ Q dt => this is already over the surface area!
+    qn = trapz(t, 0.5 * (stm.Q[1:end-1] .+ stm.Q[2:end]))
+
+    # ∫₀ᴿ ρcTr²dr * ∫sin(ϕ)dϕdθ = 4πρc*∫₀ᴿTr²dr => the area factor is there!
+    qa = 4π * ρ * c * trapz(r, r.^2 .* T) - m * c * T₀
+
+    # TODO why 4pi??!?!?!?!
+    qn, qa, qa/ (4π * qn)
+end
+
 # ╔═╡ Cell order:
 # ╟─b307aa70-641c-11ee-27cb-b151d31fffc9
 # ╟─bd9279ee-3e02-4700-a3c8-a1fed7dd1d78
@@ -348,12 +348,12 @@ md"""
 # ╟─9eae615a-c10f-40ed-a590-bf328abfe6ea
 # ╟─ce1817d3-5dea-4237-8be4-4770c3e08796
 # ╠═d75feb8b-9722-436c-8c5b-92d71d6b926d
-# ╠═268e6659-b789-4af8-983e-29c4915f0fa0
-# ╠═2877366e-f627-4e6f-be11-acfb1fde37cf
-# ╠═12eac5ef-935d-4110-b382-20b2bb6c8aa2
-# ╠═09ac1638-83a4-4b86-96ba-12d2ddd00ba6
+# ╟─12a1a5e9-57fe-40e9-a039-e96dc8e4a9bf
+# ╟─ddb18f9f-58c2-4512-b8a6-43d032fb629e
+# ╠═d5154b1b-1c99-4a3a-93cc-74fede3830c9
 # ╟─2ed55310-c24d-4c64-93d2-b07a852d642c
 # ╟─484ad8a3-acfe-4eda-8b79-ad2c14d6d327
 # ╟─20a61a1b-0e71-4b8f-9687-d7e836a4831d
 # ╟─1552e5db-4a33-47ca-a66f-fe4fafb40945
+# ╟─09ac1638-83a4-4b86-96ba-12d2ddd00ba6
 # ╟─b7781285-0b98-439f-85b4-d1b9cf72919a

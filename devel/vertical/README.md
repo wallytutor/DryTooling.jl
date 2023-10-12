@@ -12,5 +12,5 @@
 - [ ] Mixture properties database for validation
 - [x] Mixture properties implementation in Julia
 - [ ] Axial dispersion reactor model for solids
-- [ ] Sphere solution in 1D for estimations
+- [x] Sphere solution in 1D for estimations
 - [ ] Sphere solution in 3D for validation

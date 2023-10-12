@@ -23,6 +23,7 @@ const GASCONSTANT::Float64 = 8314.462_618_153_24
 abstract type Substance end
 abstract type Mixture end
 abstract type MatrixProblem end
+abstract type AbstractModel end
 
 ##############################################################################
 # UTILITIES
@@ -319,7 +320,7 @@ end
 
 "Integrates and arbitrary problem stepping over non-linear relaxations."
 function relaxationouterloop(;
-        problem::MatrixProblem,
+        model::AbstractModel,
         updaterouter::Function,
         updaterinner::Function,
         tend::Float64,
@@ -327,24 +328,23 @@ function relaxationouterloop(;
         iters::Int64 = 10,
         relax::Float64 = 0.5,
         tol::Float64 = 1.0e-08,
-        metric::Function = maxrelativevariation,
-        kwargs...
+        metric::Function = maxrelativevariation
     )::ResidualsProcessed
     times = 0.0:tau:tend
     residual = ResidualsRaw(iters, length(times))
 
+    # TODO use `ts` for time dependent *things*!
     for (nouter, ts) in enumerate(times)
-        updaterouter(problem; kwargs...)
+        updaterouter(model, nouter, ts)
 
         residual.innersteps[nouter] = relaxationinnerloop(;
+            model    = model,
             updater  = updaterinner,
             residual = residual,
-            problem  = problem,
             iters    = iters,
             relax    = relax,
             tol      = tol,
             metric   = metric,
-            kwargs...
         )
 
         # store solution here
@@ -355,18 +355,17 @@ end
 
 "Solve an arbitrary problem through successive relaxations."
 function relaxationinnerloop(;
+        model::AbstractModel,
         updater::Function,
         residual::ResidualsRaw,
-        problem::MatrixProblem,
         iters::Int64 = 10,
         relax::Float64 = 0.5,
         tol::Float64 = 1.0e-08,
-        metric::Function = maxrelativevariation,
-        kwargs...
+        metric::Function = maxrelativevariation
     )::Int64
     for niter in 1:iters
-        updater(problem; kwargs...)
-        ε = relaxationstep(problem, relax, metric)
+        updater(model)
+        ε = relaxationstep(model.problem, relax, metric)
         feedinnerresidual(residual, ε)
         if ε <= tol
             return niter
@@ -386,6 +385,69 @@ function relaxationstep(
     Δx = (1.0 - relax) * (p.A \ p.b - p.x)
     p.x[:] += Δx
     return metric(p.x, Δx)
+end
+
+##############################################################################
+# DIFFUSION MODELS
+##############################################################################
+
+"Thermal diffusion in a sphere represented in temperature space."
+struct SphereTemperatureModel <: AbstractModel
+    problem::TridiagonalProblem
+    z::Vector{Float64}
+    α::Vector{Float64}
+    β::Vector{Float64}
+    U::Float64
+    T∞::Float64
+    k::Function
+    t::Float64
+    τ::Float64
+    Q::Vector{Float64}
+
+    function SphereTemperatureModel(;
+            N::Int64,
+            R::Float64,
+            ρ::Float64,
+            c::Float64,
+            h::Float64,
+            T∞::Float64,
+            T₀::Float64,
+            k::Function,
+            t::Union{Float64, Nothing} = nothing,
+            M::Union{Int64, Nothing} = nothing
+        )
+        # Compute final integration time if required.
+        tend = isnothing(t) ? 2*ρ*c*R^2/k(0.5(T∞+T₀)) : t
+        steps = isnothing(M) ? convert(Int64, round(tend/10)) : M
+
+        # Space discretization.
+        δr = R / N
+        z = collect(0.0:δr:R)
+        w = collect(0.5δr:δr:R-0.5δr)
+        r = vcat(0.0, w, R)
+
+        # Increments.
+        δ = z[2:end-0] - z[1:end-1]
+        τ = tend / steps
+
+        # To handle boundaries use ``r`` for computing α.
+        α = @. (r[2:end-0]^3 - r[1:end-1]^3)*(ρ*c)/(3τ)
+
+        # For β use only internal walls ``w``.
+        β = @. w^2 / δ
+
+        # Heat transfer coefficient multiplied by area.
+        U = 4π * R^2 * h
+
+        # Create linear problem memory.
+        problem = TridiagonalProblem(N)
+        problem.x[:] .= T₀
+
+        Q = zeros(steps+2)
+        Q[1] = U * (T∞ - T₀)
+
+        return new(problem, z, α, β, U, T∞, k, tend, τ, Q)
+    end
 end
 
 ##############################################################################
