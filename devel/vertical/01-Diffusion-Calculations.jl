@@ -318,7 +318,7 @@ stm, figstm = let
         tend         = model.t,
         tau          = model.τ,
         iters        = 20,
-        relax        = 0.01,
+        relax        = 0.00001,
         tol          = tol,
         metric       = maxrelativevariation
     )

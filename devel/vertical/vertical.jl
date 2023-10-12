@@ -338,13 +338,13 @@ function relaxationouterloop(;
         updaterouter(model, nouter, ts)
 
         residual.innersteps[nouter] = relaxationinnerloop(;
-        model    = model,
-        updater  = updaterinner,
-        residual = residual,
-        iters    = iters,
-        relax    = relax,
-        tol      = tol,
-        metric   = metric,
+            model    = model,
+            updater  = updaterinner,
+            residual = residual,
+            iters    = iters,
+            relax    = relax,
+            tol      = tol,
+            metric   = metric,
         )
     end
 
