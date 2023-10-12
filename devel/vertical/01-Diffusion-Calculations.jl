@@ -218,8 +218,9 @@ function spheretemperatureouter!(
         nouter::Int64,
         ts::Float64
     )::Nothing
-    # Follow surface heat flux.
-    model.Q[nouter+1] = model.U * (model.T∞ - model.problem.x[end])
+    # Follow surface heat flux and store partial solutions.
+    model.Q[nouter] = model.U * (model.T∞ - model.problem.x[end])
+    model.T[nouter, 1:end] = model.problem.x[1:end]
 
     # Problem right-hand side.
     @. model.problem.b[1:end] = model.α * model.problem.x
@@ -249,6 +250,28 @@ md"""
 md"""
 ## Tools
 """
+
+# ╔═╡ 883a0bef-9743-4dfd-8e63-aec333e6a5d5
+"Display temperature evolution kymograph."
+function temperaturekymograph(; model, cmap = :afmhot, clims = (300, 1500))
+    t = 0:model.τ:model.t
+    z = 100model.z
+    R = z[end]
+
+    fig, ax, hm = heatmap(t, z, model.T, colormap = cmap)
+
+    cb = Colorbar(fig[:, end+1], hm)
+    cb.limits = clims
+
+    ax.title  = "Temperature kymograph"
+    ax.xlabel = "Time [s]"
+    ax.ylabel = "Radial position [cm]"
+
+    ax.yticks = 0.0:1.0:R
+    ylims!(ax, (0.0, R))
+
+    return fig
+end
 
 # ╔═╡ 09ac1638-83a4-4b86-96ba-12d2ddd00ba6
 "Plot temperature profile over sphere radius."
@@ -281,10 +304,10 @@ stm, figstm = let
         ρ  = 3000.0,
         c  = 900.0,
         h  = 20.0,
-        T∞ = 1400.0,
+        T∞ = 1500.0,
         T₀ = 300.0,
-        k  = (T) -> 3.0,
-        t  = 600.0,
+        k  = (T) -> 2.0,
+        t  = 1200.0,
         M  = 2*600
     )
 
@@ -302,8 +325,9 @@ stm, figstm = let
 
     fig1 = plotresiduals(residuals; ε = tol)
     fig2 = plotspheretemperature(model.z, model.problem.x, model.T∞)
+    fig3 = temperaturekymograph(; model = model)
 
-    model, (fig1, fig2)
+    model, (fig1, fig2, fig3)
 end;
 
 # ╔═╡ 12a1a5e9-57fe-40e9-a039-e96dc8e4a9bf
@@ -312,10 +336,12 @@ figstm[1]
 # ╔═╡ ddb18f9f-58c2-4512-b8a6-43d032fb629e
 figstm[2]
 
+# ╔═╡ ef9aaecd-4c40-4e37-8d89-179a3cd67b63
+figstm[3]
+
 # ╔═╡ d5154b1b-1c99-4a3a-93cc-74fede3830c9
 begin
     # XXX: include this conservation check in model!
-
     R  = 0.05
     ρ  = 3000.0
     c  = 900.0
@@ -350,10 +376,12 @@ end
 # ╠═d75feb8b-9722-436c-8c5b-92d71d6b926d
 # ╟─12a1a5e9-57fe-40e9-a039-e96dc8e4a9bf
 # ╟─ddb18f9f-58c2-4512-b8a6-43d032fb629e
+# ╟─ef9aaecd-4c40-4e37-8d89-179a3cd67b63
 # ╠═d5154b1b-1c99-4a3a-93cc-74fede3830c9
 # ╟─2ed55310-c24d-4c64-93d2-b07a852d642c
 # ╟─484ad8a3-acfe-4eda-8b79-ad2c14d6d327
 # ╟─20a61a1b-0e71-4b8f-9687-d7e836a4831d
 # ╟─1552e5db-4a33-47ca-a66f-fe4fafb40945
+# ╟─883a0bef-9743-4dfd-8e63-aec333e6a5d5
 # ╟─09ac1638-83a4-4b86-96ba-12d2ddd00ba6
 # ╟─b7781285-0b98-439f-85b4-d1b9cf72919a

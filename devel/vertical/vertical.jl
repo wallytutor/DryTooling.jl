@@ -338,17 +338,17 @@ function relaxationouterloop(;
         updaterouter(model, nouter, ts)
 
         residual.innersteps[nouter] = relaxationinnerloop(;
-            model    = model,
-            updater  = updaterinner,
-            residual = residual,
-            iters    = iters,
-            relax    = relax,
-            tol      = tol,
-            metric   = metric,
+        model    = model,
+        updater  = updaterinner,
+        residual = residual,
+        iters    = iters,
+        relax    = relax,
+        tol      = tol,
+        metric   = metric,
         )
-
-        # store solution here
     end
+
+    updaterouter(model, length(model.Q), model.t)
 
     return ResidualsProcessed(residual)
 end
@@ -403,6 +403,7 @@ struct SphereTemperatureModel <: AbstractModel
     t::Float64
     τ::Float64
     Q::Vector{Float64}
+    T::Matrix{Float64}
 
     function SphereTemperatureModel(;
             N::Int64,
@@ -431,7 +432,7 @@ struct SphereTemperatureModel <: AbstractModel
         τ = tend / steps
 
         # To handle boundaries use ``r`` for computing α.
-        α = @. (r[2:end-0]^3 - r[1:end-1]^3)*(ρ*c)/(3τ)
+        α = @. (r[2:end-0]^3 - r[1:end-1]^3) * ρ * c / (3τ)
 
         # For β use only internal walls ``w``.
         β = @. w^2 / δ
@@ -443,10 +444,13 @@ struct SphereTemperatureModel <: AbstractModel
         problem = TridiagonalProblem(N)
         problem.x[:] .= T₀
 
+        # Memory for storing surface fluxes.
         Q = zeros(steps+2)
-        Q[1] = U * (T∞ - T₀)
 
-        return new(problem, z, α, β, U, T∞, k, tend, τ, Q)
+        # Memory for intermediate solution.
+        T = zeros(steps+2, N+1)
+
+        return new(problem, z, α, β, U, T∞, k, tend, τ, Q, T)
     end
 end
 
