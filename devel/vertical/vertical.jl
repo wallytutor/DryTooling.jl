@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 using CairoMakie
 using Distributions
+using LinearAlgebra
 using Polynomials
 using Random
 using YAML
@@ -21,6 +22,17 @@ const GASCONSTANT::Float64 = 8314.462_618_153_24
 
 abstract type Substance end
 abstract type Mixture end
+abstract type MatrixProblem end
+
+##############################################################################
+# UTILITIES
+##############################################################################
+
+"Compute the power of `x` closest to `v`."
+function closestpowerofx(v::Number; x::Number = 10)::Number
+    rounder = x^floor(log(x, v))
+    return convert(Int64, rounder * ceil(v/rounder))
+end
 
 ##############################################################################
 # STATELESS MODELS
@@ -226,6 +238,208 @@ end
 
 function Base.length(p::PorosityDescriptor)
     return length(p.ϕ)
+end
+
+##############################################################################
+# RESIDUALS CONTROL
+##############################################################################
+
+"Manage residuals storage during a simulation."
+mutable struct ResidualsRaw
+    inner::Int64
+    outer::Int64
+    counter::Int64
+    innersteps::Vector{Int64}
+    residuals::Vector{Float64}
+    function ResidualsRaw(inner::Int64, outer::Int64)
+        innersteps = -ones(Int64, outer)
+        residuals = -ones(Float64, outer * inner)
+        return new(inner, outer, 0, innersteps, residuals)
+    end
+end
+
+"Post-processed simulation residuals."
+struct ResidualsProcessed
+    counter::Int64
+    innersteps::Vector{Int64}
+    residuals::Vector{Float64}
+    finalsteps::Vector{Int64}
+    finalresiduals::Vector{Float64}
+
+    function ResidualsProcessed(r::ResidualsRaw)
+        innersteps = r.innersteps[r.innersteps .> 0.0]
+        residuals = r.residuals[r.residuals .> 0.0]
+
+        finalsteps = cumsum(innersteps)
+        finalresiduals = residuals[finalsteps]
+
+        return new(r.counter, innersteps, residuals,
+                   finalsteps, finalresiduals)
+    end
+end
+
+"Feed residuals in an inner relaxation loop."
+function feedinnerresidual(r::ResidualsRaw, ε::Float64)
+    # TODO: add resizing test here!
+    r.counter += 1
+    r.residuals[r.counter] = ε
+end
+
+##############################################################################
+# RESIDUALS METRICS
+##############################################################################
+
+"Maximum relative change in a solution array."
+function maxrelativevariation(
+        x::Vector{Float64},
+        Δx::Vector{Float64}
+    )::Float64
+    return maximum(abs.(Δx ./ x))
+end
+
+##############################################################################
+# GENERIC MEMORY ALLOCATION
+##############################################################################
+
+"Memory for a tridiagonal problem of size `N`."
+struct TridiagonalProblem <: MatrixProblem
+    A::Tridiagonal{Float64, Vector{Float64}}
+    b::Vector{Float64}
+    x::Vector{Float64}
+
+    function TridiagonalProblem(N)
+        A = Tridiagonal(zeros(N), zeros(N+1), zeros(N))
+        return new(A, zeros(N+1), zeros(N+1))
+    end
+end
+
+function Base.length(p::MatrixProblem)
+    return length(p.x)
+end
+
+"Integrates and arbitrary problem stepping over non-linear relaxations."
+function relaxationouterloop(;
+        problem::MatrixProblem,
+        updaterouter::Function,
+        updaterinner::Function,
+        tend::Float64,
+        tau::Float64,
+        iters::Int64 = 10,
+        relax::Float64 = 0.5,
+        tol::Float64 = 1.0e-08,
+        metric::Function = maxrelativevariation,
+        kwargs...
+    )::ResidualsProcessed
+    times = 0.0:tau:tend
+    residual = ResidualsRaw(iters, length(times))
+
+    for (nouter, ts) in enumerate(times)
+        updaterouter(problem; kwargs...)
+
+        residual.innersteps[nouter] = relaxationinnerloop(;
+            updater  = updaterinner,
+            residual = residual,
+            problem  = problem,
+            iters    = iters,
+            relax    = relax,
+            tol      = tol,
+            metric   = metric,
+            kwargs...
+        )
+
+        # store solution here
+    end
+
+    return ResidualsProcessed(residual)
+end
+
+"Solve an arbitrary problem through successive relaxations."
+function relaxationinnerloop(;
+        updater::Function,
+        residual::ResidualsRaw,
+        problem::MatrixProblem,
+        iters::Int64 = 10,
+        relax::Float64 = 0.5,
+        tol::Float64 = 1.0e-08,
+        metric::Function = maxrelativevariation,
+        kwargs...
+    )::Int64
+    for niter in 1:iters
+        updater(problem; kwargs...)
+        ε = relaxationstep(problem, relax, metric)
+        feedinnerresidual(residual, ε)
+        if ε <= tol
+            return niter
+        end
+    end
+
+    @warn "Did not converge after $(iters) steps"
+    return iters
+end
+
+"Applies relaxation to solution and compute residual."
+function relaxationstep(
+        p::MatrixProblem,
+        relax::Float64,
+        metric::Function
+    )::Float64
+    Δx = (1.0 - relax) * (p.A \ p.b - p.x)
+    p.x[:] += Δx
+    return metric(p.x, Δx)
+end
+
+##############################################################################
+# PLOTTING
+##############################################################################
+
+"Plot problem residuals over iterations or steps."
+function plotresiduals(
+        r::ResidualsProcessed;
+        ε::Union{Float64, Nothing} = nothing,
+        showinner::Bool = false,
+        yticks::Any = nothing,
+        xbase::Number = 20
+    )::Figure
+    function getxticks(xv)
+        δi = closestpowerofx(xv/10; x = xbase)
+        imax = closestpowerofx(xv; x = xbase)
+        return 0:δi:imax
+    end
+
+    xs = r.finalsteps
+    ys = log10.(r.finalresiduals)
+
+    fig = Figure(resolution = (720, 500))
+    ax = Axis(fig[1, 1], yscale = identity)
+    ax.ylabel = "log10(Residual)"
+    ax.title = "Maximum of $(maximum(r.innersteps)) iterations per step"
+
+    if !isnothing(yticks)
+        ax.yticks = yticks
+        ylims!(ax, extrema(yticks))
+    end
+
+    if showinner
+        xg = 1:r.counter
+        yg = log10.(r.residuals)
+        xticks = getxticks(xg[end])
+        ax.xlabel = "Global iteration"
+        lines!(ax, xg, yg, color = :black, linewidth = 0.5)
+        scatter!(ax, xs, ys, color = :red)
+    else
+        xticks = getxticks(length(xs))
+        ax.xlabel = "Outer iteration"
+        lines!(ax, xs, ys, color = :red)
+    end
+
+    ax.xticks = xticks
+    xlims!(ax, extrema(xticks))
+
+    if !isnothing(ε)
+        hlines!(ax, log10(ε), color = :blue, linewidth = 2)
+    end
+
+    return fig
 end
 
 ##############################################################################
