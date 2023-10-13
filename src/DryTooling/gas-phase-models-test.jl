@@ -34,14 +34,14 @@ using ModelingToolkit
 #        dry.enthalpymole(species, Tsym)
 #        dry.enthalpymole(species, Tvar)
 #
-#        dry.meanmolecularmass(M, Ynum)
-#        dry.meanmolecularmass(M, Ysym)
+#        dry.meanmolecularmass(Ynum, M)
+#        dry.meanmolecularmass(Ysym, M)
 #
-#        dry.massfraction2molefraction(M, Ynum)
-#        dry.massfraction2molefraction(M, Ysym)
+#        dry.massfraction2molefraction(Ynum, M)
+#        dry.massfraction2molefraction(Ysym, M)
 #
-#        dry.molefraction2massfraction(M, Ynum)
-#        dry.molefraction2massfraction(M, Ysym)
+#        dry.molefraction2massfraction(Ynum, M)
+#        dry.molefraction2massfraction(Ysym, M)
 #
 #        dry.meanmolecularmass(gas)
 #        dry.densitymass(gas)

@@ -163,7 +163,7 @@ end
 
 """ Mixture mean molecular mass [kg/mol]. """
 function meanmolecularmass(mix::IdealGasMixture, Y)
-    return meanmolecularmass(mix.molecularmasses, Y)
+    return meanmolecularmass(Y, mix.molecularmasses)
 end
 
 """ Mixture specific mass [kg/m³]. """
@@ -182,16 +182,9 @@ function specificheatmass(mix::IdealGasMixture, T, Y)
     return sum(contrib(s, y) for (s, y) ∈ zip(mix.species, Y))
 end
 
+""" Get array of molecular masses from mixtures [g/mol]. """
 function molecularmasses(m::GasMixturePhase)::Vector{Float64}
     return map(x->x.W, m.s)
-end
-
-""" Mixture mean molecular mass [kg/mol]. """
-function meanmolecularmass(
-        Y::Union{Vector{Float64},SubArray},
-        W::Vector{Float64}
-    )::Float64
-    return 1.0 / sum(y / w for (y, w) in zip(Y, W))
 end
 
 """ Mixture specific mass [kg/m³]. """
@@ -286,7 +279,7 @@ end
 
 # """ Mixture composition in mole fractions. """
 # function molefractions(gas::IdealGasSolution)
-#     return massfraction2molefraction(gas.mix.molecularmasses, gas.Y)
+#     return massfraction2molefraction(gas.Y, gas.mix.molecularmasses, )
 # end
 
 #############################################################################
