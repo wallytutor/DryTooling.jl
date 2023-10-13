@@ -67,7 +67,7 @@ function plotsimulationresiduals(
         showinner::Bool = false,
         yticks::Any = nothing,
         xbase::Number = 20
-    )::Figure
+    )::CM.Figure
     function getxticks(xv)
         δi = closestpowerofx(xv/10; x = xbase)
         imax = closestpowerofx(xv; x = xbase)
