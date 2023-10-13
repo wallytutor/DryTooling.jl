@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+export plotsimulationresiduals
 
 "Manage iterative solvers residuals storage during a simulation."
 mutable struct ResidualsRaw

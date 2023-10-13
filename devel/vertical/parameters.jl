@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 using Polynomials
-using DryTooling.PlugFlow: VerticalReactorGeometry
+using DryTooling
 
 ##############################################################################
 # TEMPERATURES

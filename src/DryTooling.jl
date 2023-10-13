@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 module DryTooling
 
+using CommonSolve
 using Distributions
 using LinearAlgebra
 using ModelingToolkit
@@ -22,6 +23,10 @@ include("DryTooling/abstract-types.jl")
 include("DryTooling/constants.jl")
 include("DryTooling/utility-functions.jl")
 
+include("DryTooling/simulation-residuals.jl")
+include("DryTooling/tridiagonal-problem.jl")
+include("DryTooling/iterative-solver.jl")
+
 include("DryTooling/chemical-elements.jl")
 include("DryTooling/chemical-conversions.jl")
 include("DryTooling/gas-phase-models.jl")
@@ -30,9 +35,8 @@ include("DryTooling/solid-phase-models.jl")
 include("DryTooling/kramers-model.jl")
 include("DryTooling/porous-media.jl")
 
-include("DryTooling/simulation-residuals.jl")
-include("DryTooling/tridiagonal-problem.jl")
-include("DryTooling/iterative-solver.jl")
+include("DryTooling/diffusion-models.jl")
+include("DryTooling/plug-flow-reactors.jl")
 
 include("DryTooling/base-extensions.jl")
 
