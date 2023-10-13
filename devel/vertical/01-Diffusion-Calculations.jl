@@ -12,9 +12,9 @@ begin
     Pkg.instantiate()
 
     using CairoMakie
-    using DryTooling
     using Trapz
     using PlutoUI
+    import DryTooling as dry
     include("parameters.jl")
 end
 
@@ -182,7 +182,11 @@ It must be noted here that ``U=4\pi{}R^2h``, where the actual heat transfer coef
 
 # ╔═╡ 9eae615a-c10f-40ed-a590-bf328abfe6ea
 "Non-linear iteration updater for model."
-function spheretemperatureinner!(model::SphereTemperatureModel)::Nothing
+function spheretemperatureinner!(
+        model::dry.SphereTemperatureModel,
+        ts::Float64,
+        nouter::Int64
+    )::Nothing
     # Aliases to approach mathermatical formulation.
     a_p = model.problem.A.d
     a_s = model.problem.A.dl
@@ -215,9 +219,9 @@ end
 # ╔═╡ ce1817d3-5dea-4237-8be4-4770c3e08796
 "Time-step dependent updater for model."
 function spheretemperatureouter!(
-        model::SphereTemperatureModel,
-        nouter::Int64,
-        ts::Float64
+        model::dry.SphereTemperatureModel,
+        ts::Float64,
+        nouter::Int64
     )::Nothing
     # Follow surface heat flux and store partial solutions.
     model.Q[nouter] = model.U * (model.T∞ - model.problem.x[end])
@@ -231,9 +235,6 @@ function spheretemperatureouter!(
 
     return nothing
 end
-
-# ╔═╡ 24286615-ee2f-4d6d-8638-10f563c92f5b
-
 
 # ╔═╡ 2ed55310-c24d-4c64-93d2-b07a852d642c
 md"""
@@ -302,7 +303,7 @@ stm, figstm = let
     @info "Simulating with `SphereTemperatureModel`"
     tol = 1.0e-10
 
-    model = SphereTemperatureModel(;
+    model = dry.SphereTemperatureModel(;
         N  = 100,
         R  = 0.5blocksize,
         ρ  = 3000.0,
@@ -315,7 +316,7 @@ stm, figstm = let
         M  = 2*600
     )
 
-    @time residuals = solve(model;
+    @time residuals = dry.solve(model;
         updaterouter = spheretemperatureouter!,
         updaterinner = spheretemperatureinner!,
         tend         = model.t,
@@ -325,7 +326,7 @@ stm, figstm = let
         tol          = tol
     )
 
-    fig1 = plotsimulationresiduals(residuals; ε = tol)
+    fig1 = dry.plotsimulationresiduals(residuals; ε = tol)
     fig2 = plotspheretemperature(model.z, model.problem.x, model.T∞)
     fig3 = temperaturekymograph(; model = model)
 
@@ -365,11 +366,6 @@ begin
     qn, qa, qa/ (4π * qn)
 end
 
-# ╔═╡ 157034ca-c4cc-440e-b058-2d20c320dbfb
-# begin
-    
-# end
-
 # ╔═╡ Cell order:
 # ╟─b307aa70-641c-11ee-27cb-b151d31fffc9
 # ╟─bd9279ee-3e02-4700-a3c8-a1fed7dd1d78
@@ -380,7 +376,6 @@ end
 # ╟─585f2546-260f-4f63-b3e5-747be4e419bd
 # ╟─9eae615a-c10f-40ed-a590-bf328abfe6ea
 # ╟─ce1817d3-5dea-4237-8be4-4770c3e08796
-# ╠═24286615-ee2f-4d6d-8638-10f563c92f5b
 # ╠═d75feb8b-9722-436c-8c5b-92d71d6b926d
 # ╟─12a1a5e9-57fe-40e9-a039-e96dc8e4a9bf
 # ╟─ddb18f9f-58c2-4512-b8a6-43d032fb629e
@@ -393,4 +388,3 @@ end
 # ╟─883a0bef-9743-4dfd-8e63-aec333e6a5d5
 # ╟─09ac1638-83a4-4b86-96ba-12d2ddd00ba6
 # ╟─b7781285-0b98-439f-85b4-d1b9cf72919a
-# ╠═157034ca-c4cc-440e-b058-2d20c320dbfb

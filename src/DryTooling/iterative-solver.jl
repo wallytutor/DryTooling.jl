@@ -20,16 +20,32 @@ function relaxationouterloop(;
         tol::Float64 = 1.0e-08,
         metric::Function = maxrelativevariation
     )::ResidualsProcessed
+
+    if relax >= 1.0 || relax < 0.0
+        @error """
+        Relaxation factor out-of-range (α = $(relax)), this is
+        not supported / does not make physical sense in most cases!
+        """
+    end
+
+    if relax <= 1.0e-06
+        @warn """
+        Relaxation factor below threshold (α = $(relax)). If you are
+        this low, that probably means that the model is not nonlinear.
+        In this cases better performance (solution times) would be
+        achieved with a direct solver instead, although this solver
+        will manage it properly.
+        """
+    end
+
     times = 0.0:tau:tend
     residual = ResidualsRaw(iters, length(times))
 
-    # TODO use `ts` for time dependent *things*!
     for (nouter, ts) in enumerate(times)
-        updaterouter(model, nouter, ts)
-
+        updaterouter(model, ts, nouter)
         residual.innersteps[nouter] = relaxationinnerloop(;
             model    = model,
-            updater  = updaterinner,
+            updater  = (m)->updaterinner(m, ts, nouter),
             residual = residual,
             iters    = iters,
             relax    = relax,
@@ -38,7 +54,7 @@ function relaxationouterloop(;
         )
     end
 
-    updaterouter(model, length(model.Q), model.t)
+    updaterouter(model, model.t, length(model.Q))
 
     return ResidualsProcessed(residual)
 end
@@ -55,8 +71,17 @@ function relaxationinnerloop(;
     )::Int64
     for niter in 1:iters
         updater(model)
-        ε = relaxationstep(model.problem, relax, metric)
+        p = model.problem
+
+        if relax <= 0.0
+            p.x[:] = p.A \ p.b
+            ε = tol
+        else
+            ε = relaxationstep(p, relax, metric)
+        end
+        
         feedinnerresidual(residual, ε)
+
         if ε <= tol
             return niter
         end
@@ -73,6 +98,7 @@ function relaxationstep(
         metric::Function
     )::Float64
     Δx = (1.0 - relax) * (p.A \ p.b - p.x)
+    ε = metric(p.x, Δx)
     p.x[:] += Δx
-    return metric(p.x, Δx)
+    return ε
 end
