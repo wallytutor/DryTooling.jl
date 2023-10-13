@@ -49,7 +49,7 @@ struct SphereTemperatureModel <: AbstractPhysicalModel
         β = @. w^2 / δ
 
         # Heat transfer coefficient multiplied by area.
-        U = 4π * R^2 * h
+        U = R^2 * h
 
         # Create linear problem memory.
         problem = TridiagonalProblem(N)

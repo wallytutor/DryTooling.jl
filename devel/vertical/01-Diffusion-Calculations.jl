@@ -173,11 +173,7 @@ Over the external radius ``r=R`` a Robin boundary condition is imposed. In this 
 a_ST_S + a_RT_P = \alpha_{P}T_P^{0}+UT_\infty\quad\text{where}\quad{}a_R=\alpha_{P}+U+\beta_{s}
 ```
 
-It must be noted here that ``U=4\pi{}R^2h``, where the actual heat transfer coefficient is ``h``. This should be self-evident from a dimensional analysis.
-
-!!! warn
-    Conservation analysis is showing an error of 4π! It is probably here!
-
+It must be noted here that ``U=R^2h``, where the actual heat transfer coefficient is ``h``. This should be self-evident from a dimensional analysis.
 """
 
 # ╔═╡ 9eae615a-c10f-40ed-a590-bf328abfe6ea
@@ -195,7 +191,7 @@ function spheretemperatureinner!(
     # Wall interpolated thermal conductivities.
     kp = @. model.k(model.problem.x)
     ks = kp[1:end-1]
-    kn = kp[2:end]
+    kn = kp[2:end+0]
     κ = @. 2 * ks * kn / (ks + kn)
 
     # Update temperature dependency of β.
@@ -224,7 +220,8 @@ function spheretemperatureouter!(
         nouter::Int64
     )::Nothing
     # Follow surface heat flux and store partial solutions.
-    model.Q[nouter] = model.U * (model.T∞ - model.problem.x[end])
+    # XXX: note the factor 4π because U = r²h only and A = 4πr²!!!!
+    model.Q[nouter] = 4π * model.U * (model.T∞ - model.problem.x[end])
     model.T[nouter, 1:end] = model.problem.x[1:end]
 
     # Problem right-hand side.
@@ -308,12 +305,12 @@ stm, figstm = let
         R  = 0.5blocksize,
         ρ  = 3000.0,
         c  = 900.0,
-        h  = 20.0,
+        h  = 4π * 20.0, #???? TODO confirm!
         T∞ = 1500.0,
         T₀ = 300.0,
         k  = (T) -> 2.0,
         t  = 1200.0,
-        M  = 2*600
+        M  = 1200
     )
 
     @time residuals = dry.solve(model;
@@ -357,13 +354,14 @@ begin
     T = stm.problem.x
 
     # ∫₀ᵗ Q dt => this is already over the surface area!
-    qn = trapz(t, 0.5 * (stm.Q[1:end-1] .+ stm.Q[2:end]))
+    qt = @. 0.5 * (stm.Q[1:end-1] + stm.Q[2:end])
+    qn = trapz(t, qt)
 
     # ∫₀ᴿ ρcTr²dr * ∫sin(ϕ)dϕdθ = 4πρc*∫₀ᴿTr²dr => the area factor is there!
-    qa = 4π * ρ * c * trapz(r, r.^2 .* T) - m * c * T₀
+    q0 = m * c * T₀
+    qa = 4π * ρ * c * trapz(r, r.^2 .* T) - q0
 
-    # TODO why 4pi??!?!?!?!
-    qn, qa, qa/ (4π * qn)
+    qn, qa, qa / qn
 end
 
 # ╔═╡ Cell order:

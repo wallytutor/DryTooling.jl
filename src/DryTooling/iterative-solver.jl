@@ -39,7 +39,8 @@ function relaxationouterloop(;
     end
 
     times = 0.0:tau:tend
-    residual = ResidualsRaw(iters, length(times))
+    nstep = length(times)
+    residual = ResidualsRaw(iters, nstep)
 
     for (nouter, ts) in enumerate(times)
         updaterouter(model, ts, nouter)
@@ -54,7 +55,7 @@ function relaxationouterloop(;
         )
     end
 
-    updaterouter(model, model.t, length(model.Q))
+    updaterouter(model, model.t, nstep)
 
     return ResidualsProcessed(residual)
 end
