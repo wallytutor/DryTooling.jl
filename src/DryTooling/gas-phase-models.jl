@@ -1,11 +1,5 @@
 # -*- coding: utf-8 -*-
 
-""" Base type for transport models. """
-abstract type AbstractTransportModel end
-
-""" Base type for thermodynamic models. """
-abstract type AbstractGasThermo end
-
 """ Named access to transport models. """
 const TRANSPORT_MODELS = Dict("gas" => :LennardJonesTransport)
 

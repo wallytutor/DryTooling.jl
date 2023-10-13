@@ -24,3 +24,9 @@ function makestepwise1d(lo, hi, xc; differentiable = true)
     end
     return f
 end
+
+"Compute the power of `x` closest to `v`."
+function closestpowerofx(v::Number; x::Number = 10)::Number
+    rounder = x^floor(log(x, v))
+    return convert(Int64, rounder * ceil(v/rounder))
+end

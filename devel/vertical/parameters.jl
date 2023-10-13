@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
-include("vertical.jl")
+using Polynomials
+using DryTooling.PlugFlow: VerticalReactorGeometry
 
 ##############################################################################
 # TEMPERATURES

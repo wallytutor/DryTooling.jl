@@ -1,15 +1,6 @@
 # -*- coding: utf-8 -*-
 export MaterialShomate
 
-""" Base type for thermodynamic models. """
-abstract type AbstractSolidThermo end
-
-""" Base type for transport models. """
-abstract type AbstractSolidTransport end
-
-""" Base type for """
-abstract type AbstractSolidMaterial end
-
 """
     MaterialShomate
 

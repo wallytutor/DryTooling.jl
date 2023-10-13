@@ -21,10 +21,13 @@ begin
     Pkg.resolve()
     Pkg.instantiate()
 
+    using DryTooling: PorosityDescriptor
     using Symbolics
     using PlutoUI
-    include("parameters.jl")
 end
+
+# ╔═╡ 45553f60-3a99-4084-a15b-deb9ff956e76
+include("parameters.jl")
 
 # ╔═╡ f175ae20-641b-11ee-2bf8-e72783c8a834
 md"""
@@ -353,3 +356,4 @@ md"""
 # ╟─c7eaa50c-0aaf-49c0-bd71-69246cf42bff
 # ╟─21ab6e10-9438-46b1-8ac7-3d93e4c70d89
 # ╟─52d557a4-8ef1-4b50-a145-7995745502c6
+# ╟─45553f60-3a99-4084-a15b-deb9ff956e76
