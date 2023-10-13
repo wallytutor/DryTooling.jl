@@ -41,6 +41,5 @@ include("DryTooling/plug-flow-reactors.jl")
 include("DryTooling/base-extensions.jl")
 
 # include("CanteraAPI.jl")
-include("PlugFlow.jl")
 
 end

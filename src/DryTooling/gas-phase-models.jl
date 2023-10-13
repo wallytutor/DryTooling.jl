@@ -60,26 +60,6 @@ struct IdealGasSpecies
     end
 end
 
-""" Species specific heat in mass units [J/(kg.K)]. """
-function specificheatmass(species::IdealGasSpecies, T)
-    return species.thermo.specificheat(T) / mass(species)
-end
-
-""" Species specific heat in mole units [J/(mol.K)]. """
-function specificheatmole(species::IdealGasSpecies, T)
-    return species.thermo.specificheat(T)
-end
-
-""" Species enthalpy in mass units [J/kg]. """
-function enthalpymass(species::IdealGasSpecies, T)
-    return species.thermo.enthalpy(T) / mass(species)
-end
-
-""" Species enthalpy in mole units [J/mol]. """
-function enthalpymole(species::IdealGasSpecies, T)
-    return species.thermo.enthalpy(T)
-end
-
 """ Ideal gas phase mixture model. """
 struct IdealGasMixture
     species::Vector{IdealGasSpecies}
@@ -104,6 +84,83 @@ struct IdealGasMixture
     end
 end
 
+""" Simplified component for use with mixtures in chemical reactors. """
+struct GasMixtureComponent <: AbstractMixtureSubstance
+    "Mean molecular mass [g/mol]"
+    W::Float64
+
+    "Viscosity polynomial [Pa.s]"
+    μ::Polynomial{Float64, :T}
+
+    "Thermal conductivity polynomial [W/(m.K)]"
+    k::Polynomial{Float64, :T}
+
+    "Specific heat polynomial [J/(kg.K)]"
+    c::Polynomial{Float64, :T}
+
+    function GasMixtureComponent(;
+            W::Float64,
+            μ::Vector{Float64},
+            k::Vector{Float64},
+            c::Vector{Float64}
+        )
+        return new(
+            W,
+            Polynomial(μ, :T),
+            Polynomial(k, :T),
+            Polynomial(c, :T)
+        )
+    end
+end
+
+""" Simplified gas phase for use with mixtures in chemical reactors. """
+struct GasMixturePhase <: AbstractMixturePhase
+    "Number of components in system."
+    K::Int64
+
+    "Storage of gas component objects."
+    s::Vector{GasMixtureComponent}
+
+    function GasMixturePhase(; components::Vector{GasMixtureComponent})
+        return new(length(components), components)
+    end
+end
+
+function GasMixtureComponent(d::Dict{Any, Any})
+    return GasMixtureComponent(;
+        W = d["W"],
+        μ = d["mu"],
+        k = d["kg"],
+        c = d["cp"]
+    )
+end
+
+function GasMixturePhase(d::Dict{Any, Any}; order::Any = nothing)
+    order = isnothing(order) ? keys(d) : order
+    components = map(k->GasMixtureComponent(d[k]), order)
+    return GasMixturePhase(; components = components)
+end
+
+""" Species specific heat in mass units [J/(kg.K)]. """
+function specificheatmass(species::IdealGasSpecies, T)
+    return species.thermo.specificheat(T) / mass(species)
+end
+
+""" Species specific heat in mole units [J/(mol.K)]. """
+function specificheatmole(species::IdealGasSpecies, T)
+    return species.thermo.specificheat(T)
+end
+
+""" Species enthalpy in mass units [J/kg]. """
+function enthalpymass(species::IdealGasSpecies, T)
+    return species.thermo.enthalpy(T) / mass(species)
+end
+
+""" Species enthalpy in mole units [J/mol]. """
+function enthalpymole(species::IdealGasSpecies, T)
+    return species.thermo.enthalpy(T)
+end
+
 """ Mixture mean molecular mass [kg/mol]. """
 function meanmolecularmass(mix::IdealGasMixture, Y)
     return meanmolecularmass(mix.molecularmasses, Y)
@@ -123,6 +180,74 @@ end
 function specificheatmass(mix::IdealGasMixture, T, Y)
     contrib(s, y) = specificheatmass(s, T) * y
     return sum(contrib(s, y) for (s, y) ∈ zip(mix.species, Y))
+end
+
+function molecularmasses(m::GasMixturePhase)::Vector{Float64}
+    return map(x->x.W, m.s)
+end
+
+""" Mixture mean molecular mass [kg/mol]. """
+function meanmolecularmass(
+        Y::Union{Vector{Float64},SubArray},
+        W::Vector{Float64}
+    )::Float64
+    return 1.0 / sum(y / w for (y, w) in zip(Y, W))
+end
+
+""" Mixture specific mass [kg/m³]. """
+function idealgasdensity(T::Float64, P::Float64, W::Float64)::Float64
+    return P * W / (1000GAS_CONSTANT * T)
+end
+
+""" Mixture specific mass [kg/m³]. """
+function idealgasdensity(
+        T::Float64,
+        P::Float64,
+        Y::Union{Vector{Float64},SubArray};
+        W::Vector{Float64}
+    )::Float64
+    return idealgasdensity(T, P, meanmolecularmass(Y, W))
+end
+
+""" Viscosity, thermal conductivity, and specific heat. """
+function thermophysicalproperties(
+    s::GasMixtureComponent,
+    T::Float64
+    )::Matrix{Float64}
+    return [s.μ(T) s.k(T) s.c(T)]
+end
+
+""" Viscosity, thermal conductivity, and specific heat. """
+function thermophysicalproperties(
+    m::GasMixturePhase,
+    T::Float64,
+    Y::Union{Vector{Float64},SubArray}
+    )::Matrix{Float64}
+    return sum(y*thermophysicalproperties(s, T) for (s, y) in zip(m.s, Y))
+end
+
+""" Density, viscosity, thermal conductivity, and specific heat. """
+function mixtureproperties(
+    T::Float64,
+    P::Float64,
+    Y::Union{Vector{Float64},SubArray};
+    m::GasMixturePhase,
+    W::Vector{Float64}
+    )::Matrix{Float64}
+    ρ = idealgasdensity(T, P, Y; W=W)
+    μ, k, c = thermophysicalproperties(m, T, Y)
+    return [ρ μ k c]
+end
+
+""" Density, viscosity, thermal conductivity, and specific heat. """
+function mixtureproperties(
+        T::Vector{Float64},
+        P::Vector{Float64},
+        Y::Matrix{Float64};
+        m::GasMixturePhase,
+        W::Vector{Float64}
+    )::Vector{Matrix{Float64}}
+    return mixtureproperties.(T, P, eachrow(Y); m = m, W = W)
 end
 
 #         % Mixture mass-averaged enthalpy [J/kg].

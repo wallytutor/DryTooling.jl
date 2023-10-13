@@ -18,11 +18,11 @@ abstract type AbstractSolidThermo end
 """ Base type for transport models. """
 abstract type AbstractSolidTransport end
 
-""" Base type for """
+""" Base type for solid materials. """
 abstract type AbstractSolidMaterial end
 
-""" """
-abstract type Substance end
+""" Base type for simplified mixture substances. """
+abstract type AbstractMixtureSubstance end
 
-""" """
-abstract type Mixture end
+""" Base type for simplified mixture phases. """
+abstract type AbstractMixturePhase end
