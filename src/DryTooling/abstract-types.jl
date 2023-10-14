@@ -26,3 +26,9 @@ abstract type AbstractMixtureSubstance end
 
 """ Base type for simplified mixture phases. """
 abstract type AbstractMixturePhase end
+
+""" Base type of one-dimensional grids. """
+abstract type AbstractGrid1D end
+
+""" Base type for diffusion (heat, species, ...) models. """
+abstract type AbstractDiffusionModel1D <: AbstractPhysicalModel end

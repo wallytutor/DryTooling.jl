@@ -35,6 +35,7 @@ include("DryTooling/solid-phase-models.jl")
 include("DryTooling/kramers-model.jl")
 include("DryTooling/porous-media.jl")
 
+include("DryTooling/grid-generation.jl")
 include("DryTooling/diffusion-models.jl")
 include("DryTooling/plug-flow-reactors.jl")
 

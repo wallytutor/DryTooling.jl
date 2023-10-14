@@ -14,7 +14,7 @@ function relaxationouterloop(;
         updaterouter::Function,
         updaterinner::Function,
         tend::Float64,
-        tau::Float64,
+        steps::Int64,
         iters::Int64 = 10,
         relax::Float64 = 0.5,
         tol::Float64 = 1.0e-08,
@@ -22,25 +22,24 @@ function relaxationouterloop(;
     )::ResidualsProcessed
 
     if relax >= 1.0 || relax < 0.0
-        @error """
-        Relaxation factor out-of-range (α = $(relax)), this is
+        @error """\
+        Relaxation factor out-of-range (α = $(relax)), this is \
         not supported / does not make physical sense in most cases!
         """
     end
 
     if relax <= 1.0e-06
-        @warn """
-        Relaxation factor below threshold (α = $(relax)). If you are
-        this low, that probably means that the model is not nonlinear.
-        In this cases better performance (solution times) would be
-        achieved with a direct solver instead, although this solver
-        will manage it properly.
+        @warn """\
+        Relaxation factor below threshold (α = $(relax)). If you are this \
+        low, that probably means that the model is not nonlinear. In \
+        this cases better performance in terms of solution times is \
+        possible with a direct solver instead, although the present \
+        will handle the problem it properly.
         """
     end
 
-    times = 0.0:tau:tend
-    nstep = length(times)
-    residual = ResidualsRaw(iters, nstep)
+    times = range(0.0, tend, steps)
+    residual = ResidualsRaw(iters, steps)
 
     for (nouter, ts) in enumerate(times)
         updaterouter(model, ts, nouter)
@@ -55,7 +54,7 @@ function relaxationouterloop(;
         )
     end
 
-    updaterouter(model, model.t, nstep)
+    updaterouter(model, tend, steps+1)
 
     return ResidualsProcessed(residual)
 end
@@ -80,7 +79,7 @@ function relaxationinnerloop(;
         else
             ε = relaxationstep(p, relax, metric)
         end
-        
+
         feedinnerresidual(residual, ε)
 
         if ε <= tol

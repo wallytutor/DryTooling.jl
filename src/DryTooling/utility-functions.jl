@@ -30,3 +30,18 @@ function closestpowerofx(v::Number; x::Number = 10)::Number
     rounder = x^floor(log(x, v))
     return convert(Int64, rounder * ceil(v/rounder))
 end
+
+"Access view of array head."
+function head(z::Union{Vector, SubArray})::SubArray
+    return @view z[1:end-1]
+end
+
+"Access view of array tail."
+function tail(z::Union{Vector, SubArray})::SubArray
+    return @view z[2:end-0]
+end
+
+"Access view of array body."
+function body(z::Union{Vector, SubArray})::SubArray
+    return @view z[2:end-1]
+end
