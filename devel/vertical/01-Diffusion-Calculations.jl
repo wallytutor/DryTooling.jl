@@ -298,30 +298,46 @@ a_ST_S + a_RT_P = \alpha_{P}T_P^{0}+UT_\infty\quad\text{where}\quad{}a_R=\alpha_
 It must be noted here that ``U=R^2h``, where the actual heat transfer coefficient is ``h``. This should be self-evident from a dimensional analysis.
 """
 
-# ╔═╡ d5154b1b-1c99-4a3a-93cc-74fede3830c9
-# begin
-#     # XXX: include this conservation check in model!
-#     R  = 0.05
-#     ρ  = 3000.0
-#     c  = 900.0
-#     T₀ = 300.0
-#     V  = (4/3) * π * R^3
-#     m  = ρ * V
+# ╔═╡ 26ea8a50-8fb6-4d7c-a623-92911555a249
+function balance(m::dry.Cylinder1DTemperatureModel, ρ, c, T₀)
+    t = dry.timeaxis(m)
+    r = m.grid.r
+    T = m.problem.x
+    Q = m.mem[].Q
+    R = last(r)
 
-#     t = 0:stm.τ:stm.t
-#     r = stm.z
-#     T = stm.problem.x
+    # Initial enthalpy.
+    q0 = π * R^2 * ρ * c * T₀
 
-#     # ∫₀ᵗ Q dt => this is already over the surface area!
-# 	qt = @. 0.5 * (stm.Q[1:end-1] + stm.Q[2:end])
-#     qn = trapz(t, qt)
+    # Time integration => ∫₀ᵗ Q dt
+    qt = trapz(t, Q)
 
-#     # ∫₀ᴿ ρcTr²dr * ∫sin(ϕ)dϕdθ = 4πρc*∫₀ᴿTr²dr => the area factor is there!
-# 	q0 = m * c * T₀
-#     qa = 4π * ρ * c * trapz(r, r.^2 .* T) - q0
+    # Space integration => ∫₀ᴿ ρcTrdr * ∫dθ = 2πρc*∫₀ᴿTrdr
+    qr = 2π * ρ * c * trapz(r, r .* T) - q0
 
-#     qn, qa, qa / qn
-# end
+    # Multiply by 2D to get same order of magnitude as the sphere.
+    qt * 2R, qr * 2R
+end
+
+# ╔═╡ 4fefd939-d204-494e-848d-535d0f3259a3
+function balance(m::dry.Sphere1DTemperatureModel, ρ, c, T₀)
+    t = dry.timeaxis(m)
+    r = m.grid.r
+    T = m.problem.x
+    Q = m.mem[].Q
+    R = last(r)
+
+    # Initial enthalpy.
+    q0 = (4/3) * π * R^3 * ρ * c * T₀
+
+    # Time integration => ∫₀ᵗ Q dt
+    qt = trapz(t, Q)
+
+    # Space integration => ∫₀ᴿ ρcTr²dr * ∫sin(ϕ)dϕdθ = 4πρc*∫₀ᴿTr²dr
+    qr = 4π * ρ * c * trapz(r, r.^2 .* T) - q0
+
+    qt, qr
+end
 
 # ╔═╡ 2ed55310-c24d-4c64-93d2-b07a852d642c
 md"""
@@ -400,7 +416,7 @@ ctm, figctm = let
     @time residuals = dry.solve(model;
         T     = 300.0,
         τ     = 2.0,
-        t     = 1200.0,
+        t     = 2400.0,
         iters = 20,
         relax = 0.001,
         tol   = tol,
@@ -421,8 +437,14 @@ figctm[2]
 # ╔═╡ 26d2ae75-0298-4656-af11-a5d63d6935a8
 figctm[3]
 
-# ╔═╡ 7d051c4a-61c2-4863-b7ba-42a8d24866b2
-ctm.problem.x
+# ╔═╡ 2a3a4451-8cf8-43f9-90fb-5dd036d8895a
+let
+    ρ  = 3000.0
+    c  = 900.0
+    T₀ = 300.0
+    qt, qr = balance(ctm, ρ, c, T₀)
+    qt, qr, qt / qr
+end
 
 # ╔═╡ ce1817d3-5dea-4237-8be4-4770c3e08796
 stm, figstm = let
@@ -439,10 +461,10 @@ stm, figstm = let
         B    = 1500.0
     )
 
-    @time residuals = solve(model;
+    @time residuals = dry.solve(model;
         T     = 300.0,
         τ     = 2.0,
-        t     = 1200.0,
+        t     = 2400.0,
         iters = 20,
         relax = 0.001,
         tol   = tol,
@@ -463,8 +485,14 @@ figstm[2]
 # ╔═╡ ef9aaecd-4c40-4e37-8d89-179a3cd67b63
 figstm[3]
 
-# ╔═╡ c134431e-8f18-477e-a64e-a8fa31706ad3
-stm.problem.x
+# ╔═╡ d5154b1b-1c99-4a3a-93cc-74fede3830c9
+let
+    ρ  = 3000.0
+    c  = 900.0
+    T₀ = 300.0
+    qt, qr = balance(stm, ρ, c, T₀)
+    qt, qr, qt / qr
+end
 
 # ╔═╡ Cell order:
 # ╟─b307aa70-641c-11ee-27cb-b151d31fffc9
@@ -474,13 +502,14 @@ stm.problem.x
 # ╟─297eaf10-4aa9-4c1c-90ed-f4a2b57e0e9d
 # ╟─26d2ae75-0298-4656-af11-a5d63d6935a8
 # ╟─bd9279ee-3e02-4700-a3c8-a1fed7dd1d78
-# ╠═ce1817d3-5dea-4237-8be4-4770c3e08796
+# ╟─ce1817d3-5dea-4237-8be4-4770c3e08796
 # ╟─12a1a5e9-57fe-40e9-a039-e96dc8e4a9bf
 # ╟─ddb18f9f-58c2-4512-b8a6-43d032fb629e
 # ╟─ef9aaecd-4c40-4e37-8d89-179a3cd67b63
-# ╠═c134431e-8f18-477e-a64e-a8fa31706ad3
-# ╠═7d051c4a-61c2-4863-b7ba-42a8d24866b2
-# ╠═d5154b1b-1c99-4a3a-93cc-74fede3830c9
+# ╟─26ea8a50-8fb6-4d7c-a623-92911555a249
+# ╟─4fefd939-d204-494e-848d-535d0f3259a3
+# ╟─2a3a4451-8cf8-43f9-90fb-5dd036d8895a
+# ╟─d5154b1b-1c99-4a3a-93cc-74fede3830c9
 # ╟─2ed55310-c24d-4c64-93d2-b07a852d642c
 # ╟─484ad8a3-acfe-4eda-8b79-ad2c14d6d327
 # ╟─20a61a1b-0e71-4b8f-9687-d7e836a4831d
