@@ -68,7 +68,7 @@ struct Cylinder1DTemperatureModel <: AbstractDiffusionModel1D
 
         rₙ = tail(grid.r)
         rₛ = head(grid.r)
-        wⱼ = head(tail(grid.w))
+        wⱼ = body(grid.w)
         β′ = @. wⱼ / (rₙ - rₛ)
 
         U = h * last(grid.r)
@@ -80,65 +80,58 @@ struct Cylinder1DTemperatureModel <: AbstractDiffusionModel1D
 end
 
 "Thermal diffusion in a sphere represented in temperature space."
-struct SphereTemperatureModel <: AbstractPhysicalModel
-    problem::TridiagonalProblem
-    z::Vector{Float64}
-    α::Vector{Float64}
-    β::Vector{Float64}
-    U::Float64
-    T∞::Float64
-    k::Function
-    t::Float64
-    τ::Float64
-    Q::Vector{Float64}
-    T::Matrix{Float64}
+struct Sphere1DTemperatureModel <: AbstractDiffusionModel1D
+    "Grid over which problem will be solved."
+    grid::AbstractGrid1D
 
-    function SphereTemperatureModel(;
-            N::Int64,
-            R::Float64,
+    "Memory for model linear algebra problem."
+    problem::TridiagonalProblem
+
+    "Constant part of model coefficient α."
+    α′::Vector{Float64}
+
+    "Constant part of model coefficient β."
+    β′::Vector{Float64}
+
+    "Thermal conductivity in terms of temperature."
+    κ::Function
+
+    "Global heat transfer coefficient ``U=hR²``."
+    U::Float64
+
+    "Surface environment temperature."
+    B::Float64
+
+    "Time-step used in integration."
+    τ::Base.RefValue{Float64}
+
+    "Memory storage for solution retrieval."
+    mem::Base.RefValue{Temperature1DModelStorage}
+
+    function Sphere1DTemperatureModel(;
+            grid::AbstractGrid1D,
+            κ::Function,
             ρ::Float64,
             c::Float64,
             h::Float64,
-            T∞::Float64,
-            T₀::Float64,
-            k::Function,
-            t::Union{Float64, Nothing} = nothing,
-            M::Union{Int64, Nothing} = nothing
+            B::Float64
         )
-        # Compute final integration time if required.
-        tend = isnothing(t) ? 2*ρ*c*R^2/k(0.5(T∞+T₀)) : t
-        steps = isnothing(M) ? convert(Int64, round(tend/10)) : M
+        problem = TridiagonalProblem(grid.N)
 
-        # Space discretization.
-        δr = R / N
-        z = collect(0.0:δr:R)
-        w = collect(0.5δr:δr:R-0.5δr)
-        r = vcat(0.0, w, R)
+        rₙ = tail(grid.w)
+        rₛ = head(grid.w)
+        α′ = @. ρ * c * (rₙ^3 - rₛ^3) / 3.0
 
-        # Increments.
-        δ = z[2:end-0] - z[1:end-1]
-        τ = tend / steps
+        rₙ = tail(grid.r)
+        rₛ = head(grid.r)
+        wⱼ = body(grid.w)
+        β′ = @. wⱼ^2 / (rₙ - rₛ)
 
-        # To handle boundaries use ``r`` for computing α.
-        α = @. (r[2:end-0]^3 - r[1:end-1]^3) * ρ * c / (3τ)
+        U = h * last(grid.r)^2
+        τ = Ref(-Inf)
+        mem = Ref(Temperature1DModelStorage(0, 0))
 
-        # For β use only internal walls ``w``.
-        β = @. w^2 / δ
-
-        # Heat transfer coefficient multiplied by area.
-        U = R^2 * h
-
-        # Create linear problem memory.
-        problem = TridiagonalProblem(N)
-        problem.x[:] .= T₀
-
-        # Memory for storing surface fluxes.
-        Q = zeros(steps+2)
-
-        # Memory for intermediate solution.
-        T = zeros(steps+2, N+1)
-
-        return new(problem, z, α, β, U, T∞, k, tend, τ, Q, T)
+        return new(grid, problem, α′, β′, κ, U, B, τ, mem)
     end
 end
 
@@ -165,6 +158,27 @@ end
 
 "Interface for solving a `Cylinder1DTemperatureModel` instance."
 function CommonSolve.solve(m::Cylinder1DTemperatureModel; kwargs...)
+    kwargs_dict = presolve(m, kwargs...)
+    return relaxationouterloop(;
+        model = m,
+        updaterouter = cylindertemperatureouter!,
+        updaterinner = cylindertemperatureinner!,
+        kwargs_dict...
+    )
+end
+
+"Interface for solving a `SphereTemperatureModel` instance."
+function CommonSolve.solve(m::Sphere1DTemperatureModel; kwargs...)
+    kwargs_dict = presolve(m, kwargs...)
+    return relaxationouterloop(;
+        model = m,
+        updaterouter = spheretemperatureouter!,
+        updaterinner = spheretemperatureinner!,
+        kwargs_dict...
+    )
+end
+
+function presolve(m, kwargs...)
     kwargs_dict = Dict(kwargs)
 
     tend = kwargs_dict[:t]
@@ -179,24 +193,10 @@ function CommonSolve.solve(m::Cylinder1DTemperatureModel; kwargs...)
     mem = Temperature1DModelStorage(m.grid.N, steps)
     initialize(m, mem, T, τ)
 
-    return relaxationouterloop(;
-        model = m,
-        updaterouter = cylindertemperatureouter!,
-        updaterinner = cylindertemperatureinner!,
-        tend = tend,
-        steps = steps,
-        kwargs_dict...
-    )
-end
+    kwargs_dict[:tend] = tend
+    kwargs_dict[:steps] = steps
 
-"Interface for solving a `SphereTemperatureModel` instance."
-function CommonSolve.solve(model::SphereTemperatureModel; kwargs...)
-    return relaxationouterloop(;
-        model = model,
-        updaterouter = spheretemperatureouter!,
-        updaterinner = spheretemperatureinner!,
-        kwargs...
-    )
+    return kwargs_dict
 end
 
 #############################################################################
@@ -242,60 +242,48 @@ function cylindertemperatureouter!(
 
     @. m.problem.b[1:end] = (m.α′ / m.τ) * m.problem.x
     m.problem.b[end] += m.U * m.B
+
     return nothing
 end
 
 "Non-linear iteration updater for model."
 function spheretemperatureinner!(
-        model::SphereTemperatureModel,
+        m::Sphere1DTemperatureModel,
         t::Float64,
         n::Int64
     )::Nothing
-    # Aliases to approach mathermatical formulation.
-    a_p = model.problem.A.d
-    a_s = model.problem.A.dl
-    a_n = model.problem.A.du
+    a_p = m.problem.A.d
+    a_s = m.problem.A.dl
+    a_n = m.problem.A.du
+    T_p = m.problem.x
 
-    # Wall interpolated thermal conductivities.
-    kp = @. model.k(model.problem.x)
-    ks = kp[1:end-1]
-    kn = kp[2:end+0]
-    κ = @. 2 * ks * kn / (ks + kn)
+    κ = interfaceconductivity1D(m.κ.(T_p))
+    β = κ .* m.β′
+    α = m.α′./ m.τ
 
-    # Update temperature dependency of β.
-    βₖ = @. κ * model.β
+    a_s[1:end] = -β
+    a_n[1:end] = -β
+    a_p[1:end] = α
 
-    # Main, lower and upper diagonal elements.
-    a_s[1:end] = -βₖ
-    a_n[1:end] = -βₖ
-    a_p[1:end] = model.α
-
-    # Update main but leave boundaries off.
-    @. a_p[2:end-1] += βₖ[2:end] + βₖ[1:end-1]
-
-    # Boundary conditions on main.
-    a_p[1] += βₖ[1]
-    a_p[end] += βₖ[end] + model.U
+    a_p[2:end-1] += tail(β) + head(β)
+    a_p[1]       += first(β)
+    a_p[end]     += last(β) + m.U
 
     return nothing
 end
 
 "Time-step dependent updater for model."
 function spheretemperatureouter!(
-        model::SphereTemperatureModel,
+        m::Sphere1DTemperatureModel,
         t::Float64,
         n::Int64
     )::Nothing
-    # Follow surface heat flux and store partial solutions.
-    # XXX: note the factor 4π because U = r²h only and A = 4πr²!!!!
-    model.Q[n] = 4π * model.U * (model.T∞ - model.problem.x[end])
-    model.T[n, 1:end] = model.problem.x[1:end]
+    # Note the factor 4π because U = r²h only and A = 4πr²!!!!
+    m.mem[].Q[n] = 4π * m.U * (m.B - last(m.problem.x))
+    m.mem[].T[n, 1:end] = m.problem.x
 
-    # Problem right-hand side.
-    @. model.problem.b[1:end] = model.α * model.problem.x
-
-    # Apply boundary condition.
-    model.problem.b[end] += model.U * model.T∞
+    @. m.problem.b[1:end] = (m.α′ / m.τ) * m.problem.x
+    m.problem.b[end] += m.U * m.B
 
     return nothing
 end
@@ -305,12 +293,13 @@ end
 #############################################################################
 
 "Dimensional analysis time-scale of diffusion process."
-function diffusiontimescale(R, α)
+function diffusiontimescale(R::Float64, α::Float64)::Float64
     return 2 * R^2 / α
 end
 
 "Dimensional analysis time-scale of diffusion process."
-function diffusiontimescale(R, ρ, c, κ)
+function diffusiontimescale(R::Float64, ρ::Float64,
+                            c::Float64, κ::Float64)::Float64
     return diffusiontimescale(R, κ / (ρ * c))
 end
 

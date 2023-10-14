@@ -17,3 +17,6 @@ struct CylinderGrid1DEquispaced <: AbstractGrid1D
         return new(N, r, w)
     end
 end
+
+"Alias type for sphere equispaced discretization."
+const SphereGrid1DEquispaced = CylinderGrid1DEquispaced
