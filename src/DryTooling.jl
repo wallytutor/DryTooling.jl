@@ -9,6 +9,7 @@ using Polynomials
 using Plots
 using Printf
 using Random
+using Roots
 using YAML
 
 using DocStringExtensions: TYPEDFIELDS
