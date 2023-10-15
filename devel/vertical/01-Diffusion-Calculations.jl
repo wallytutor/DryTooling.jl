@@ -399,6 +399,10 @@ For conciseness we make ``g=(1-f)`` and simplify the expression with the new coe
 
 ### Implicit implementation
 
+!!! warning
+
+    Check boundary condition for inconsistency! Maybe division by α missing!
+
 For the fully implicity time-stepping scheme ``f=1`` and making ``\gamma_{j}^{k}=\alpha_{P}^{-1}\beta_{j}^{k}`` one gets
 
 ```math
@@ -504,23 +508,131 @@ The traditional approach to solve this sort of problems is to provide a *initial
 h^{\tau,0}               &= b^{0}-A^{0}T^{\tau,0}\\
 h(T^{\tau,1})-h^{\tau,0} &= 0\\
 \Delta{}T                &= T^{\tau,1}-T^{\tau,0}\\
-T^{\tau,1}               &= T^{\tau,0}+\alpha\Delta{}T\\
+T^{\tau,1}               &= T^{\tau,0}+(1-\alpha)\Delta{}T\\
 \varepsilon^{1}          &= \vert\Delta{}T\vert\\
 &\text{repeat}\\
 h^{\tau,1}               &= b^{0}-A^{1}T^{\tau,1}\\
 h(T^{\tau,2})-h^{\tau,1} &= 0\\
 \Delta{}T                &= T^{\tau,2}-T^{\tau,1}\\
-T^{\tau,2}               &= T^{\tau,1}+\alpha\Delta{}T\\
+T^{\tau,2}               &= T^{\tau,1}+(1-\alpha)\Delta{}T\\
 \varepsilon^{2}          &= \vert\Delta{}T\vert\\
 &\dots\\
 h^{\tau,k}                 &= b^{0}-A^{k}T^{\tau,k}\\
 h(T^{\tau,k+1})-h^{\tau,k} &= 0\\
 \Delta{}T                  &= T^{\tau,k+1}-T^{\tau,k}\\
-T^{\tau,k+1}               &= T^{\tau,k}+\alpha\Delta{}T\\
+T^{\tau,k+1}               &= T^{\tau,k}+(1-\alpha)\Delta{}T\\
 \varepsilon^{k+1}          &= \vert\Delta{}T\vert\\
 \end{align}
 ```
 """
+
+# ╔═╡ 294e84f7-d230-4de6-825b-b5a32068c2dd
+"Thermal diffusion in a sphere represented in temperature space."
+struct Sphere1DEnthalpyModel <: dry.AbstractDiffusionModel1D
+    "Grid over which problem will be solved."
+    grid::dry.AbstractGrid1D
+
+    "Memory for model linear algebra problem."
+    problem::dry.TridiagonalProblem
+
+    "Constant part of model coefficient α."
+    α′::Vector{Float64}
+
+    "Constant part of model coefficient β."
+    β′::Vector{Float64}
+
+    "Thermal conductivity in terms of temperature."
+    κ::Function
+
+    "Enthalpy in terms of temperature."
+    h::Function
+
+    "Global heat transfer coefficient ``U=hR²``."
+    U::Float64
+
+    "Surface environment temperature."
+    B::Float64
+
+    "Time-step used in integration."
+    τ::Base.RefValue{Float64}
+
+    "Memory storage for solution retrieval."
+    mem::Base.RefValue{dry.Temperature1DModelStorage}
+
+    function Sphere1DEnthalpyModel(;
+            grid::dry.AbstractGrid1D,
+            h::Function,
+            κ::Function,
+            ρ::Float64,
+            u::Float64,
+            B::Float64
+        )
+        problem = dry.TridiagonalProblem(grid.N)
+
+        rₙ = dry.tail(grid.w)
+        rₛ = dry.head(grid.w)
+        α′ = @. ρ * (rₙ^3 - rₛ^3) / 3.0
+
+        rₙ = dry.tail(grid.r)
+        rₛ = dry.head(grid.r)
+        wⱼ = dry.body(grid.w)
+        β′ = @. wⱼ^2 / (rₙ - rₛ)
+
+        U = u * last(grid.r)^2
+        τ = Ref(-Inf)
+        mem = Ref(dry.Temperature1DModelStorage(0, 0))
+
+        return new(grid, problem, α′, β′, κ, h, U, B, τ, mem)
+    end
+end
+
+# ╔═╡ 0c1e97e7-5293-4504-950f-0635d62b6092
+"Time-step dependent updater for model."
+function sphereenthalpyouter!(
+        m::Sphere1DEnthalpyModel,
+        t::Float64,
+        n::Int64
+    )::Nothing
+    # Note the factor 4π because U = r²h only and A = 4πr²!!!!
+    m.mem[].Q[n] = 4π * m.U * (m.B - last(m.problem.x))
+    m.mem[].T[n, 1:end] = m.problem.x
+
+    @. m.problem.b[1:end] = m.h.(m.problem.x)
+    m.problem.b[end] += m.U * m.B
+
+    return nothing
+end
+
+# ╔═╡ 86ad23ee-f11d-45cd-8ef3-30de6afa0568
+"Non-linear iteration updater for model."
+function sphereenthalpyinner!(
+        m::Sphere1DEnthalpyModel,
+        t::Float64,
+        n::Int64
+    )::Nothing
+    a_p = m.problem.A.d
+    a_s = m.problem.A.dl
+    a_n = m.problem.A.du
+    T_p = m.problem.x
+
+    κ = interfaceconductivity1D(m.κ.(T_p))
+    β = κ .* m.β′
+    α = m.α′./ m.τ
+
+    a_s[1:end] = -β
+    a_n[1:end] = -β
+    a_p[1:end] = α
+
+    a_p[2:end-1] += tail(β) + head(β)
+    a_p[1]       += first(β)
+    a_p[end]     += last(β) + m.U
+
+    return nothing
+end
+
+# ╔═╡ f5f89e4e-8dd8-4269-8405-4e8833cfab24
+function sphereenthalpysolve!()
+end
 
 # ╔═╡ 20a61a1b-0e71-4b8f-9687-d7e836a4831d
 md"""
@@ -686,6 +798,10 @@ end
 # ╟─2ed55310-c24d-4c64-93d2-b07a852d642c
 # ╟─484ad8a3-acfe-4eda-8b79-ad2c14d6d327
 # ╟─795bb843-1e8a-4151-a289-532f6282ada3
+# ╟─294e84f7-d230-4de6-825b-b5a32068c2dd
+# ╟─0c1e97e7-5293-4504-950f-0635d62b6092
+# ╟─86ad23ee-f11d-45cd-8ef3-30de6afa0568
+# ╠═f5f89e4e-8dd8-4269-8405-4e8833cfab24
 # ╟─20a61a1b-0e71-4b8f-9687-d7e836a4831d
 # ╟─1552e5db-4a33-47ca-a66f-fe4fafb40945
 # ╟─883a0bef-9743-4dfd-8e63-aec333e6a5d5

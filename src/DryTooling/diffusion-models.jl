@@ -27,28 +27,28 @@ end
 struct Cylinder1DTemperatureModel <: AbstractDiffusionModel1D
     "Grid over which problem will be solved."
     grid::AbstractGrid1D
-
+    
     "Memory for model linear algebra problem."
     problem::TridiagonalProblem
-
+    
     "Constant part of model coefficient α."
     α′::Vector{Float64}
-
+    
     "Constant part of model coefficient β."
     β′::Vector{Float64}
-
+    
     "Thermal conductivity in terms of temperature."
     κ::Function
-
+    
     "Global heat transfer coefficient ``U=hR``."
     U::Float64
-
+    
     "Surface environment temperature."
     B::Float64
-
+    
     "Time-step used in integration."
     τ::Base.RefValue{Float64}
-
+    
     "Memory storage for solution retrieval."
     mem::Base.RefValue{Temperature1DModelStorage}
 
@@ -59,22 +59,22 @@ struct Cylinder1DTemperatureModel <: AbstractDiffusionModel1D
             c::Float64,
             h::Float64,
             B::Float64
-        )
-        problem = TridiagonalProblem(grid.N)
-
-        rₙ = tail(grid.w)
-        rₛ = head(grid.w)
-        α′ = @. ρ * c * (rₙ^2 - rₛ^2) / 2.0
-
-        rₙ = tail(grid.r)
-        rₛ = head(grid.r)
-        wⱼ = body(grid.w)
-        β′ = @. wⱼ / (rₙ - rₛ)
+            )
+            problem = TridiagonalProblem(grid.N)
+            
+            rₙ = tail(grid.w)
+            rₛ = head(grid.w)
+            α′ = @. ρ * c * (rₙ^2 - rₛ^2) / 2.0
+            
+            rₙ = tail(grid.r)
+            rₛ = head(grid.r)
+            wⱼ = body(grid.w)
+            β′ = @. wⱼ / (rₙ - rₛ)
 
         U = h * last(grid.r)
         τ = Ref(-Inf)
         mem = Ref(Temperature1DModelStorage(0, 0))
-
+        
         return new(grid, problem, α′, β′, κ, U, B, τ, mem)
     end
 end
@@ -83,31 +83,31 @@ end
 struct Sphere1DTemperatureModel <: AbstractDiffusionModel1D
     "Grid over which problem will be solved."
     grid::AbstractGrid1D
-
+    
     "Memory for model linear algebra problem."
     problem::TridiagonalProblem
-
+    
     "Constant part of model coefficient α."
     α′::Vector{Float64}
-
+    
     "Constant part of model coefficient β."
     β′::Vector{Float64}
-
+    
     "Thermal conductivity in terms of temperature."
     κ::Function
-
+    
     "Global heat transfer coefficient ``U=hR²``."
     U::Float64
-
+    
     "Surface environment temperature."
     B::Float64
 
     "Time-step used in integration."
     τ::Base.RefValue{Float64}
-
+    
     "Memory storage for solution retrieval."
     mem::Base.RefValue{Temperature1DModelStorage}
-
+    
     function Sphere1DTemperatureModel(;
             grid::AbstractGrid1D,
             κ::Function,
@@ -115,18 +115,18 @@ struct Sphere1DTemperatureModel <: AbstractDiffusionModel1D
             c::Float64,
             h::Float64,
             B::Float64
-        )
-        problem = TridiagonalProblem(grid.N)
-
-        rₙ = tail(grid.w)
-        rₛ = head(grid.w)
+            )
+            problem = TridiagonalProblem(grid.N)
+            
+            rₙ = tail(grid.w)
+            rₛ = head(grid.w)
         α′ = @. ρ * c * (rₙ^3 - rₛ^3) / 3.0
-
+        
         rₙ = tail(grid.r)
         rₛ = head(grid.r)
         wⱼ = body(grid.w)
         β′ = @. wⱼ^2 / (rₙ - rₛ)
-
+        
         U = h * last(grid.r)^2
         τ = Ref(-Inf)
         mem = Ref(Temperature1DModelStorage(0, 0))
@@ -134,6 +134,24 @@ struct Sphere1DTemperatureModel <: AbstractDiffusionModel1D
         return new(grid, problem, α′, β′, κ, U, B, τ, mem)
     end
 end
+
+# TODO idea of a better API:
+# "Solve thermal diffusion in a cylinder represented in temperature space."
+# struct Cylinder1DTemperatureSolver <: AbstractIterativeSolver
+#     model::Cylinder1DTemperatureModel
+#     outerloop::Function
+#     innerloop::Function
+#     solver::Function
+
+#     function Cylinder1DTemperatureSolver(m::Cylinder1DTemperatureModel)
+#         return new(
+#             m,
+#             cylindertemperatureinner!,
+#             cylindertemperatureouter!,
+#             cylindertemperaturesolve!    
+#         )
+#     end
+# end
 
 #############################################################################
 # Initialization
