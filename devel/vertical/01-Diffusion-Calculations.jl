@@ -40,7 +40,7 @@ Heat equation formulated with temperature as dependent variable is stated as:
 \rho{}c_{p}\frac{\partial{}T}{\partial{}t}=\nabla\cdotp{}(k\nabla{}T)
 ```
 
-For computing the heating dynamics in a sphere, using the definition of divergent in cylindrical coordinates and using the gradient expansion over the radius we have
+For computing the heating dynamics in a cylinder, using the definition of divergence in cylindrical coordinates and using the gradient expansion over the radius we have
 
 ```math
 \rho{}c_{p}\frac{\partial{}T}{\partial{}t}=
@@ -123,7 +123,7 @@ g\beta_{n}T_N^{0}
 
 ### Implicit implementation
 
-For the fully implicity time-stepping scheme ``f=1`` and the expression reduces to
+For the fully implicity time-stepping scheme ``f=1`` the expression reduces to
 
 ```math
 -\beta_{s}T_S+
@@ -168,13 +168,7 @@ It must be noted here that ``U=Rh``, where the actual heat transfer coefficient 
 md"""
 ## Sphere temperature model
 
-Heat equation formulated with temperature as dependent variable is stated as:
-
-```math
-\rho{}c_{p}\frac{\partial{}T}{\partial{}t}=\nabla\cdotp{}(k\nabla{}T)
-```
-
-For computing the heating dynamics in a sphere, using the definition of divergent in spherical coordinates and using the gradient expansion over the radius we have
+In the case of spherical coordinates we start with a modification in divergence operator as follows
 
 ```math
 \rho{}c_{p}\frac{\partial{}T}{\partial{}t}=
@@ -182,7 +176,7 @@ For computing the heating dynamics in a sphere, using the definition of divergen
 \left(r^2k\frac{\partial{}T}{\partial{}r}\right)
 ```
 
-To proceed with the finite volume discretization we perform the integration of both sides of the equation over the relevant variables. The order of integration is chosen according to the nature of the derivative term, as discussed by Patankar (1980). Care must be taken in the definition of the space integration, which is non-trivial in spherical coordinates systems and must be carried over the differential volume ``dV``.
+The expression is again integrated over time and the differential volume ``dV``.
 
 ```math
 \int_{V}\int_{0}^{\tau}
@@ -208,15 +202,7 @@ The integration over radial coordinate introduces the ``r^2dr`` factor from the 
 \left(r^2k\frac{\partial{}T}{\partial{}r}\right)drdt
 ```
 
-Effecting the inner integrations and moving out constant terms from the integrals we have
-
-```math
-\rho{}c_{p}\left(T_P^{\tau}-T_P^{0}\right)\int_{s}^{n}r^2dr=
-\int_{0}^{\tau}
-\left(r^2k\frac{\partial{}T}{\partial{}r}\right)\bigg\vert_{s}^{n}dt
-```
-
-Expanding the evaluation of the definite integral between control volume boundaries ``s`` and ``n`` and performing a Crank-Nicolson integration of the right-hand side one gets
+After effecting the inner integrations and moving out constant terms from the integrals and expanding the evaluation of the definite integral between control volume boundaries ``s`` and ``n`` and performing a Crank-Nicolson integration of the right-hand side one gets
 
 ```math
 \begin{align}
@@ -257,7 +243,7 @@ g\beta_{n}T_N^{0}
 
 ### Implicit implementation
 
-For the fully implicity time-stepping scheme ``f=1`` and the expression reduces to
+For the fully implicity time-stepping scheme ``f=1`` the expression reduces to
 
 ```math
 -\beta_{s}T_S+
@@ -347,6 +333,107 @@ md"""
 # ╔═╡ 484ad8a3-acfe-4eda-8b79-ad2c14d6d327
 md"""
 ## Sphere enthalpy model
+
+Heat equation for a constant density phase using enthalpy as dependent variable is stated as:
+
+```math
+\rho{}\frac{\partial{}h}{\partial{}t}=\nabla\cdotp{}(k\nabla{}T)
+```
+
+For computing the heating dynamics in a sphere, using the definition of divergence in spherical coordinates and using the gradient expansion over the radius we have
+
+```math
+\rho{}\frac{\partial{}h}{\partial{}t}=
+\frac{1}{r^2}\frac{\partial}{\partial{}r}
+\left(r^2k\frac{\partial{}T}{\partial{}r}\right)
+```
+
+This is now integrated over the differential volume ``dV`` as described in previous sections and for conciseness we skip that discussion. The integration over radial coordinate introduces the ``r^2dr`` factor from the differential volume and we get the final form of the equation to integrate.
+
+```math
+\int_{s}^{n}\int_{0}^{\tau}
+\rho{}\frac{\partial{}h}{\partial{}t}r^2dtdr=
+\int_{0}^{\tau}\int_{s}^{n}
+\frac{\partial}{\partial{}r}
+\left(r^2k\frac{\partial{}T}{\partial{}r}\right)drdt
+```
+
+After effecting the inner integrations and moving out constant terms from the integrals and expanding the evaluation of the definite integral between control volume boundaries ``s`` and ``n`` and performing a Crank-Nicolson integration of the right-hand side one gets
+
+```math
+\begin{align}
+\frac{\rho{}}{\tau}
+\left(h_P^{\tau}-h_P^{0}\right)
+\left(\frac{r_n^3}{3}-\frac{r_s^3}{3}\right)
+&=f\left[
+r_n^2k_n\frac{T_N^{\tau}-T_P^{\tau}}{\delta_{P,N}}-
+r_s^2k_s\frac{T_P^{\tau}-T_S^{\tau}}{\delta_{P,S}}
+\right]\\[8pt]
+&+(1-f)\left[
+r_n^2k_n\frac{T_N^{0}-T_P^{0}}{\delta_{P,N}}-
+r_s^2k_s\frac{T_P^{0}-T_S^{0}}{\delta_{P,S}}
+\right]
+\end{align}
+```
+
+Some coefficients appearing in the above equations are now grouped. Notice that for thermal conductivity ``k`` which is a function of temperature, the corresponding time-step temperature must be used for its evaluation. For ``\beta_{j}`` the lower case ``j`` represents the evaluation at the interface with control volume ``J``, what is a very specific notation.
+
+```math
+\begin{align}
+\alpha_{P}  & = \frac{\rho{}}{3\tau}\left(r_n^3-r_s^3\right)\\[8pt]
+\beta_{j}   & = \frac{r_j^2k_j}{\delta_{P,J}}
+\end{align}
+```
+
+For conciseness we make ``g=(1-f)`` and simplify the expression with the new coefficients as
+
+```math
+\begin{align}
+\alpha_{P}h_P^{\tau}-\alpha_{P}h_P^{0}
+
+&=f\beta_{n}T_N^{\tau}-f(\beta_{n}+\beta_{s})T_P^{\tau}-f\beta_{s}T_S^{\tau}
+\\[8pt]
+&+g\beta_{n}T_N^{0}-g(\beta_{n}+\beta_{s})T_P^{0}-g\beta_{s}T_S^{0}
+\end{align}
+```
+"""
+
+# ╔═╡ 66ec78ad-2154-4a53-835b-2c3a15fcdf8f
+md"""
+### Implicit implementation
+
+For the fully implicity time-stepping scheme ``f=1`` and making ``\gamma_{j}=\alpha_{P}^{-1}\beta_{j}`` one gets
+
+```math
+h_P^{\tau}=h_P^{0}+\gamma_{n}T_N^{\tau}-(\gamma_{n}+\gamma_{s})T_P^{\tau}-\gamma_{s}T_S^{\tau}
+```
+
+
+
+This is no longer a linear problem and thus cannot be solved directly. We need now an strategy for solving this coupled system of nonlinear equations.
+"""
+
+# ╔═╡ 86341ac4-d32e-463e-9d19-e91ade707d06
+
+
+# ╔═╡ 81312dba-9bc5-4c9c-aad1-7eac30954cfb
+md"""
+
+
+
+A condition for symmetry is that no flux traverses the center of the cylinder at ``r=0``. That implies that *south* derivatives in discretizes form of the equation must vanish to enforce ``\dot{q}(0,t)=0``, so the first row of the problem is modified to
+
+```math
+a_1T_P + a_NT_N = \alpha_{P}T_P^{0}\quad\text{where}\quad{}a_1=\alpha_{P}+\beta_{n}
+```
+
+Over the external radius ``r=R`` a Robin boundary condition is imposed. In this case the heat flux ``\dot{q}=U(T_\infty-T_P)`` takes the place of *north* term in FVM discretization and the equation writes
+
+```math
+a_ST_S + a_RT_P = \alpha_{P}T_P^{0}+UT_\infty\quad\text{where}\quad{}a_R=\alpha_{P}+U+\beta_{s}
+```
+
+It must be noted here that ``U=Rh``, where the actual heat transfer coefficient is ``h``. This should be self-evident from a dimensional analysis.
 """
 
 # ╔═╡ 20a61a1b-0e71-4b8f-9687-d7e836a4831d
@@ -512,6 +599,9 @@ end
 # ╟─d5154b1b-1c99-4a3a-93cc-74fede3830c9
 # ╟─2ed55310-c24d-4c64-93d2-b07a852d642c
 # ╟─484ad8a3-acfe-4eda-8b79-ad2c14d6d327
+# ╠═66ec78ad-2154-4a53-835b-2c3a15fcdf8f
+# ╠═86341ac4-d32e-463e-9d19-e91ade707d06
+# ╠═81312dba-9bc5-4c9c-aad1-7eac30954cfb
 # ╟─20a61a1b-0e71-4b8f-9687-d7e836a4831d
 # ╟─1552e5db-4a33-47ca-a66f-fe4fafb40945
 # ╟─883a0bef-9743-4dfd-8e63-aec333e6a5d5

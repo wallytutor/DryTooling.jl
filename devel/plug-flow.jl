@@ -97,7 +97,7 @@ prob = ODEProblem(system, Y0, (0.0, L), p)
 sol = solve(prob; reltol=1.0e-03, abstol=1.0e-08)
 # plot(sol[RHS])
 
-molefractions(Y) = dry.massfraction2molefraction(W, Y)
+molefractions(Y) = dry.massfraction2molefraction(Y, W)
 density(Y) = dry.densitymass(mix, p[3].second, p[2].second, Y)
 
 X = [molefractions(y) for y in sol.u]
