@@ -32,3 +32,6 @@ abstract type AbstractGrid1D end
 
 """ Base type for diffusion (heat, species, ...) models. """
 abstract type AbstractDiffusionModel1D <: AbstractPhysicalModel end
+
+""" Base type for (nonlinear) iterative solvers. """
+abstract type AbstractIterativeSolver end

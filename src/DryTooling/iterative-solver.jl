@@ -1,5 +1,12 @@
 # -*- coding: utf-8 -*-
 
+"Interface for solver methods."
+struct IterativeSolver <: AbstractIterativeSolver
+    outerloop::Function
+    innerloop::Function
+    solver::Function
+end
+
 "Maximum relative change in a solution array."
 function maxrelativevariation(
         x::Vector{Float64},

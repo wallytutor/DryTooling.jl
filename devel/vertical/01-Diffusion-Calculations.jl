@@ -396,44 +396,130 @@ For conciseness we make ``g=(1-f)`` and simplify the expression with the new coe
 &+g\beta_{n}T_N^{0}-g(\beta_{n}+\beta_{s})T_P^{0}-g\beta_{s}T_S^{0}
 \end{align}
 ```
-"""
 
-# ╔═╡ 66ec78ad-2154-4a53-835b-2c3a15fcdf8f
-md"""
 ### Implicit implementation
 
-For the fully implicity time-stepping scheme ``f=1`` and making ``\gamma_{j}=\alpha_{P}^{-1}\beta_{j}`` one gets
+For the fully implicity time-stepping scheme ``f=1`` and making ``\gamma_{j}^{k}=\alpha_{P}^{-1}\beta_{j}^{k}`` one gets
 
 ```math
-h_P^{\tau}=h_P^{0}+\gamma_{n}T_N^{\tau}-(\gamma_{n}+\gamma_{s})T_P^{\tau}-\gamma_{s}T_S^{\tau}
+h_P^{\tau}-h_P^{0}-\gamma_{n}^{k}T_N^{\tau,k}+(\gamma_{n}^{k}+\gamma_{s}^{k})T_P^{\tau,k}-\gamma_{s}^{k}T_S^{\tau,k}=0
 ```
 
-
-
-This is no longer a linear problem and thus cannot be solved directly. We need now an strategy for solving this coupled system of nonlinear equations.
-"""
-
-# ╔═╡ 86341ac4-d32e-463e-9d19-e91ade707d06
-
-
-# ╔═╡ 81312dba-9bc5-4c9c-aad1-7eac30954cfb
-md"""
-
-
-
-A condition for symmetry is that no flux traverses the center of the cylinder at ``r=0``. That implies that *south* derivatives in discretizes form of the equation must vanish to enforce ``\dot{q}(0,t)=0``, so the first row of the problem is modified to
+A condition for symmetry is that no flux traverses the center of the sphere at ``r=0``. That implies that *south* derivatives in discretizes form of the equation must vanish to enforce ``\dot{q}(0,t)=0``, so the first row of the problem is modified to
 
 ```math
-a_1T_P + a_NT_N = \alpha_{P}T_P^{0}\quad\text{where}\quad{}a_1=\alpha_{P}+\beta_{n}
+h_P^{\tau}-h_P^{0}-\gamma_{n}^{k}T_N^{\tau,k}+\gamma_{n}^{k}T_P^{\tau,k}=0
 ```
 
 Over the external radius ``r=R`` a Robin boundary condition is imposed. In this case the heat flux ``\dot{q}=U(T_\infty-T_P)`` takes the place of *north* term in FVM discretization and the equation writes
 
 ```math
-a_ST_S + a_RT_P = \alpha_{P}T_P^{0}+UT_\infty\quad\text{where}\quad{}a_R=\alpha_{P}+U+\beta_{s}
+h_P^{\tau}-h_P^{0}-UT_{\infty}+(U+\gamma_{s}^{k})T_P^{\tau,k}-\gamma_{s}^{k}T_S^{\tau,k}=0
 ```
 
-It must be noted here that ``U=Rh``, where the actual heat transfer coefficient is ``h``. This should be self-evident from a dimensional analysis.
+It must be noted here that ``U=R^2h``, where the actual heat transfer coefficient is ``h``. This should be self-evident from a dimensional analysis.
+
+This is no longer a linear problem and thus cannot be solved directly. We need now an strategy for solving this coupled system of nonlinear equations. The iterative solution of the problem is indicated in the above equations through the introduction of superscript ``k`` indicating the iteration number. One can rework the system as
+
+```math
+\begin{align}
+-\gamma_{1,2}^{k}T_2^{\tau,k}+\gamma_{1,2}^{k}T_1^{\tau,k}+h_1^{\tau}&=h_1^{0}\\
+&\dots \\
+-\gamma_{n}^{k}T_N^{\tau,k}+(\gamma_{n}^{k}+\gamma_{s}^{k})T_P^{\tau,k}-\gamma_{s}^{k}T_S^{\tau,k}+h_P^{\tau}&=h_P^{0}\\
+&\dots \\
+(U+\gamma_{K-1,K}^{k})T_K^{\tau,k}-\gamma_{K-1,K}^{k}T_{K-1}^{\tau,k}+h_K^{\tau}&=h_K^{0}+UT_{\infty}
+\end{align}
+```
+
+It is clear now that for implementation purposes one can store the required coefficients in a tridiagonal matrix ``A^{k}``. Making ``\Gamma_{i}=(\gamma_{i-1,i}+\gamma_{i,i+1})`` we can identify the terms in
+
+```math
+\begin{pmatrix}
+H_{1}^{k}    \\
+H_{2}^{k}    \\
+H_{3}^{k}    \\
+\vdots   \\
+H_{K-1}^{k}  \\
+H_{K}^{k}    \\
+\end{pmatrix}
+=
+\begin{pmatrix}
+ \gamma_{1,2}^{k} & -\gamma_{1,2}^{k} &  0                & \dots  & 0 & 0 \\
+-\gamma_{1,2}^{k} &  \Gamma_{2}^{k}   & -\gamma_{2,3}^{k} & \dots  & 0 & 0 \\
+ 0 & -\gamma_{2,3}^{k} &  \Gamma_{3}^{k} & -\gamma_{3,4}^{k}\ddots &  0 &  0 \\
+\vdots  & \ddots & \ddots & \ddots & \ddots  & \vdots \\
+ 0 &  0 & 0 & -\gamma_{K-2,K-1}^{k} &  \Gamma_{K-1}^{k}   & -\gamma_{K-1,K}^{k} \\
+ 0      &  0     &  0     &  0     & -\gamma_{K-1,K}^{k} & U+\gamma_{K-1,K}^{k} \\
+\end{pmatrix}
+\begin{pmatrix}
+T_{1}^{\tau,k}   \\
+T_{2}^{\tau,k}   \\
+T_{3}^{\tau,k}   \\
+\vdots           \\
+T_{K-1}^{\tau,k} \\
+T_{N}^{\tau,k}   \\
+\end{pmatrix}
+```
+
+Since the temperature vector ``T^{\tau,k}`` is updated every iteration, the coefficients of ``A^{k}`` must also be updated. With the intermediate vector ``H^{\tau,k}`` the nonlinear problem is rewriten as
+
+```math
+\begin{pmatrix}
+H_{1}^{k}    \\
+H_{2}^{k}    \\
+H_{3}^{k}    \\
+\vdots       \\
+H_{K-1}^{k}  \\
+H_{K}^{k}    \\
+\end{pmatrix}
++
+\begin{pmatrix}
+h_{1}^{\tau}   \\
+h_{2}^{\tau}   \\
+h_{3}^{\tau}   \\
+\vdots         \\
+h_{K-1}^{\tau} \\
+h_{K}^{\tau}   \\
+\end{pmatrix}
+=
+\begin{pmatrix}
+h_1^{0}                 \\
+h_2^{0}                 \\
+h_3^{0}                 \\
+\vdots                  \\
+h_{K-1}^{0}             \\
+h_{K}^{0} + UT_{\infty} \\
+\end{pmatrix}
+```
+
+The choice not to write the problem in this format reflects the fact that the term ``H^{\tau,k}`` on the left-hand side is updated on a iteration basis, while the vector ``b^{0}`` is computed once per time step. This last vector was called ``b^{0}`` instead of ``h^{0}`` because it also includes the boundary condition in its last element. This is useful for the conception of the inner and outer loop functions used for solution update.
+"""
+
+# ╔═╡ 795bb843-1e8a-4151-a289-532f6282ada3
+md"""
+The traditional approach to solve this sort of problems is to provide a *initial guess* ``T^{\tau,0}=T^{0}``.
+
+```math
+\begin{align}
+h^{\tau,0}               &= b^{0}-A^{0}T^{\tau,0}\\
+h(T^{\tau,1})-h^{\tau,0} &= 0\\
+\Delta{}T                &= T^{\tau,1}-T^{\tau,0}\\
+T^{\tau,1}               &= T^{\tau,0}+\alpha\Delta{}T\\
+\varepsilon^{1}          &= \vert\Delta{}T\vert\\
+&\text{repeat}\\
+h^{\tau,1}               &= b^{0}-A^{1}T^{\tau,1}\\
+h(T^{\tau,2})-h^{\tau,1} &= 0\\
+\Delta{}T                &= T^{\tau,2}-T^{\tau,1}\\
+T^{\tau,2}               &= T^{\tau,1}+\alpha\Delta{}T\\
+\varepsilon^{2}          &= \vert\Delta{}T\vert\\
+&\dots\\
+h^{\tau,k}                 &= b^{0}-A^{k}T^{\tau,k}\\
+h(T^{\tau,k+1})-h^{\tau,k} &= 0\\
+\Delta{}T                  &= T^{\tau,k+1}-T^{\tau,k}\\
+T^{\tau,k+1}               &= T^{\tau,k}+\alpha\Delta{}T\\
+\varepsilon^{k+1}          &= \vert\Delta{}T\vert\\
+\end{align}
+```
 """
 
 # ╔═╡ 20a61a1b-0e71-4b8f-9687-d7e836a4831d
@@ -599,9 +685,7 @@ end
 # ╟─d5154b1b-1c99-4a3a-93cc-74fede3830c9
 # ╟─2ed55310-c24d-4c64-93d2-b07a852d642c
 # ╟─484ad8a3-acfe-4eda-8b79-ad2c14d6d327
-# ╠═66ec78ad-2154-4a53-835b-2c3a15fcdf8f
-# ╠═86341ac4-d32e-463e-9d19-e91ade707d06
-# ╠═81312dba-9bc5-4c9c-aad1-7eac30954cfb
+# ╟─795bb843-1e8a-4151-a289-532f6282ada3
 # ╟─20a61a1b-0e71-4b8f-9687-d7e836a4831d
 # ╟─1552e5db-4a33-47ca-a66f-fe4fafb40945
 # ╟─883a0bef-9743-4dfd-8e63-aec333e6a5d5
