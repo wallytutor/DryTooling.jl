@@ -8,6 +8,14 @@ function maxrelativevariation(
     return maximum(abs.(Δx ./ x))
 end
 
+"Maximum change in a solution array."
+function maxvariation(
+        x::Vector{Float64},
+        Δx::Vector{Float64}
+    )::Float64
+    return maximum(abs.(Δx))
+end
+
 "Integrates and arbitrary problem stepping over non-linear relaxations."
 function relaxationouterloop(;
         model::AbstractPhysicalModel,
@@ -18,7 +26,7 @@ function relaxationouterloop(;
         iters::Int64 = 10,
         relax::Float64 = 0.5,
         tol::Float64 = 1.0e-08,
-        metric::Function = maxrelativevariation
+        metric::Function = maxvariation
     )::ResidualsProcessed
 
     if relax >= 1.0 || relax < 0.0
