@@ -23,6 +23,9 @@ end
 # Models
 #############################################################################
 
+# struct SymmetricSolid1DInsterstitialModel <: AbstractDiffusionModel1D
+# struct SymmetricPlate1DTemperatureModel <: AbstractDiffusionModel1D
+
 "Thermal diffusion in a cylinder represented in temperature space."
 struct Cylinder1DTemperatureModel <: AbstractDiffusionModel1D
     "Grid over which problem will be solved."
@@ -41,10 +44,10 @@ struct Cylinder1DTemperatureModel <: AbstractDiffusionModel1D
     κ::Function
     
     "Global heat transfer coefficient ``U=hR``."
-    U::Float64
+    U::Function
     
     "Surface environment temperature."
-    B::Float64
+    B::Function
     
     "Time-step used in integration."
     τ::Base.RefValue{Float64}
@@ -54,29 +57,48 @@ struct Cylinder1DTemperatureModel <: AbstractDiffusionModel1D
 
     function Cylinder1DTemperatureModel(;
             grid::AbstractGrid1D,
+            h::Function,
+            B::Function,
             κ::Function,
             ρ::Float64,
-            c::Float64,
-            h::Float64,
-            B::Float64
-            )
-            problem = TridiagonalProblem(grid.N)
-            
-            rₙ = tail(grid.w)
-            rₛ = head(grid.w)
-            α′ = @. ρ * c * (rₙ^2 - rₛ^2) / 2.0
-            
-            rₙ = tail(grid.r)
-            rₛ = head(grid.r)
-            wⱼ = body(grid.w)
-            β′ = @. wⱼ / (rₙ - rₛ)
+            c::Float64
+        )
+        problem = TridiagonalProblem(grid.N)
+        
+        rₙ = tail(grid.w)
+        rₛ = head(grid.w)
+        α′ = @. ρ * c * (rₙ^2 - rₛ^2) / 2.0
+        
+        rₙ = tail(grid.r)
+        rₛ = head(grid.r)
+        wⱼ = body(grid.w)
+        β′ = @. wⱼ / (rₙ - rₛ)
 
-        U = h * last(grid.r)
+        R = last(grid.r)
+        U = (t) -> h(t) * R
         τ = Ref(-Inf)
         mem = Ref(Temperature1DModelStorage(0, 0))
         
         return new(grid, problem, α′, β′, κ, U, B, τ, mem)
     end
+end
+
+function Cylinder1DTemperatureModel(
+        grid::AbstractGrid1D,
+        h::Union{Function,Float64},
+        B::Union{Function,Float64},
+        κ::Union{Function,Float64},
+        ρ::Float64,
+        c::Float64
+    )
+    return Cylinder1DTemperatureModel(;
+        grid = grid,
+        h    = (typeof(h) <: Function) ? h : (t) -> h,
+        B    = (typeof(B) <: Function) ? B : (t) -> B,
+        κ    = (typeof(κ) <: Function) ? κ : (T) -> κ,
+        ρ    = ρ,
+        c    = c
+    )
 end
 
 "Thermal diffusion in a sphere represented in temperature space."
@@ -136,6 +158,8 @@ struct Sphere1DTemperatureModel <: AbstractDiffusionModel1D
 end
 
 # TODO idea of a better API:
+# - It must be possible to continue a solution with different B.C.
+# - Closed system on Robin side should not lead to divergence.
 # "Solve thermal diffusion in a cylinder represented in temperature space."
 # struct Cylinder1DTemperatureSolver <: AbstractIterativeSolver
 #     model::Cylinder1DTemperatureModel
@@ -242,7 +266,7 @@ function cylindertemperatureinner!(
 
     a_p[2:end-1] += tail(β) + head(β)
     a_p[1]       += first(β)
-    a_p[end]     += last(β) + m.U
+    a_p[end]     += last(β) + m.U(t)
 
     return nothing
 end
@@ -255,11 +279,11 @@ function cylindertemperatureouter!(
     )::Nothing
     # Follow surface heat flux and store partial solutions.
     # XXX: note the factor 2π because U = rh only and A = 2πrl!!!!
-    m.mem[].Q[n] = 2π * m.U * (m.B - last(m.problem.x))
+    m.mem[].Q[n] = 2π * m.U(t) * (m.B(t) - last(m.problem.x))
     m.mem[].T[n, 1:end] = m.problem.x
 
     @. m.problem.b[1:end] = (m.α′ / m.τ) * m.problem.x
-    m.problem.b[end] += m.U * m.B
+    m.problem.b[end] += m.U(t) * m.B(t)
 
     return nothing
 end
