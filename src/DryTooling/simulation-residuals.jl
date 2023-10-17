@@ -43,8 +43,12 @@ struct ResidualsProcessed
     finalresiduals::Vector{Float64}
 
     function ResidualsProcessed(r::ResidualsRaw)
-        innersteps = r.innersteps[r.innersteps .> 0.0]
-        residuals = r.residuals[r.residuals .> 0.0]
+        # XXX: the equal sign below is required! In some cases, *e.g.*
+        # when you try to simulate a system that is already at constant
+        # state or when using a closed boundary condition, the error
+        # can be exactly zero because of the form of the equations!
+        innersteps = r.innersteps[r.innersteps .>= 0.0]
+        residuals = r.residuals[r.residuals .>= 0.0]
 
         finalsteps = cumsum(innersteps)
         finalresiduals = residuals[finalsteps]
