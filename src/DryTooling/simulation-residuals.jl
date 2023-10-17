@@ -71,7 +71,8 @@ function plotsimulationresiduals(
         ε::Union{Float64, Nothing} = nothing,
         showinner::Bool = false,
         yticks::Any = nothing,
-        xbase::Number = 20
+        xbase::Number = 20,
+        scaler::Function = log10
     )::CM.Figure
     function getxticks(xv)
         δi = closestpowerofx(xv/10; x = xbase)
@@ -80,11 +81,11 @@ function plotsimulationresiduals(
     end
 
     xs = r.finalsteps
-    ys = log10.(r.finalresiduals)
+    ys = scaler.(r.finalresiduals)
 
     fig = CM.Figure(resolution = (720, 500))
     ax = CM.Axis(fig[1, 1], yscale = identity)
-    ax.ylabel = "log10(Residual)"
+    ax.ylabel = "$(scaler)(Residual)"
     ax.title = "Maximum of $(maximum(r.innersteps)) iterations per step"
 
     if !isnothing(yticks)
