@@ -690,12 +690,12 @@ ctm, figctm = let
     tol = 1.0e-10
 
     model = dry.Cylinder1DTemperatureModel(;
-        grid = dry.CylinderGrid1DEquispaced(R, 100),
+        grid = dry.RadialEquispacedGrid1D(R, 100),
+        h    = (t) -> 20.0,
+        B    = (_) -> 1500.0,
         κ    = (_) -> 2.0,
         ρ    = 3000.0,
-        c    = 900.0,
-        h    = 20.0,
-        B    = 1500.0
+        c    = 900.0
     )
 
     @time residuals = dry.solve(model;
@@ -708,7 +708,7 @@ ctm, figctm = let
     )
 
     fig1 = dry.plotsimulationresiduals(residuals; ε = tol)
-    fig2 = plotspheretemperature(model.grid.r, model.problem.x, model.B)
+    fig2 = plotspheretemperature(model.grid.r, model.problem.x, model.B(1000000))
     fig3 = temperaturekymograph(; model = model)
     model, (fig1, fig2, fig3)
 end;
@@ -738,12 +738,12 @@ stm, figstm = let
     tol = 1.0e-10
 
     model = dry.Sphere1DTemperatureModel(;
-        grid = dry.SphereGrid1DEquispaced(R, 100),
+        grid = dry.RadialEquispacedGrid1D(R, 100),
+        h    = 20.0,
+        B    = 1500.0,
         κ    = (_) -> 2.0,
         ρ    = 3000.0,
-        c    = 900.0,
-        h    = 20.0,
-        B    = 1500.0
+        c    = 900.0
     )
 
     @time residuals = dry.solve(model;
@@ -782,7 +782,7 @@ end
 # ╔═╡ Cell order:
 # ╟─b307aa70-641c-11ee-27cb-b151d31fffc9
 # ╟─98022d94-143c-400e-85b9-e83fd3e9b689
-# ╟─68383996-f87b-42b6-94e6-c8086c503d7c
+# ╠═68383996-f87b-42b6-94e6-c8086c503d7c
 # ╟─ba35642b-f5db-4d6d-b737-4e17fdf5ecb5
 # ╟─297eaf10-4aa9-4c1c-90ed-f4a2b57e0e9d
 # ╟─26d2ae75-0298-4656-af11-a5d63d6935a8
