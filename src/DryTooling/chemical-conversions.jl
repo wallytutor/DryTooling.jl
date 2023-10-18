@@ -8,12 +8,17 @@ function meanmolecularmass(
     return 1.0 / sum(@. Y / W)
 end
 
+# TODO maybe the above is not providing any advantage here!
+function meanmolecularmass(Y, W)
+    return 1.0 / sum(@. Y / W)
+end
+
 """ Convert mass fractions to mole fractions. """
-function massfraction2molefraction(Y, M::Vector{Float64})
-    return meanmolecularmass(M, Y) * @. Y / M
+function massfraction2molefraction(Y, W::Vector{Float64})
+    return meanmolecularmass(Y, W) * @. Y / W
 end
 
 """ Convert mole fractions to mass fractions. """
-function molefraction2massfraction(X, M::Vector{Float64})
-    return (@. X * M) / sum(@. X * M)
+function molefraction2massfraction(X, W::Vector{Float64})
+    return (@. X * W) / sum(@. X * W)
 end

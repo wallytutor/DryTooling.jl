@@ -55,4 +55,3 @@ function illustrategridconvergence()
 end
 
 fig = illustrategridconvergence()
-
