@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 module Utilities
 
-export closestpowerofx
+export closestpowerofx, axesunitscaler
 export head, tail, body
 export heaviside, interval
 export makestepwise1d
@@ -14,6 +14,20 @@ function closestpowerofx(
     """ Compute the power of `x` closest to `v`. """
     rounder = x^floor(log(x, v))
     return convert(Int64, rounder * roundf(v / rounder))
+end
+
+function axesunitscaler(x::Number)::Tuple{String,Int64}
+    """ Find scaling factor for multiples of 1000 units. """
+	# Find the floor of log10 of number.
+	m = convert(Int64, x |> log10 |> floor)
+
+	# Get the order of magnitude number.
+	n = div(m, 3)
+
+	# Find scaling factor.
+	p = 1000^(n)
+
+	return (n == 0) ? ("", 1) : ("[×$(1000^n)]", p)
 end
 
 function head(z)

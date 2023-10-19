@@ -21,7 +21,7 @@ begin
     Pkg.resolve()
     Pkg.instantiate()
 
-    using DryTooling: PorosityDescriptor
+    using DryTooling: PackedBedPorosityDescriptor
     using Symbolics
     using PlutoUI
 end
@@ -56,7 +56,7 @@ The manipulations that follow are performed using [Symbolics.jl](https://symboli
 """
 
 # ╔═╡ 5ef67a89-2d81-4863-b16f-a0f0a3c6321f
-args = @variables ϕ l D W H
+args = @variables ϕ l D W H;
 
 # ╔═╡ 13daafac-abfa-476d-b845-a78cc864559e
 md"""
@@ -64,10 +64,10 @@ The surface area ``Aᵦ`` and volume ``Vᵦ`` of a single cubic block is compute
 """
 
 # ╔═╡ e48a03d9-7189-4ff0-95cf-6bb942cab369
-Aᵦ = 6l^2
-
-# ╔═╡ 915f13a0-c078-47e8-ba4e-2eb0ab8d7de8
-Vᵦ = l^3
+begin
+	Aᵦ = 6l^2
+	Vᵦ = 1l^3
+end;
 
 # ╔═╡ 1eabfb91-5d33-4f4a-a9b4-6f4def62a1d6
 md"""
@@ -75,13 +75,11 @@ The cross section of the reactor is ``Aᵥ``, total volume ``Vᵥ``, and perimet
 """
 
 # ╔═╡ 4dfcfd32-3b16-48b1-81e4-4371bb11a731
-Aᵥ = D * W
-
-# ╔═╡ bd7ff6f9-1578-4780-8666-6ca6cfa0ede8
-Vᵥ = H * Aᵥ
-
-# ╔═╡ 1d886b01-f1c5-4d85-ad61-970ed562c0e8
-Pᵥ = 2 * (D + W)
+begin
+	Aᵥ = D * W
+	Vᵥ = H * Aᵥ
+	Pᵥ = 2 * (D + W)
+end;
 
 # ╔═╡ a68a22cc-8a2f-4bee-82d7-14e1182381ca
 md"""
@@ -89,7 +87,7 @@ From porosity ``ϕ`` the total volume of solids inside the reactor is ``Vₛ`` i
 """
 
 # ╔═╡ d0e39584-6c13-4804-8adc-5b5eb962940f
-Vₛ = (1 - ϕ) * Vᵥ
+Vₛ = (1 - ϕ) * Vᵥ;
 
 # ╔═╡ 9876504d-9732-47c1-9ea5-003e6a916c8f
 md"""
@@ -97,15 +95,15 @@ The number of blocks ``Nₛ`` is estimated as the ratio between ``Vₛ`` and a b
 """
 
 # ╔═╡ a87f0302-8e77-4dea-9e10-0469ecfdf6e3
-Nₛ = Vₛ / Vᵦ
+Nₛ = Vₛ / Vᵦ;
 
 # ╔═╡ 19ae6a86-684d-4dca-b75f-27b9bfe71b9c
 md"""
-Thus the surface area of gas-blocks can be estimated as ``Aₛ``:
+Thus the total surface area of gas-blocks can be estimated as ``Aₛ``:
 """
 
 # ╔═╡ d003c1fb-2c61-4031-b7bc-9c11d6e2dcc2
-Aₛ = Nₛ * Aᵦ
+Aₛ = Nₛ * Aᵦ;
 
 # ╔═╡ 5ff1e62f-2a34-4dee-b2de-12fa670212c1
 md"""
@@ -120,16 +118,22 @@ md"""
 Because reactor cross-section is constant, we simplify the expression per unit area:
 """
 
+# ╔═╡ 15416109-47c7-43d3-b2de-6ed33ff5b19b
+Aₛ / Vᵥ
+
 # ╔═╡ 2e4ce97e-2ec1-4691-a0f2-451915f9fd2f
-Pₛ = Aₛ / Vᵥ
+Pₛ = Aₛ / Vᵥ;
 
 # ╔═╡ 8d78856b-0a9c-4909-bb30-fc530197b9ca
 md"""
 Actually this is exactly the same result as found by Gunn (1978), thus we express their expression in terms of ``Pₛ`` to ensure a proper estimation of the channel radius which is found to be:
 """
 
+# ╔═╡ f837dacd-1d5a-4578-9df3-b6baa3219987
+2 * 2ϕ / Pₛ
+
 # ╔═╡ 66de140a-3a62-4b74-9b2b-97efaff2f3a5
-Dᵧ = 2 * 2ϕ / Pₛ
+Dᵧ = 2 * 2ϕ / Pₛ;
 
 # ╔═╡ e118a6e8-9b69-4987-801e-f2035687c41f
 md"""
@@ -147,7 +151,7 @@ New symbols are introduced to compute the uncertainties on model parameters:
 """
 
 # ╔═╡ 4983a5d8-1129-423e-8427-320edb206956
-delta = @variables δϕ δl
+delta = @variables δϕ δl;
 
 # ╔═╡ 7206a2a0-4c77-4861-988c-49249966d047
 md"""
@@ -155,7 +159,7 @@ The associated differentials are declared to perform a sensitivity analysis:
 """
 
 # ╔═╡ c758b980-9aba-41dc-a696-4fa0ed8cee9e
-ddϕ, ddl = Differential(ϕ), Differential(l)
+ddϕ, ddl = Differential(ϕ), Differential(l);
 
 # ╔═╡ d33a74c4-bb51-44ba-b61a-3bddadb30730
 md"""
@@ -170,7 +174,10 @@ The total derivative of perimeter with respect to ``ϕ`` and ``l`` is given by:
 """
 
 # ╔═╡ f76010d5-491a-4e38-b111-daa78f15f34a
-dPₛ = expand_derivatives(ddl(Pₛ)*δl + ddϕ(Pₛ)*δϕ)
+dPₛ = expand_derivatives(ddl(Pₛ)*δl + ddϕ(Pₛ)*δϕ);
+
+# ╔═╡ 81deb648-cd89-4882-8172-b8fa6e0be7c9
+dPₛ
 
 # ╔═╡ 944c1d88-edf7-4bba-8cb6-0490347b9f88
 md"""
@@ -183,8 +190,10 @@ The same approach is now applied to channel diameter:
 """
 
 # ╔═╡ 88769a22-d80b-4f3e-88cd-519400c47de9
+dDᵧ = expand_derivatives(ddl(Dᵧ)*δl + ddϕ(Dᵧ)*δϕ);
 
-dDᵧ = expand_derivatives(ddl(Dᵧ)*δl + ddϕ(Dᵧ)*δϕ)
+# ╔═╡ 6cd4b57b-65ea-4ace-a354-09ad98b42f39
+dDᵧ
 
 # ╔═╡ 5cb8cc6e-1097-47a9-a0c0-ec93fbf711ef
 md"""
@@ -204,7 +213,7 @@ Because these calculations are required to setup reactor simulations, the develo
 """
 
 # ╔═╡ eb8e27b4-a2cd-422b-995e-3465478c3f70
-PorosityDescriptor(; μϕ = ϕₛ, μl = blocksize, area = REACTOR.A)
+PackedBedPorosityDescriptor(; μϕ = ϕₛ, μl = blocksize, area = REACTOR.A)
 
 # ╔═╡ bc9118bd-84d1-4db5-8bcb-8e67d9ea1a2e
 md"""
@@ -212,7 +221,7 @@ Stochastic modeling might be interesting in this scenario, *i.e.* discretization
 """
 
 # ╔═╡ 108146ed-6c2d-4850-8488-887c06e9ac11
-porosity = PorosityDescriptor(;
+porosity = PackedBedPorosityDescriptor(;
     μϕ = ϕₛ,
     μl = blocksize,
     σϕ = 0.03,
@@ -310,44 +319,45 @@ md"""
 # ╔═╡ Cell order:
 # ╟─f175ae20-641b-11ee-2bf8-e72783c8a834
 # ╟─a677c786-874c-4cc7-9871-6016064797a3
-# ╟─5ef67a89-2d81-4863-b16f-a0f0a3c6321f
+# ╠═5ef67a89-2d81-4863-b16f-a0f0a3c6321f
 # ╟─13daafac-abfa-476d-b845-a78cc864559e
-# ╟─e48a03d9-7189-4ff0-95cf-6bb942cab369
-# ╟─915f13a0-c078-47e8-ba4e-2eb0ab8d7de8
+# ╠═e48a03d9-7189-4ff0-95cf-6bb942cab369
 # ╟─1eabfb91-5d33-4f4a-a9b4-6f4def62a1d6
-# ╟─4dfcfd32-3b16-48b1-81e4-4371bb11a731
-# ╟─bd7ff6f9-1578-4780-8666-6ca6cfa0ede8
-# ╟─1d886b01-f1c5-4d85-ad61-970ed562c0e8
+# ╠═4dfcfd32-3b16-48b1-81e4-4371bb11a731
 # ╟─a68a22cc-8a2f-4bee-82d7-14e1182381ca
-# ╟─d0e39584-6c13-4804-8adc-5b5eb962940f
+# ╠═d0e39584-6c13-4804-8adc-5b5eb962940f
 # ╟─9876504d-9732-47c1-9ea5-003e6a916c8f
-# ╟─a87f0302-8e77-4dea-9e10-0469ecfdf6e3
+# ╠═a87f0302-8e77-4dea-9e10-0469ecfdf6e3
 # ╟─19ae6a86-684d-4dca-b75f-27b9bfe71b9c
-# ╟─d003c1fb-2c61-4031-b7bc-9c11d6e2dcc2
+# ╠═d003c1fb-2c61-4031-b7bc-9c11d6e2dcc2
 # ╟─5ff1e62f-2a34-4dee-b2de-12fa670212c1
 # ╟─48d89f5c-80e7-4c79-869a-c9dcd87b5c77
 # ╟─b6efc1d0-f5cc-42ac-b46b-920f6ce6e72e
-# ╟─2e4ce97e-2ec1-4691-a0f2-451915f9fd2f
+# ╟─15416109-47c7-43d3-b2de-6ed33ff5b19b
+# ╠═2e4ce97e-2ec1-4691-a0f2-451915f9fd2f
 # ╟─8d78856b-0a9c-4909-bb30-fc530197b9ca
-# ╟─66de140a-3a62-4b74-9b2b-97efaff2f3a5
+# ╟─f837dacd-1d5a-4578-9df3-b6baa3219987
+# ╠═66de140a-3a62-4b74-9b2b-97efaff2f3a5
 # ╟─e118a6e8-9b69-4987-801e-f2035687c41f
 # ╟─5fcd5364-5d57-4711-9c63-8be40607aa56
 # ╟─738db443-ad85-4f10-8864-9ba9b653fae6
-# ╟─4983a5d8-1129-423e-8427-320edb206956
+# ╠═4983a5d8-1129-423e-8427-320edb206956
 # ╟─7206a2a0-4c77-4861-988c-49249966d047
-# ╟─c758b980-9aba-41dc-a696-4fa0ed8cee9e
+# ╠═c758b980-9aba-41dc-a696-4fa0ed8cee9e
 # ╟─d33a74c4-bb51-44ba-b61a-3bddadb30730
 # ╟─c1661200-1e5c-45b2-984e-56c91100c220
-# ╟─f76010d5-491a-4e38-b111-daa78f15f34a
+# ╠═f76010d5-491a-4e38-b111-daa78f15f34a
+# ╟─81deb648-cd89-4882-8172-b8fa6e0be7c9
 # ╟─944c1d88-edf7-4bba-8cb6-0490347b9f88
 # ╟─cf128a15-dae6-44fc-a28d-c861a57fef91
-# ╟─88769a22-d80b-4f3e-88cd-519400c47de9
+# ╠═88769a22-d80b-4f3e-88cd-519400c47de9
+# ╟─6cd4b57b-65ea-4ace-a354-09ad98b42f39
 # ╟─5cb8cc6e-1097-47a9-a0c0-ec93fbf711ef
 # ╟─9b99bd14-8b19-4069-bac9-ebe147b6b515
 # ╟─84ac21f9-6e57-4022-b24b-9c0fb0b31623
-# ╟─eb8e27b4-a2cd-422b-995e-3465478c3f70
+# ╠═eb8e27b4-a2cd-422b-995e-3465478c3f70
 # ╟─bc9118bd-84d1-4db5-8bcb-8e67d9ea1a2e
-# ╟─108146ed-6c2d-4850-8488-887c06e9ac11
+# ╠═108146ed-6c2d-4850-8488-887c06e9ac11
 # ╟─36e61f59-185b-46cc-ad6a-b6b7e3d6b996
 # ╟─0948d221-cbac-4f6e-ae9f-c6a3ff3f0705
 # ╟─078c50a8-4efa-463d-9110-61a6a38431bd

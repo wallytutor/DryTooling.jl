@@ -3,6 +3,7 @@ module Residuals
 
 using CairoMakie
 using DryTooling
+using DryTooling.Utilities: axesunitscaler
 
 export SimulationResiduals
 export addresidual!
@@ -108,27 +109,29 @@ function plotsimulationresiduals(
     figure setup, configuration of axis and details beign left to the user.
     """
     xs, ys = finaliterationdata(r)
-    xs .-= 1
     ys = scaler.(ys)
+    xs .-= 1
+
+    units, unitp = axesunitscaler(last(xs))
 
     fig = Figure(resolution = resolution)
     ax = Axis(fig[1, 1], yscale = identity)
     ax.ylabel = "$(scaler)(Residual)"
-    ax.xlabel = "Global iteration"
+    ax.xlabel = "Global iteration $(units)"
 
     p = []
 
     if showinner
-        xg = 0:(r.counter[]-1)
+        xg = collect(0:(r.counter[]-1))
         yg = scaler.(r.residuals)
 
         for col in 1:last(size(ys))
-            lines!(ax, xg, yg[:, col], color = :black, linewidth = 0.5)
-            push!(p, scatter!(ax, xs, ys[:, col]))
+            lines!(ax, xg ./ unitp, yg[:, col], color = :black, linewidth = 0.5)
+            push!(p, scatter!(ax, xs ./ unitp, ys[:, col]))
         end
     else
         for col in 1:last(size(ys))
-            push!(p, lines!(ax, xs, ys[:, col]))
+            push!(p, lines!(ax, xs ./ unitp, ys[:, col]))
         end
     end
 

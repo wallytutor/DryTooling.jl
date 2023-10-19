@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 using Polynomials
-using DryTooling
+using DryTooling: RectangularReactorGeometry
 
 ##############################################################################
 # TEMPERATURES
@@ -46,7 +46,7 @@ const kₛ = Polynomial([5.0], :T)
 # GEOMETRY
 ##############################################################################
 
-const REACTOR = VerticalReactorGeometry(; H = 10.0, D = 2.1, W = 6.7)
+const REACTOR = RectangularReactorGeometry(; H = 10.0, D = 2.1, W = 6.7)
 
 "Porosity volume fraction in reactor bed [-]"
 const ϕₛ::Float64 = 0.65

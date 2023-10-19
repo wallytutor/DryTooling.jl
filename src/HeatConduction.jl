@@ -18,9 +18,12 @@ export Sphere1DTemperatureModel
 export initialize!
 export solve
 
-# struct SymmetricPlate1DTemperatureModel <: AbstractDiffusionModel1D
 
-struct Cylinder1DTemperatureModel <: AbstractDiffusionModel1D
+abstract type LocalAbstractTemperature1DModel <: AbstractDiffusionModel1D end
+
+# struct SymmetricPlate1DTemperatureModel <: LocalAbstractTemperature1DModel
+
+struct Cylinder1DTemperatureModel <: LocalAbstractTemperature1DModel
     "Thermal diffusion in a cylinder represented in temperature space."
 
     "Grid over which problem will be solved."
@@ -87,7 +90,7 @@ struct Cylinder1DTemperatureModel <: AbstractDiffusionModel1D
     end
 end
 
-struct Sphere1DTemperatureModel <: AbstractDiffusionModel1D
+struct Sphere1DTemperatureModel <: LocalAbstractTemperature1DModel
     "Thermal diffusion in a sphere represented in temperature space."
 
     "Grid over which problem will be solved."
@@ -292,29 +295,31 @@ end
 
 
 function CommonSolve.solve(
-        m::Cylinder1DTemperatureModel;
+        m::LocalAbstractTemperature1DModel;
         t::Float64,
         τ::Float64,
         T::Float64,
+        α::Float64 = 0.1,
+        ε::Float64 = 1.0e-10,
         M::Int64 = 50
     )::Nothing
-    "Interface for solving a `Cylinder1DTemperatureModel` instance."
-    initialize!(m, t, τ, T, M = M)
-    advance!(m)
+    "Interface for solving a `LocalAbstractTemperature1DModel` instance."
+    initialize!(m, t, τ, T; M)
+    advance!(m; α, ε, M)
     return nothing
 end
 
-function CommonSolve.solve(
-        m::Sphere1DTemperatureModel;
-        t::Float64,
-        τ::Float64,
-        T::Float64,
-        M::Int64 = 50
-    )::Nothing
-    "Interface for solving a `Sphere1DTemperatureModel` instance."
-    initialize!(m, t, τ, T, M = M)
-    advance!(m)
-    return nothing
-end
+# function CommonSolve.solve(
+#         m::Sphere1DTemperatureModel;
+#         t::Float64,
+#         τ::Float64,
+#         T::Float64,
+#         M::Int64 = 50
+#     )::Nothing
+#     "Interface for solving a `Sphere1DTemperatureModel` instance."
+#     initialize!(m, t, τ, T, M = M)
+#     advance!(m)
+#     return nothing
+# end
 
 end # module HeatConduction
