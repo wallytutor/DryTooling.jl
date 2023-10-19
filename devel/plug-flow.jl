@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+using DryTooling: GAS_CONSTANT
+using DryTooling: ZERO_CELSIUS
+using DryTooling: ONE_ATM
 import DryTooling as dry
 using DifferentialEquations: solve
 using Symbolics: scalarize
@@ -6,8 +9,12 @@ using ModelingToolkit
 using Plots
 using YAML
 
+function sccmtomdot(q, M)
+    return dry.idealgasdensity(ZERO_CELSIUS, ONE_ATM, M) * q / 6.0e+07
+end
+
 loaddatabase(fpath) = YAML.load_file(realpath(fpath))
-data = loaddatabase(joinpath(pwd(), "src/samples/plug-flow.yaml"))
+data = loaddatabase(joinpath(pwd(), "devel/plug-flow.yaml"))
 
 # Create gas phase only once.
 selected = ["C2H2", "H2", "C2H4", "CH4", "C4H4", "C6H6", "Cs", "N2"]
@@ -17,10 +24,10 @@ mix = dry.IdealGasMixture(data, selected)
 R = 0.014
 
 # Reactor length [m].
-L = 1.0
+L = 0.5
 
 # Number of discrete cells.
-n = 100
+n = 20
 
 # Cell length [m].
 δ = L / n
@@ -86,15 +93,21 @@ eqs = [scalarize(D.(Y) .~ RHS)..., scalarize(RHS .~ rhs)...]
 
 system = structural_simplify(model)
 
-y1 = 0.35
+y1 = 0.36
 Y0 = zeros(mix.nspecies)
 Y0[1] = 0.980 * y1
 Y0[4] = 0.002 * y1
 Y0[end] = 1 - sum(Y0[1:end-1])
 
-p = [ṁ => 1.0e-05, P => 5000.0, T => 1173.15]
+M = dry.meanmolecularmass(Y0, W)
+
+p = [
+    ṁ => sccmtomdot(222.0, 1000M),
+    P => 10000.0,
+    T => 1173.15
+]
 prob = ODEProblem(system, Y0, (0.0, L), p)
-sol = solve(prob; reltol=1.0e-03, abstol=1.0e-08)
+sol = solve(prob; reltol=1.0e-03, abstol=1.0e-08, saveat = zn)
 # plot(sol[RHS])
 
 molefractions(Y) = dry.massfraction2molefraction(Y, W)
@@ -102,7 +115,7 @@ density(Y) = dry.densitymass(mix, p[3].second, p[2].second, Y)
 
 X = [molefractions(y) for y in sol.u]
 ρ = [density(y) for y in sol.u]
-u = (p[1].second / (ρ * A[1]))'
+u = @. (p[1].second / (ρ * A[1]))'
 
 x1 = [x[2] for x in X]
 plot(sol.t, x1)
