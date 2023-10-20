@@ -159,7 +159,7 @@ end
 
 
 function initialize!(
-        m::Cylinder1DTemperatureModel,
+        m::LocalAbstractTemperature1DModel,
         t::Float64,
         τ::Float64,
         T::Float64;
@@ -174,19 +174,18 @@ function initialize!(
     return nothing
 end
 
-function initialize!(
-        m::Sphere1DTemperatureModel,
+function CommonSolve.solve(
+        m::LocalAbstractTemperature1DModel;
         t::Float64,
         τ::Float64,
-        T::Float64;
+        T::Float64,
+        α::Float64 = 0.1,
+        ε::Float64 = 1.0e-10,
         M::Int64 = 50
     )::Nothing
-    "Set initial condition of thermal diffusion model."
-    nsteps = convert(Int64, round(t / τ))
-    m.τ[] = Base.step(range(0.0, t, nsteps))
-    m.res[] = SimulationResiduals(1, M, nsteps)
-    m.mem[] = Temperature1DModelStorage(m.grid.N, nsteps)
-    m.problem.x[:] .= T
+    "Interface for solving a model instance."
+    initialize!(m, t, τ, T; M)
+    advance!(m; α, ε, M)
     return nothing
 end
 
@@ -292,34 +291,5 @@ function DryTooling.fsolve!(
     addresidual!(m.res[], [ε])
     return ε
 end
-
-
-function CommonSolve.solve(
-        m::LocalAbstractTemperature1DModel;
-        t::Float64,
-        τ::Float64,
-        T::Float64,
-        α::Float64 = 0.1,
-        ε::Float64 = 1.0e-10,
-        M::Int64 = 50
-    )::Nothing
-    "Interface for solving a `LocalAbstractTemperature1DModel` instance."
-    initialize!(m, t, τ, T; M)
-    advance!(m; α, ε, M)
-    return nothing
-end
-
-# function CommonSolve.solve(
-#         m::Sphere1DTemperatureModel;
-#         t::Float64,
-#         τ::Float64,
-#         T::Float64,
-#         M::Int64 = 50
-#     )::Nothing
-#     "Interface for solving a `Sphere1DTemperatureModel` instance."
-#     initialize!(m, t, τ, T, M = M)
-#     advance!(m)
-#     return nothing
-# end
 
 end # module HeatConduction
