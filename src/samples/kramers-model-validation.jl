@@ -17,7 +17,7 @@ begin
     using Plots
     using PlutoUI
     using Printf
-    import DryTooling as dry
+    using DryTooling.Granular
 
     TableOfContents()
 end
@@ -142,7 +142,7 @@ function kramersanalytical(; z, R, Φ, ω, β, γ, d)
     @JuMP.NLconstraint(optim, [i = 1:N], h[i] >= 0.0)
     JuMP.optimize!(optim)
 
-    return dry.RotaryKilnBedSolution(z, JuMP.value.(h), β, R, Φ)
+    return RotaryKilnBedSolution(z, JuMP.value.(h), β, R, Φ)
 end
 
 # ╔═╡ cd18eabc-3c5f-40ec-bb84-523ef0577871
@@ -154,8 +154,8 @@ end
 # ╔═╡ 75228bbe-4da9-4f70-a065-c96f47adc704
 "Compares approximate analytical to numerical solution."
 function solvekiln(; L, D, Φ, ω, β, γ, d, show = true)
-    model = dry.solvelinearkramersmodel(;
-        model = dry.SymbolicLinearKramersModel(),
+    model = solvelinearkramersmodel(;
+        model = SymbolicLinearKramersModel(),
         L     = L,
         R     = D / 2.0,
         Φ     = Φ / 3600.0,
@@ -292,7 +292,7 @@ md"""
 
 # ╔═╡ 9b77c70d-06d2-485d-bbc4-087ed0ffaad1
 let
-    println("Solution of reference case")
+    @info("Solution of reference case")
 
     in1_to_m1(v) = 0.0254 * v
     ft1_to_m1(v) = in1_to_m1(12.0) * v
@@ -328,8 +328,8 @@ let
     d = d / 1000.0
 
     # Create problem container.
-    kramers = dry.solvelinearkramersmodel(;
-        model = dry.SymbolicLinearKramersModel(),
+    kramers = solvelinearkramersmodel(;
+        model = SymbolicLinearKramersModel(),
         L     = L,
         R     = R,
         Φ     = Φ,
@@ -376,7 +376,7 @@ The next table summarizes the results. It is seen that the dimensionless numbers
 
 # ╔═╡ f8e6391a-c942-4b6f-9359-e36c196a63c0
 const TABLE3 = let
-    println("Verification of *Table 3*")
+    @info("Verification of *Table 3*")
 
     Dₖ = 0.197
     Lₖ = 1.780
@@ -386,7 +386,7 @@ const TABLE3 = let
     table3[!, "η̄ᵢ"] = zeros(length(table3[!, "η̄ᵣ"]))
     table3[!, "η̄ᵣ"] *= 100
 
-    model = dry.SymbolicLinearKramersModel()
+    model = SymbolicLinearKramersModel()
 
     for (i, row) in enumerate(eachrow(table3))
         Φ = 3600.0 * row["ṁ"] / row["ρ"]
@@ -394,7 +394,7 @@ const TABLE3 = let
         β = rad2deg(atan(row["tan(β)"]))
         γ = row["γ"]
 
-        kramers = dry.solvelinearkramersmodel(;
+        kramers = solvelinearkramersmodel(;
             model = model,
             L     = Lₖ,
             R     = Dₖ / 2.0,
@@ -423,7 +423,7 @@ $(TABLE3)
 
 # ╔═╡ 15143f31-e958-466a-bb1d-31a68f52351e
 const DIMLESSPLOT = let
-    println("Dimensionless profiles solution")
+    @info("Dimensionless profiles solution")
 
     ρ = 1480.0
     L = 20.0
@@ -443,12 +443,12 @@ const DIMLESSPLOT = let
     # Things held constant in loop.
     NΦ = dimlessNΦ(R, β, ω, Φ, γ)
     Nₖ = dimlessNₖ(L, R, β, γ)
-    model = dry.SymbolicLinearKramersModel()
+    model = SymbolicLinearKramersModel()
 
     p = plot()
 
     for d in [0.05, 0.10, 0.15, 0.193, 0.25]
-        kramers = dry.solvelinearkramersmodel(;
+        kramers = solvelinearkramersmodel(;
             model = model,
             L     = L,
             R     = R,

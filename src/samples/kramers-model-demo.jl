@@ -19,10 +19,9 @@ begin
     import Pkg
     Pkg.activate(Base.current_project())
     Pkg.instantiate()
-    Pkg.add("PlutoUI")
 
     using PlutoUI
-    import DryTooling as dry
+    using DryTooling.Granular
 end
 
 # ╔═╡ 734aacfb-f114-45f9-88b3-9ef751605fff
@@ -40,7 +39,7 @@ begin
     Φᵣ = 10.363965852671996  # Feed rate [m³/h]
     ωᵣ = 3.0300000000000002  # Rotation rate [rev/min]
 
-    println("Display this hidden cell to see Kramers' defaults.")
+    @info("Display this hidden cell to see Kramers' defaults.")
 end
 
 # ╔═╡ d405e420-3da8-11ee-3729-cf2de54fc36a
@@ -66,8 +65,8 @@ Rotation [rev/min] | $(@bind ω Slider(0.5:0.1:5.0, default=ωᵣ, show_value=tr
 "Run Kramers equation demo."
 function rundemo()
     try
-        bed = dry.solvelinearkramersmodel(;
-            model = dry.SymbolicLinearKramersModel(),
+        bed = solvelinearkramersmodel(;
+            model = SymbolicLinearKramersModel(),
             L     = L,
             R     = D / 2.0,
             Φ     = Φ / 3600.0,
@@ -76,9 +75,9 @@ function rundemo()
             γ     = deg2rad(γ),
             d     = d / 1000.0
         )
-        dry.plotlinearkramersmodel(bed, normz=false, normh=false, backend = :makie)
+        plotlinearkramersmodel(bed, normz=false, normh=false)
     catch e
-        println("Failed to solve Kramers equation: $(e)")
+        @error("Failed to solve Kramers equation: $(e)")
     end
 end
 
