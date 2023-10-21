@@ -166,7 +166,6 @@ p = [
 prob = ODEProblem(system, Y0, (0.0, L), p)
 sol = solve(prob; reltol=1.0e-03, abstol=1.0e-08, saveat = grid.r)
 
-density(Y) = 
 X = map((y)->massfraction2molefraction(y, W), sol.u)
 ρ = map((y)->densitymass(mix, p[3].second, p[2].second, y), sol.u)
 u = @. (p[1].second / (ρ * A[1]))
