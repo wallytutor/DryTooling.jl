@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
 module DiffusionInSolids
 
-using CommonSolve
 using Trapz: trapz
-
 using DryTooling
 using DryTooling.Abstract
 using DryTooling.Constants
@@ -145,7 +143,7 @@ function DryTooling.fsolve!(
     return ε
 end
 
-function CommonSolve.solve(
+function solve(
         m::AusteniteCarburizing1DModel;
         t::Float64,
         τ::Float64,
@@ -157,6 +155,7 @@ function CommonSolve.solve(
     "Interface for solving a `Cylinder1DTemperatureModel` instance."
     initialize!(m, t, τ, x, M = M)
     advance!(m; α, ε, M)
+    m.res[] = SimulationResiduals(m.res[])
     return nothing
 end
 
@@ -180,7 +179,7 @@ function carburize(grid, t, τ, T, h, y0, ys, ; M = 50)
     x = carburizemasstomolefraction(y0)
     C = carburizemasstomolefraction(ys)
     model = AusteniteCarburizing1DModel(; grid, h, C, T)
-    @time CommonSolve.solve(model; t, τ, x, M = M, α = 0.05)
+    @time solve(model; t, τ, x, M = M, α = 0.05)
     return model
 end
 

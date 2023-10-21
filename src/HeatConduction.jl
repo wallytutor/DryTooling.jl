@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 module HeatConduction
 
-using CommonSolve
 using DryTooling
 using DryTooling.Abstract
 using DryTooling.Constants
@@ -18,7 +17,6 @@ export Sphere1DTemperatureModel
 export initialize!
 export solve
 
-
 abstract type LocalAbstractTemperature1DModel <: AbstractDiffusionModel1D end
 
 # struct SymmetricPlate1DTemperatureModel <: LocalAbstractTemperature1DModel
@@ -28,28 +26,28 @@ struct Cylinder1DTemperatureModel <: LocalAbstractTemperature1DModel
 
     "Grid over which problem will be solved."
     grid::AbstractGrid1D
-    
+
     "Memory for model linear algebra problem."
     problem::TridiagonalProblem
-    
+
     "Constant part of model coefficient α."
     α′::Vector{Float64}
-    
+
     "Constant part of model coefficient β."
     β′::Vector{Float64}
-    
+
     "Thermal conductivity in terms of temperature."
     κ::Function
-    
+
     "Global heat transfer coefficient ``U=hR``."
     U::Function
-    
+
     "Surface environment temperature."
     B::Function
-    
+
     "Time-step used in integration."
     τ::Base.RefValue{Float64}
-    
+
     "Memory storage for solution retrieval."
     mem::Base.RefValue{Temperature1DModelStorage}
 
@@ -72,11 +70,11 @@ struct Cylinder1DTemperatureModel <: LocalAbstractTemperature1DModel
         κu = (typeof(κ) <: Function) ? κ : (T) -> κ
 
         problem = TridiagonalProblem(grid.N)
-        
+
         rₙ = tail(grid.w)
         rₛ = head(grid.w)
         α′ = @. ρ * c * (rₙ^2 - rₛ^2) / 2.0
-        
+
         rₙ = tail(grid.r)
         rₛ = head(grid.r)
         wⱼ = body(grid.w)
@@ -98,28 +96,28 @@ struct Sphere1DTemperatureModel <: LocalAbstractTemperature1DModel
 
     "Grid over which problem will be solved."
     grid::AbstractGrid1D
-    
+
     "Memory for model linear algebra problem."
     problem::TridiagonalProblem
-    
+
     "Constant part of model coefficient α."
     α′::Vector{Float64}
-    
+
     "Constant part of model coefficient β."
     β′::Vector{Float64}
-    
+
     "Thermal conductivity in terms of temperature."
     κ::Function
-    
+
     "Global heat transfer coefficient ``U=hR``."
     U::Function
-    
+
     "Surface environment temperature."
     B::Function
-    
+
     "Time-step used in integration."
     τ::Base.RefValue{Float64}
-    
+
     "Memory storage for solution retrieval."
     mem::Base.RefValue{Temperature1DModelStorage}
 
@@ -142,11 +140,11 @@ struct Sphere1DTemperatureModel <: LocalAbstractTemperature1DModel
         κu = (typeof(κ) <: Function) ? κ : (T) -> κ
 
         problem = TridiagonalProblem(grid.N)
-        
+
         rₙ = tail(grid.w)
         rₛ = head(grid.w)
         α′ = @. ρ * c * (rₙ^3 - rₛ^3) / 3.0
-        
+
         rₙ = tail(grid.r)
         rₛ = head(grid.r)
         wⱼ = body(grid.w)
@@ -179,7 +177,7 @@ function initialize!(
     return nothing
 end
 
-function CommonSolve.solve(
+function solve(
         m::LocalAbstractTemperature1DModel;
         t::Float64,
         τ::Float64,
@@ -191,6 +189,7 @@ function CommonSolve.solve(
     "Interface for solving a model instance."
     initialize!(m, t, τ, T; M)
     advance!(m; α, ε, M)
+    m.res[] = SimulationResiduals(m.res[])
     return nothing
 end
 
