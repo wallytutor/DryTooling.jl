@@ -72,6 +72,9 @@
     sort=none%
 ]{glossaries-extra}
 
+%% Fractions (inline).
+\RequirePackage{xfrac}
+
 %% Units (not necessarily) in SI.
 \RequirePackage{siunitx}
 

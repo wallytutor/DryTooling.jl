@@ -36,19 +36,7 @@
 %% SYMBOLS
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\addsymbol{t}{\ensuremath{t}}{Time.}
-
-\addsymbol{x}{\ensuremath{x}}{Cartesian spacial coordinate, also used with subscripts for denoting multiple coordinates when required.}
-
-\addsymbol{u}{\ensuremath{u}}{Velocity. If used with a subscript it corresponds to the component along the associated spacial coordinate.}
-
-\addsymbol{l}{\ensuremath{l}}{(Characteristic) length. If used with a subscript it corresponds to the component along the associated spacial coordinate.}
-
-\addsymbol{R}{\ensuremath{R}}{Radius or ideal gas constant.}
-
-\addsymbol{D}{\ensuremath{D}}{Diameter.}
-
-\addsymbol{phi}{\ensuremath{\phi}}{Denotes a fraction or an angle. It may appear in mixture laws, computations of porosity, etc. A subscript may indicate multiple substances or identify a medium. It is used as an angle mainly with spherical coordinates.}
+\input{symbols.tex}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% BODY
@@ -71,6 +59,26 @@
 \section{Packed bed porosity modeling}
 
 Modeling of geometrical characteristics of porous beds is required for including both their thermal effect or role over chemistry in chemical reactors. A classical approach used in several commercial and open source tools is that of \textcite{Gunn1978}. In this section we will develop the ideas that lead to an analogous model which is implemented by \lstinline{PackedBedPorosityDescriptor}.
+
+To build the model we will assume a reactor of constant rectangular cross-section $\gls{A}_{r}=\gls{l}_1\gls{l}_2$ and volume  $\gls{V}_{R}=\gls{l}_1\gls{l}_2\gls{l}_3$. Its cross-section perimeter is then $\gls{P}_{R}=2(\gls{l}_1+\gls{l}_2)$. Inside this reactor we randomly pack cubic particles $\beta$ of surface area $\gls{A}_{\beta}=6\gls{l}_{\beta}^2$ and volume $\gls{V}_{\beta}=\gls{l}_{\beta}^3$ at a porosity level $\gls{phi}$. Thus the total volume of solids inside the reactor is $\gls{V}_{S}=(1-\gls{phi})\gls{V}_{R}$ and the approximate number of particles $\gls{N}=\sfrac{\gls{V}_{S}}{\gls{V}_{\beta}}$. Following a similar reasoning the total surface area of particles is $\gls{A}_{S}=\gls{N}\gls{A}_{\beta}$. Performing all the substitutions so far one finds the following expression
+
+\begin{equation}
+\gls{A}_{S}=\frac{6(1-\gls{phi})\gls{l}_1\gls{l}_2\gls{l}_3}{\gls{l}_{\beta}}
+\end{equation}
+
+Since the differential $d\gls{A}=\gls{P}d\gls{l}$ holds for the surface of a body over its length $\gls{l}$, one can divide the above expression by the reactor length to get the perimeter of particles in a cross-section. We can further divide by the cross-section area itself and find the \emph{perimeter density} which is a more general result, and find the same expression proposed by \textcite{Gunn1978}. This result is summarized in \eqref{eq:perimeter-density-gunn} where the subscript of particle size was dropped for generality.
+
+\begin{equation}
+\gls{P} = \frac{6(1-\gls{phi})}{\gls{l}}
+\label{eq:perimeter-density-gunn}
+\end{equation}
+
+An estimator of the number of channels per unit cross-section of reactor $\gls{N}$ can be related to the porosity through $\gls{N}\pi\gls{R}^2=\gls{phi}$. Because the above perimeter is shared between the fluid volume and solids, it holds that $\gls{N}2\pi\gls{R}=P$. Using these expressions one can solve for the porosity channels characteristic \emph{radius} $\gls{R}$ as given in \eqref{eq:channel-size-gunn}, which is also a result reported by \textcite{Gunn1978}.
+
+\begin{equation}
+\gls{R}=\frac{\gls{phi}\gls{l}}{3(1-\gls{phi})}
+\label{eq:channel-size-gunn}
+\end{equation}
 
 \part{Transport phenomena}
 
