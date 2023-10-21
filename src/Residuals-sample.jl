@@ -16,7 +16,7 @@ using Revise
 using DryTooling.Residuals
 
 begin
-   # Number of variables.
+    # Number of variables.
     N = 2
 
     # Maximum inner steps.
