@@ -46,17 +46,17 @@ end
 
 begin # (sample 3)
     # Geometry
-    Lᵣ = 13.715999999999998  # Kiln length [m]
-    Dᵣ = 1.8897599999999999  # Kiln diameter [m]
-    βᵣ = 2.3859440303888126  # Kiln slope [°]
+    L = 13.715999999999998  # Kiln length [m]
+    D = 1.8897599999999999  # Kiln diameter [m]
+    β = 2.3859440303888126  # Kiln slope [°]
 
     # Material
-    γᵣ = 45.0                # Repose angle [°]
-    dᵣ = 1.0                 # Particle/dam size [mm]
+    γ = 45.0                # Repose angle [°]
+    d = 1.0                 # Particle/dam size [mm]
 
     # Process
-    Φᵣ = 10.363965852671996  # Feed rate [m³/h]
-    ωᵣ = 3.0300000000000002  # Rotation rate [rev/min]
+    Φ = 10.363965852671996  # Feed rate [m³/h]
+    ω = 3.0300000000000002  # Rotation rate [rev/min]
 
     bed = solvelinearkramersmodel(;
         model = SymbolicLinearKramersModel(),
