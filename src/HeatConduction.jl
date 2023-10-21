@@ -56,6 +56,9 @@ struct Cylinder1DTemperatureModel <: LocalAbstractTemperature1DModel
     "Residuals tracking during solution."
     res::Base.RefValue{SimulationResiduals}
 
+    "Surface area scaling factor."
+    scale::Float64
+
     function Cylinder1DTemperatureModel(;
             grid::AbstractGrid1D,
             h::Union{Function,Float64},
@@ -86,7 +89,7 @@ struct Cylinder1DTemperatureModel <: LocalAbstractTemperature1DModel
         mem = Ref(Temperature1DModelStorage(0, 0))
         res = Ref(SimulationResiduals(1, 0, 0))
 
-        return new(grid, problem, α′, β′, κu, U, Bu, τ, mem, res)
+        return new(grid, problem, α′, β′, κu, U, Bu, τ, mem, res, 2π)
     end
 end
 
@@ -123,6 +126,9 @@ struct Sphere1DTemperatureModel <: LocalAbstractTemperature1DModel
     "Residuals tracking during solution."
     res::Base.RefValue{SimulationResiduals}
 
+    "Surface area scaling factor."
+    scale::Float64
+
     function Sphere1DTemperatureModel(;
             grid::AbstractGrid1D,
             h::Union{Function,Float64},
@@ -153,10 +159,9 @@ struct Sphere1DTemperatureModel <: LocalAbstractTemperature1DModel
         mem = Ref(Temperature1DModelStorage(0, 0))
         res = Ref(SimulationResiduals(1, 0, 0))
 
-        return new(grid, problem, α′, β′, κu, U, Bu, τ, mem, res)
+        return new(grid, problem, α′, β′, κu, U, Bu, τ, mem, res, 4π)
     end
 end
-
 
 function initialize!(
         m::LocalAbstractTemperature1DModel,
@@ -189,28 +194,8 @@ function CommonSolve.solve(
     return nothing
 end
 
-
 function DryTooling.fouter!(
-        m::Cylinder1DTemperatureModel, t::Float64, n::Int64
-    )::Nothing
-    "Time-step dependent updater for model."
-    # XXX: for now evaluating B.C. at mid-step, fix when going full
-    # semi-implicit generalization!
-    U = m.U(t + m.τ[]/2)
-    B = m.B(t + m.τ[]/2)
-
-    # Follow surface heat flux and store partial solutions.
-    # XXX: note the factor 2π because U = rh only and A = 2πrl!!!!
-    m.mem[].Q[n] = 2π * U * (B - last(m.problem.x))
-    m.mem[].T[n, 1:end] = m.problem.x
-
-    @. m.problem.b[1:end] = (m.α′ / m.τ[]) * m.problem.x
-    m.problem.b[end] += U * B
-    return nothing
-end
-
-function DryTooling.fouter!(
-        m::Sphere1DTemperatureModel, t::Float64, n::Int64
+        m::LocalAbstractTemperature1DModel, t::Float64, n::Int64
     )::Nothing
     "Time-step dependent updater for model."
     # XXX: for now evaluating B.C. at mid-step, fix when going full
@@ -220,7 +205,8 @@ function DryTooling.fouter!(
 
     # Follow surface heat flux and store partial solutions.
     # XXX: note the factor 4π because U = r²h only and A = 4πr²!!!!
-    m.mem[].Q[n] = 4π * U * (B - last(m.problem.x))
+    # XXX: note the factor 2π because U = rh only and A = 2πrl!!!!
+    m.mem[].Q[n] = m.scale * U * (B - last(m.problem.x))
     m.mem[].T[n, 1:end] = m.problem.x
 
     @. m.problem.b[1:end] = (m.α′ / m.τ[]) * m.problem.x
@@ -228,9 +214,8 @@ function DryTooling.fouter!(
     return nothing
 end
 
-
 function DryTooling.finner!(
-        m::Cylinder1DTemperatureModel, t::Float64, n::Int64
+        m::LocalAbstractTemperature1DModel, t::Float64, n::Int64
     )::Nothing
     "Non-linear iteration updater for model."
     κ = interfaceconductivity1D(m.κ.(m.problem.x))
@@ -251,40 +236,8 @@ function DryTooling.finner!(
     return nothing
 end
 
-function DryTooling.finner!(
-        m::Sphere1DTemperatureModel, t::Float64, n::Int64
-    )::Nothing
-    "Non-linear iteration updater for model."
-    κ = interfaceconductivity1D(m.κ.(m.problem.x))
-    β = κ .* m.β′
-    α = m.α′./ m.τ[]
-
-    # XXX: for now evaluating B.C. at mid-step, fix when going full
-    # semi-implicit generalization!
-    U = m.U(t + m.τ[]/2)
-
-    m.problem.A.dl[1:end] = -β
-    m.problem.A.du[1:end] = -β
-    m.problem.A.d[1:end]  = α
-
-    m.problem.A.d[2:end-1] += tail(β) + head(β)
-    m.problem.A.d[1]       += first(β)
-    m.problem.A.d[end]     += last(β) + U
-    return nothing
-end
-
-
 function DryTooling.fsolve!(
-        m::Cylinder1DTemperatureModel, t::Float64, n::Int64, α::Float64
-    )::Float64
-    "Solve problem for one non-linear step."
-    ε = relaxationstep!(m.problem, α, maxabsolutechange)
-    addresidual!(m.res[], [ε])
-    return ε
-end
-
-function DryTooling.fsolve!(
-        m::Sphere1DTemperatureModel, t::Float64, n::Int64, α::Float64
+        m::LocalAbstractTemperature1DModel, t::Float64, n::Int64, α::Float64
     )::Float64
     "Solve problem for one non-linear step."
     ε = relaxationstep!(m.problem, α, maxabsolutechange)
