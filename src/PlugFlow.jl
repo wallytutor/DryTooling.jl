@@ -1,7 +1,18 @@
 # -*- coding: utf-8 -*-
 module PlugFlow
-    
-export  RectangularReactorGeometry
+
+using CommonSolve
+using DifferentialEquations: solve
+using ModelingToolkit
+using Symbolics
+using Symbolics: scalarize
+
+using DryTooling.Abstract
+using DryTooling.Kinetics
+
+export RectangularReactorGeometry
+export IsothermalSymbolicPlugFlowReactor
+export solve
 
 struct RectangularReactorGeometry
     """
@@ -36,6 +47,66 @@ struct RectangularReactorGeometry
         V = A * H
         return new(H, D, W, P, A, V)
     end
+end
+
+struct IsothermalSymbolicPlugFlowReactor
+    "Symbolic reactor mass flow rate"
+    ṁ::Num
+
+    "Symbolic reactor cross-section area"
+    A::Num
+
+    "Problem ordinary differential equation"
+    sys::ODESystem
+
+    "Kinetics mechanism being solved"
+    kin::AbstractKineticsMechanism
+
+    function IsothermalSymbolicPlugFlowReactor(
+            kin::AbstractKineticsMechanism
+        )
+        @parameters ṁ A
+        D = Differential(kin.t)
+
+        # TODO: generalize to A(z).
+        # dYdz = ωW / ρu, ρu = ṁ / A
+        rhs = @. kin.ω *  kin.W / (ṁ / A)
+
+        eqs = [scalarize(D.(kin.Y) .~ kin.RHS)...,
+               scalarize(  kin.RHS .~ rhs)...]
+
+        pars = [ṁ, A, params(kin)...]
+        states = unknowns(kin)
+
+        @named model = ODESystem(eqs, kin.t, states, pars)
+        sys = structural_simplify(model)
+
+        return new(ṁ, A, sys, kin)
+    end
+end
+
+function CommonSolve.solve(
+        r::IsothermalSymbolicPlugFlowReactor;
+        z::Vector{Float64},
+        Y::Vector{Float64},
+        T::Float64,
+        P::Float64,
+        ṁ::Float64,
+        A::Float64,
+        L::Float64,
+        kwargs...
+    )
+    p = [
+        r.kin.T => T,
+        r.kin.P => P,
+        r.ṁ     => ṁ,
+        r.A     => A
+    ]
+
+    prob = ODEProblem(r.sys, Y, (0.0, L), p)
+    sol = solve(prob; saveat = z, kwargs...)
+
+    return sol
 end
 
 end # module PlugFlow

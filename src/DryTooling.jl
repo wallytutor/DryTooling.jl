@@ -10,7 +10,6 @@ using YAML
 
 using DocStringExtensions: TYPEDFIELDS
 
-
 include("Abstract.jl")
 include("Constants.jl")
 include("Utilities.jl")
@@ -624,6 +623,11 @@ function mixtureproperties(
     return mixtureproperties.(T, P, eachrow(Y); m = m, W = W)
 end
 
+function convertsccmtomassflow(q, M)
+    """ Convert flow rate from SCCM to kg/s. """
+    return idealgasdensity(ZERO_CELSIUS, ONE_ATM, M) * q / 6.0e+07
+end
+
 # % Mixture mass-averaged enthalpy [J/kg].
 # function [h] = enthalpy_mass(self, T, Y)
 # h = sum((Y .* self.enthalpies_mass(T))')';
@@ -1033,6 +1037,8 @@ end
 # SUBMODULES
 ################################################################################
 
+include("FluidModels.jl")
+include("Kinetics.jl")
 include("PlugFlow.jl")
 include("Granular.jl")
 include("HeatConduction.jl")

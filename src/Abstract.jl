@@ -36,6 +36,10 @@ export AbstractMixtureSubstance
 abstract type AbstractMixturePhase end
 export AbstractMixturePhase
 
+""" Base type for coded kinetics mechanisms. """
+abstract type AbstractKineticsMechanism end
+export AbstractKineticsMechanism
+
 """ Base type of one-dimensional grids. """
 abstract type AbstractGrid1D end
 export AbstractGrid1D
