@@ -13,7 +13,6 @@ using GLMakie
 using ExtendableGrids: geomspace
 using DryTooling.FiniteVolumes
 using DryTooling.HeatConduction
-using DryTooling.HeatConduction: solve
 using DryTooling.Simulation: plotsimulationresiduals
 
 begin # (sample 1)

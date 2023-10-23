@@ -6,11 +6,9 @@ using CommonSolve: solve
 
 using DryTooling
 using DryTooling.Simulation
-using DryTooling: TridiagonalProblem
+using DryTooling.Simulation: fouter!, finner!, fsolve!, timepoints
 using DryTooling: Temperature1DModelStorage
-using DryTooling: maxabsolutechange
-using DryTooling: relaxationstep!, interfaceconductivity1D
-using DryTooling: fouter!, finner!, fsolve!, advance!, step!
+using DryTooling: interfaceconductivity1D
 
 export Cylinder1DTemperatureModel
 export Sphere1DTemperatureModel
@@ -193,7 +191,7 @@ function CommonSolve.solve(
     return nothing
 end
 
-function DryTooling.fouter!(
+function DryTooling.Simulation.fouter!(
         m::LocalAbstractTemperature1DModel, t::Float64, n::Int64
     )::Nothing
     "Time-step dependent updater for model."
@@ -213,7 +211,7 @@ function DryTooling.fouter!(
     return nothing
 end
 
-function DryTooling.finner!(
+function DryTooling.Simulation.finner!(
         m::LocalAbstractTemperature1DModel, t::Float64, n::Int64
     )::Nothing
     "Non-linear iteration updater for model."
@@ -235,7 +233,7 @@ function DryTooling.finner!(
     return nothing
 end
 
-function DryTooling.fsolve!(
+function DryTooling.Simulation.fsolve!(
         m::LocalAbstractTemperature1DModel, t::Float64, n::Int64, α::Float64
     )::Float64
     "Solve problem for one non-linear step."

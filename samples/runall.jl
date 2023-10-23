@@ -11,6 +11,5 @@ end
 # include("CanteraAPI-sample.jl")
 include("DiffusionInSolids-sample.jl")
 include("HeatConduction-sample.jl")
-include("Kinetics-sample.jl")
 include("PlugFlow-sample.jl")
 

@@ -4,11 +4,9 @@ module DiffusionInSolids
 using Trapz: trapz
 using DryTooling
 using DryTooling.Simulation
-using DryTooling: TridiagonalProblem
+using DryTooling.Simulation: fouter!, finner!, fsolve!, timepoints
 using DryTooling: Temperature1DModelStorage
-using DryTooling: maxabsolutechange
-using DryTooling: relaxationstep!, interfaceconductivity1D
-using DryTooling: fouter!, finner!, fsolve!, advance!, step!
+using DryTooling: interfaceconductivity1D
 
 export AusteniteCarburizing1DModel
 export initialize!
@@ -91,7 +89,7 @@ function initialize!(
     return nothing
 end
 
-function DryTooling.fouter!(
+function DryTooling.Simulation.fouter!(
         m::AusteniteCarburizing1DModel, t::Float64, n::Int64
     )::Nothing
     "Time-step dependent updater for model."
@@ -109,7 +107,7 @@ function DryTooling.fouter!(
     return nothing
 end
 
-function DryTooling.finner!(
+function DryTooling.Simulation.finner!(
         m::AusteniteCarburizing1DModel, t::Float64, n::Int64
     )::Nothing
     "Non-linear iteration updater for model."
@@ -131,13 +129,19 @@ function DryTooling.finner!(
     return nothing
 end
 
-function DryTooling.fsolve!(
+function DryTooling.Simulation.fsolve!(
         m::AusteniteCarburizing1DModel, t::Float64, n::Int64, α::Float64
     )::Float64
     "Solve problem for one non-linear step."
     ε = relaxationstep!(m.problem, α, maxabsolutechange)
     addresidual!(m.res[], [ε])
     return ε
+end
+
+function DryTooling.Simulation.timepoints(m::AbstractDiffusionModel1D)
+    "Reconstruct time axis of integrated diffusion model."
+    tend = (length(m.res[].innersteps)-1) * m.τ[]
+    return 0.0:m.τ[]:tend
 end
 
 function solve(

@@ -3,154 +3,165 @@ module Simulation
 
 using CairoMakie
 using DocStringExtensions: TYPEDFIELDS
+using LinearAlgebra
 using DryTooling
 
-export TimeSteppingSimulationResiduals
-export addresidual!
-export plotsimulationresiduals
+export step!
+export advance!
+export fouter!
+export finner!
+export fsolve!
+export timepoints
+export relaxationstep!
+export maxabsolutechange
+export maxrelativechange
+
+include("incl-residuals.jl")
+include("incl-linalg.jl")
 
 """
-Manage time-stepping solvers residuals storage during a simulation.
+    step!(
+        m::AbstractPhysicalModel,
+        t::Float64,
+        n::Int64;
+        fouter!::Function,
+        finner!::Function,
+        fsolve!::Function,
+        α::Float64 = 0.1,
+        iters::Int64 = 20,
+        tol::Float64 = 1.0e-10
+    )
 
-The memory is initialized with a given number of inner and outer
-iterations and resizing is not under the scope of this structure.
-
-$(TYPEDFIELDS)
-
-# Usage
-
-For starting a simulation, use the outer constructor for starting
-a simulation with pre-allocated memory with interface:
-
-```julia
-TimeSteppingSimulationResiduals(N::Int64, inner::Int64, outer::Int64)
-```
-
-Once the simulation is finished, the first instance can be processed
-through creation of a new object using the next interface:
-
-```julia
-TimeSteppingSimulationResiduals(r::TimeSteppingSimulationResiduals)
-```
+Manage the integration of a model `m` from time `t` corresponding to
+step call `n` using model internal time step. All the updates of
+coefficients and solution are performed through user-supplied functions.
 """
-struct TimeSteppingSimulationResiduals
-
-    "Number of variables being tracked in problem."
-    N::Int64
-
-    "Total iteration counter."
-    counter::Base.RefValue{Int64}
-
-    "Number of inner steps per outer loop in solution."
-    innersteps::Vector{Int64}
-
-    "Store residuals of each inner step, one variable per column."
-    residuals::Matrix{Float64}
-end
-
-function TimeSteppingSimulationResiduals(N::Int64, inner::Int64, outer::Int64)
-    innersteps = -ones(Int64, outer)
-    residuals = -ones(Float64, (outer * inner, N))
-    return TimeSteppingSimulationResiduals(N, Ref(0), innersteps, residuals)
-end
-
-function TimeSteppingSimulationResiduals(r::TimeSteppingSimulationResiduals)
-    # XXX: the equal sign below is required! In some cases, *e.g.*
-    # when you try to simulate a system that is already at constant
-    # state or when using a closed boundary condition, the error
-    # can be exactly zero because of the form of the equations!
-    innersteps = r.innersteps[r.innersteps .>= 0.0]
-    residuals = r.residuals[r.residuals .>= 0.0]
-
-    N = last(size(r.residuals))
-    residuals = reshape(residuals, r.counter[], N)
-
-    return TimeSteppingSimulationResiduals(N, r.counter, innersteps, residuals)
-end
-
-"""
-    addresidual!(
-        r::TimeSteppingSimulationResiduals,
-        ε::Vector{Float64}
+function step!(
+        m::AbstractPhysicalModel,
+        t::Float64,
+        n::Int64;
+        α::Float64 = 0.1,
+        ε::Float64 = 1.0e-10,
+        M::Int64 = 20
     )::Nothing
+    fouter!(m, t, n)
+    finner!(m, t, n)
 
-Utility to increment iteration counter and store residuals.
-"""
-function addresidual!(
-        r::TimeSteppingSimulationResiduals,
-        ε::Vector{Float64}
-    )::Nothing
-    # TODO: add resizing test here!
-    r.counter[] += 1
-    r.residuals[r.counter[], :] = ε
+    if α <= 0.0
+        solve!(m.problem)
+        m.res[].innersteps[n] = 1
+        return nothing
+    end
+
+    for niter in 1:M
+        if fsolve!(m, t, n, α) <= ε
+            m.res[].innersteps[n] = niter
+            return nothing
+        end
+        finner!(m, t, n)
+    end
+
+    @warn "Did not converge after $(M) steps"
+    m.res[].innersteps[n] = M
     return nothing
 end
 
 """
-    finaliterationdata(
-        r::TimeSteppingSimulationResiduals
-    )::Tuple{Vector{Int64}, Matrix{Float64}}
+    advance!(
+        m::AbstractPhysicalModel;
+        α::Float64 = 0.1,
+        ε::Float64 = 1.0e-10,
+        M::Int64 = 20
+    )
 
-Retrieve data at iterations closing an outer loop of solution.
+Manage execution of `step!` over the integration time interval.
 """
-function finaliterationdata(
-        r::TimeSteppingSimulationResiduals
-    )::Tuple{Vector{Int64}, Matrix{Float64}}
-    steps = cumsum(r.innersteps)
-    residuals = r.residuals[steps, :]
-    return steps, residuals
+function advance!(
+        m::AbstractPhysicalModel;
+        α::Float64 = 0.1,
+        ε::Float64 = 1.0e-10,
+        M::Int64 = 20
+    )
+    if α >= 1.0 || α < 0.0
+        @error """\
+        Relaxation factor out-of-range (α = $(α)), this is not \
+        supported / does not make physical sense in most cases!
+        """
+    end
+
+    times = timepoints(m)
+
+    for (n, t) in enumerate(head(times))
+        # @info "Advancing from $(t) to $(t+m.τ[]) s"
+        step!(m, t, n; α, ε, M)
+    end
+
+    fouter!(m, last(times), length(times))
 end
 
 """
-    plotsimulationresiduals(
-        r::TimeSteppingSimulationResiduals;
-        ε::Union{Float64, Nothing} = nothing,
-        showinner::Bool = false,
-        resolution::Tuple{Int64, Int64} = (720, 500)
-    )::Tuple{Figure, Axis, Vector}
+    fouter!(::AbstractPhysicalModel, ::Float64, ::Int64)
 
-Plot problem residuals over iterations or steps. It performs the basic
-figure setup, configuration of axis and details beign left to the user.
+Outer loop update for [`step!`](@ref).
 """
-function plotsimulationresiduals(
-        r::TimeSteppingSimulationResiduals;
-        ε::Union{Float64, Nothing} = nothing,
-        showinner::Bool = false,
-        scaler::Function = log10,
-        resolution::Tuple{Int64, Int64} = (720, 500)
-    )::Tuple{Figure, Axis, Vector}
-    xs, ys = finaliterationdata(r)
-    ys = scaler.(ys)
-    xs .-= 1
+function fouter!(::AbstractPhysicalModel, ::Float64, ::Int64)
+    @error "An specialization of this method is expexted!"
+end
 
-    units, unitp = axesunitscaler(last(xs))
+"""
+    finner!(::AbstractPhysicalModel, ::Float64, ::Int64)
 
-    fig = Figure(resolution = resolution)
-    ax = Axis(fig[1, 1], yscale = identity)
-    ax.ylabel = "$(scaler)(Residual)"
-    ax.xlabel = "Global iteration $(units)"
+Inner loop update for [`step!`](@ref).
+"""
+function finner!(::AbstractPhysicalModel, ::Float64, ::Int64)
+    @error "An specialization of this method is expexted!"
+end
 
-    p = []
+"""
+    fsolve!(::AbstractPhysicalModel, ::Float64, ::Int64, ::Float64)
 
-    if showinner
-        xg = collect(0:(r.counter[]-1))
-        yg = scaler.(r.residuals)
+Solution update for [`step!`](@ref).
+"""
+function fsolve!(::AbstractPhysicalModel, ::Float64, ::Int64, ::Float64)
+    @error "An specialization of this method is expexted!"
+end
 
-        for col in 1:last(size(ys))
-            lines!(ax, xg ./ unitp, yg[:, col], color = :black, linewidth = 0.5)
-            push!(p, scatter!(ax, xs ./ unitp, ys[:, col]))
-        end
-    else
-        for col in 1:last(size(ys))
-            push!(p, lines!(ax, xs ./ unitp, ys[:, col]))
-        end
-    end
+"""
+    timepoints(::AbstractPhysicalModel)
 
-    if !isnothing(ε)
-        hlines!(ax, scaler(ε), color = :blue, linewidth = 2)
-    end
+Get array of model time-points for use in [`step!`](@ref).
+"""
+function timepoints(::AbstractPhysicalModel)
+    @error "An specialization of this method is expexted!"
+end
 
-    return (fig, ax, p)
+function relaxationstep!(
+        p::AbstractMatrixProblem,
+        α::Float64,
+        f::Function
+    )::Float64
+    "Applies relaxation to solution and compute residual."
+    # Compute relaxed increment based on solution change.
+    Δx = (1.0 - α) * change(p)
+
+    # Evaluate residual metric.
+    ε = f(p.x, Δx)
+
+    # Update solution with relaxation.
+    p.x[:] += Δx
+
+    # Return residual.
+    return ε
+end
+
+function maxrelativechange(x::Vector{Float64}, Δx::Vector{Float64})::Float64
+    "Maximum relative change in a solution array."
+    return maximum(abs.(Δx ./ x))
+end
+
+function maxabsolutechange(x::Vector{Float64}, Δx::Vector{Float64})::Float64
+    "Maximum absolute change in a solution array."
+    return maximum(abs.(Δx))
 end
 
 end # module Simulation
