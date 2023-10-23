@@ -118,31 +118,91 @@ julia> body(1:4)
 """
 body(z) = @view z[2:end-1]
 
-function heaviside(t)
-    """ Automatic differentiable Heaviside function. """
-    return 0.5 * (sign(t) + 1.0)
-end
+""" 
+    heaviside(t)
 
-function interval(x; a=-Inf, b=Inf)
-    """ Returns 1 if ``x ∈ (a, b)``, 1/2 for `` x = a || x = b``, or 0 . """
-    return heaviside(x - a) - heaviside(x - b)
-end
+Provides a Heaviside function compatible with automatic differentiation.
+This is a requirement for conceiving, *e.g.*, model predictive controls
+with discontinuous functions under `ModelingToolkit`.
 
-function makestepwise1d(lo, hi, xc; differentiable=true)
-    """
-        makestepwise1d(lo, hi, xc)
+# Usage
     
-    Creates an univariate function that is composed of two parts, the first
-    evaluated before a critical domain point `xc`, and the seconda above that
-    value. This is often required, for instance, for the evaluation of NASA
-    polynomials for thermodynamic properties. If `differentiable`, then the
-    returned function is compatible with symbolic argument as required when
-    using package `ModelingToolkit`, etc.
-    """
+```jldoctest
+julia> heaviside(-2:2)
+5-element Vector{Float64}:
+ 0.0
+ 0.0
+ 0.5
+ 1.0
+ 1.0
+```    
+"""
+heaviside(t) = @. 0.5 * (sign(t) + 1.0)
+
+"""
+    interval(x; a=-Inf, b=Inf)
+
+Returns 1 if ``x ∈ (a, b)``, 1/2 for `` x = a || x = b``, or 0 .
+
+# Usage
+
+```jldoctest
+julia> interval(0:6; a = 2, b = 5)
+7-element Vector{Float64}:
+ 0.0
+ 0.0
+ 0.5
+ 1.0
+ 1.0
+ 0.5
+ 0.0
+```
+"""
+interval(x; a=-Inf, b=Inf) = @. heaviside(x - a) - heaviside(x - b)
+
+"""
+    makestepwise1d(lo, hi, xc)
+
+Creates an univariate function that is composed of two parts, the first
+evaluated before a critical domain point `xc`, and the second above that
+value. This is often required, for instance, for the evaluation of NASA
+polynomials for thermodynamic properties. If `differentiable`, then the
+returned function is compatible with symbolic argument as required when
+using package `ModelingToolkit`, etc.
+
+# Usage
+
+```
+julia> f = makestepwise1d(x->x, x->x^2, 1.0; differentiable = true);
+
+julia> f(0:0.2:2.0)
+11-element Vector{Float64}:
+ 0.0
+ 0.2
+ 0.4
+ 0.6
+ 0.8
+ 1.0
+ 1.44
+ 1.9599999999999997
+ 2.5600000000000005
+ 3.24
+ 4.0
+
+julia> using ModelingToolkit
+
+julia> @variables x
+1-element Vector{Num}:
+ x
+
+julia> h(x); # Output is too long, try by yourself.
+```
+"""
+function makestepwise1d(lo, hi, xc; differentiable = true)
     if differentiable
-        f = x -> lo(x) * interval(x, b=xc) + hi(x) * interval(x, a=xc)
+        f = @. x -> lo(x) * interval(x, b=xc) + hi(x) * interval(x, a=xc)
     else
-        f = x -> (x < xc) ? lo(x) : hi(x)
+        f = @. x -> (x < xc) ? lo(x) : hi(x)
     end
     return f
 end

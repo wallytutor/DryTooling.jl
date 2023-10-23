@@ -17,9 +17,10 @@ makedocs(;
         assets=String[],
     ),
     pages=[
-        "Home"          => "index.md",
-        "Cantera API"   => "DocsCanteraAPI.md",
-        "Reference API" => "references.md",
+        "Home"            => "index.md",
+        "Module Granular" => "granular.md",
+        "Cantera Wrapper" => "canterawrapper.md",
+        "DryTooling Core" => "drytooling.md",
     ],
 )
 

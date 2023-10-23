@@ -27,7 +27,7 @@ makedocs(;
     pages=[
         "Home"            => "index.md",
         "Module Granular" => "granular.md",
-        "Cantera API"     => "DocsCanteraAPI.md",
-        "Reference API"   => "references.md",
+        "Cantera Wrapper" => "canterawrapper.md",
+        "DryTooling Core" => "drytooling.md",
     ],
 )
