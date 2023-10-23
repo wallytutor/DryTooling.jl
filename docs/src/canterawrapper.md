@@ -6,15 +6,11 @@ This is an experimental interface to Cantera library based on its [C-API under b
 
 - [Source files](https://github.com/Cantera/cantera/blob/main/src/clib)
 - [Header files](https://testing.cantera.org/documentation/docs-3.0/doxygen/html/dir_690289abfa5e09db35ec6757548a6dfc.html)
-    1. [ct.h](https://testing.cantera.org/documentation/docs-3.0/doxygen/html/d3/dc1/ct_8h.html)
-    1. [ctfunc.h](https://testing.cantera.org/documentation/docs-3.0/doxygen/html/df/dd5/ctfunc_8h.html)
-    1. [ctmultiphase.h](https://testing.cantera.org/documentation/docs-3.0/doxygen/html/de/db9/ctmultiphase_8h.html)
-    1. [ctonedim.h](https://testing.cantera.org/documentation/docs-3.0/doxygen/html/d0/db6/ctonedim_8h.html)
-    1. [ctreactor.h](https://testing.cantera.org/documentation/docs-3.0/doxygen/html/df/d63/ctreactor_8h.html)
-    1. [ctrpath.h](https://testing.cantera.org/documentation/docs-3.0/doxygen/html/db/dcd/ctrpath_8h.html)
-    1. [ctsurf.h](https://testing.cantera.org/documentation/docs-3.0/doxygen/html/d6/dd6/ctsurf_8h.html)
 
-## Implementation status
+
+## API of `ct.h`
+
+Documentation [here](https://testing.cantera.org/documentation/docs-3.0/doxygen/html/d3/dc1/ct_8h.html).
 
 | Status  | Header         | Function                                 | Module    |
 | ------- | -------------: | ---------------------------------------- | :-------: |
@@ -166,6 +162,13 @@ This is an experimental interface to Cantera library based on its [C-API under b
 | Tested  | ct.h           | ct_use_legacy_rate_constants             | inlined   |
 | Tested  | ct.h           | ct_clearStorage                          | inlined   |
 | Tested  | ct.h           | ct_resetStorage                          | inlined   |
+
+## API of `ctfunc.h`
+
+Documentation [here](https://testing.cantera.org/documentation/docs-3.0/doxygen/html/df/dd5/ctfunc_8h.html).
+
+| Status  | Header         | Function                                 | Module    |
+| ------- | -------------: | ---------------------------------------- | :-------: |
 |         | ctfunc.h       | func_new                                 |           |
 |         | ctfunc.h       | func_new_basic                           |           |
 |         | ctfunc.h       | func_new_advanced                        |           |
@@ -178,6 +181,13 @@ This is an experimental interface to Cantera library based on its [C-API under b
 | To test | ctfunc.h       | func_duplicate                           | inlined   |
 |         | ctfunc.h       | func_write                               |           |
 | To test | ctfunc.h       | ct_clearFunc                             | inlined   |
+
+## API of `ctmultiphase.h`
+
+Documentation [here](https://testing.cantera.org/documentation/docs-3.0/doxygen/html/de/db9/ctmultiphase_8h.html).
+
+| Status  | Header         | Function                                 | Module    |
+| ------- | -------------: | ---------------------------------------- | :-------: |
 | To test | ctmultiphase.h | mix_new                                  | inlined   |
 | To test | ctmultiphase.h | mix_del                                  | inlined   |
 | To test | ctmultiphase.h | ct_clearMix                              | inlined   |
@@ -213,6 +223,13 @@ This is an experimental interface to Cantera library based on its [C-API under b
 | To test | ctmultiphase.h | mix_volume                               | inlined   |
 | To test | ctmultiphase.h | mix_speciesPhaseIndex                    | inlined   |
 | To test | ctmultiphase.h | mix_moleFraction                         | inlined   |
+
+## API of `ctonedim.h`
+
+Documentation [here](https://testing.cantera.org/documentation/docs-3.0/doxygen/html/d0/db6/ctonedim_8h.html).
+
+| Status  | Header         | Function                                 | Module    |
+| ------- | -------------: | ---------------------------------------- | :-------: |
 | To test | ctonedim.h     | ct_clearOneDim                           | inlined   |
 |         | ctonedim.h     | domain_new                               |           |
 | To test | ctonedim.h     | domain_del                               | inlined   |
@@ -279,6 +296,13 @@ This is an experimental interface to Cantera library based on its [C-API under b
 | To test | ctonedim.h     | sim1D_eval                               | inlined   |
 | To test | ctonedim.h     | sim1D_setMaxJacAge                       | inlined   |
 | To test | ctonedim.h     | sim1D_setFixedTemperature                | inlined   |
+
+## API of `ctreactor.h`
+
+Documentation [here](https://testing.cantera.org/documentation/docs-3.0/doxygen/html/df/d63/ctreactor_8h.html).
+
+| Status  | Header         | Function                                 | Module    |
+| ------- | -------------: | ---------------------------------------- | :-------: |
 |         | ctreactor.h    | reactor_new                              |           |
 | To test | ctreactor.h    | reactor_del                              | inlined   |
 | To test | ctreactor.h    | reactor_setInitialVolume                 | inlined   |
@@ -346,6 +370,13 @@ This is an experimental interface to Cantera library based on its [C-API under b
 | To test | ctreactor.h    | reactorsurface_setArea                   | inlined   |
 | To test | ctreactor.h    | reactorsurface_addSensitivityReaction    | inlined   |
 | To test | ctreactor.h    | ct_clearReactors                         | inlined   |
+
+## API of `ctrpath.h`
+
+Documentation [here](https://testing.cantera.org/documentation/docs-3.0/doxygen/html/db/dcd/ctrpath_8h.html).
+
+| Status  | Header         | Function                                 | Module    |
+| ------- | -------------: | ---------------------------------------- | :-------: |
 | To test | ctrpath.h      | rdiag_new                                | inlined   |
 | To test | ctrpath.h      | rdiag_del                                | inlined   |
 | To test | ctrpath.h      | rdiag_detailed                           | inlined   |
@@ -372,6 +403,13 @@ This is an experimental interface to Cantera library based on its [C-API under b
 |         | ctrpath.h      | rbuild_init                              |           |
 |         | ctrpath.h      | rbuild_build                             |           |
 | To test | ctrpath.h      | ct_clearReactionPath                     | inlined   |
+
+## API of `ctsurf.h`
+
+Documentation [here](https://testing.cantera.org/documentation/docs-3.0/doxygen/html/d6/dd6/ctsurf_8h.html).
+
+| Status  | Header         | Function                                 | Module    |
+| ------- | -------------: | ---------------------------------------- | :-------: |
 |         | ctsurf.h       | surf_setCoverages                        |           |
 |         | ctsurf.h       | surf_getCoverages                        |           |
 |         | ctsurf.h       | surf_setConcentrations                   |           |

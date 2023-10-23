@@ -1,17 +1,10 @@
-```@meta
-CurrentModule = DryTooling.Simulation
-```
-
-## Residuals
+# DryTooling.Simulation
 
 **NOTE:** this module is *fragile* and breaking changes are still expected.
 It is not until all the main solvers are migrated that it will become stable.
 This is necessary for ensuring compatibility with all models.
 
-```@autodocs
-Modules = [
-    Simulation
-]
+```@docs
 ```
 
 ```julia
@@ -61,12 +54,4 @@ s = TimeSteppingSimulationResiduals(r)
 # of the following function for more details. It provides a raw figure
 # and handles for modifying it for proper display.
 fig = plotsimulationresiduals(s; showinner = true)[1]
-```
-
-## Index
-
-```@index
-Modules = [
-    Simulation
-]
 ```

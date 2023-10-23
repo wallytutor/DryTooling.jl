@@ -4,13 +4,14 @@ using Revise
 
 if Base.current_project() != Base.active_project()
     Pkg.activate(Base.current_project())
+    Pkg.resolve()
     Pkg.instantiate()
 end
 
 using DryTooling
 using Documenter
 
-# DocMeta.setdocmeta!(DryTooling, :DocTestSetup, :(using DryTooling); recursive=false)
+DocMeta.setdocmeta!(DryTooling, :DocTestSetup, :(using DryTooling); recursive=true)
 
 # format = Documenter.LaTeX()
 
@@ -30,9 +31,10 @@ makedocs(;
     format  = format,
     pages   = [
         "Home"              => "index.md",
+        "DryTooling Core"   => "drytooling.md",
         "Module Granular"   => "granular.md",
         "Module Simulation" => "simulation.md",
         "Cantera Wrapper"   => "canterawrapper.md",
-        "DryTooling Core"   => "drytooling.md",
-    ],
+        "Reference API"     => "apireference.md",
+    ]
 )

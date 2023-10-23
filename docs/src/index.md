@@ -1,7 +1,3 @@
-```@meta
-CurrentModule = DryTooling
-```
-
 # DryTooling
 
 Documentation for [DryTooling](https://github.com/wallytutor/DryTooling.jl).
@@ -14,16 +10,9 @@ Also [dry tooling](https://fr.wikipedia.org/wiki/Dry-tooling) is my favorite spo
 
 ## Usage
 
-The base case for using `DryTooling` is calling a pre-built model for solving a specific
-problem. Several sub-modules handle different Physics and find them in the side-bar. Most
-models are provided under structures that are already solved during construction or provide
-a `solve!` method. In an ideal world they should all be documented, but since this package
-is still in its early days, some experimental features are not yet documented.
+The base case for using `DryTooling` is calling a pre-built model for solving a specific problem. Several sub-modules handle different Physics and find them in the side-bar. Most models are provided under structures that are already solved during construction or provide a `solve!` method. In an ideal world they should all be documented, but since this package is still in its early days, some experimental features are not yet documented.
 
-For extending existing models or *preferrably* contributing to the package's growth, it is
-possible to use some functionalities provided in the bare `DryTooling` module, *i.e.* those
-made available when calling `using DryTooling`. They include physical constants, abstract
-types used all across the package, and some simple functions of general use.
+For extending existing models and *preferrably* contributing to the package's growth, it is possible to use some functionalities provided in the bare `DryTooling` module, *i.e.* those made available when calling `using DryTooling`. They include physical constants, abstract types used all across the package, and some simple functions of general use.
 
 ## Citing
 
