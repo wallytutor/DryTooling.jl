@@ -14,7 +14,7 @@ using ExtendableGrids: geomspace
 using DryTooling.Grids
 using DryTooling.HeatConduction
 using DryTooling.HeatConduction: solve
-using DryTooling.Residuals: plotsimulationresiduals
+using DryTooling.Simulation: plotsimulationresiduals
 
 begin # (sample 1)
     # These are the common parameters used in all simulation cases.

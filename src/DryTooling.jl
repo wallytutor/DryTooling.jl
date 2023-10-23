@@ -13,10 +13,10 @@ using DocStringExtensions: TYPEDFIELDS
 include("incl-abstract.jl")
 include("incl-constants.jl")
 include("incl-utilities.jl")
-include("Residuals.jl")
+include("Simulation.jl")
 include("Grids.jl")
 
-using DryTooling.Residuals
+using DryTooling.Simulation
 using DryTooling.Grids
 
 ################################################################################

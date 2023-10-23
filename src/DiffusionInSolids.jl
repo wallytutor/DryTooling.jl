@@ -3,7 +3,7 @@ module DiffusionInSolids
 
 using Trapz: trapz
 using DryTooling
-using DryTooling.Residuals
+using DryTooling.Simulation
 using DryTooling: TridiagonalProblem
 using DryTooling: Temperature1DModelStorage
 using DryTooling: maxabsolutechange
