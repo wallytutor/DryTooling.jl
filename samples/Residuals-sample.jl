@@ -8,11 +8,6 @@ for its plotting utility function. In this script we illustrate the logic of
 using a residual tracker in a new solver, thus it is seem more as a tutorial.
 """
 
-import Pkg
-Pkg.activate(Base.current_project())
-Pkg.instantiate()
-
-using Revise
 using DryTooling.Residuals
 
 begin
@@ -25,13 +20,13 @@ begin
     # Time-advancement steps.
     steps = 10
 
-    # Create a SimulationResiduals object with the number of variables
+    # Create a TimeSteppingSimulationResiduals object with the number of variables
     # to track, how many inner iterations per step are expected, and the
     # number of steps.
     #
     # IMPORTANT: If the total number of iterations is exceeded, it is up
     # to the user to allocate more memory, the tracker will not manage it!
-    r = SimulationResiduals(N, M, steps)
+    r = TimeSteppingSimulationResiduals(N, M, steps)
 
     # The following loop represents a *dummy solver*. The outer loop
     # provides the time-advancement while the inner loop handles the
@@ -48,9 +43,9 @@ begin
     end
 
     # After running a simulation we create a new object using another
-    # constructor that accepts a `SimulationResiduals` object. This
+    # constructor that accepts a `TimeSteppingSimulationResiduals` object. This
     # handles the post-processing.
-    s = SimulationResiduals(r)
+    s = TimeSteppingSimulationResiduals(r)
 
     # The new object is ready for visualization. Check the documentation
     # of the following function for more details. It provides a raw figure

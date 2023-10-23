@@ -1,8 +1,16 @@
 # -*- coding: utf-8 -*-
+import Pkg
+using Revise
+
+if Base.current_project() != Base.active_project()
+    Pkg.activate(Base.current_project())
+    Pkg.instantiate()
+end
+
 using DryTooling
 using Documenter
 
-DocMeta.setdocmeta!(DryTooling, :DocTestSetup, :(using DryTooling); recursive=true)
+# DocMeta.setdocmeta!(DryTooling, :DocTestSetup, :(using DryTooling); recursive=false)
 
 makedocs(;
     modules=[DryTooling],
@@ -17,13 +25,9 @@ makedocs(;
         assets=String[],
     ),
     pages=[
-        "Home"          => "index.md",
-        "Cantera API"   => "DocsCanteraAPI.md",
-        "Reference API" => "references.md",
+        "Home"            => "index.md",
+        "Module Granular" => "granular.md",
+        "Cantera API"     => "DocsCanteraAPI.md",
+        "Reference API"   => "references.md",
     ],
-)
-
-deploydocs(;
-    repo="github.com/wallytutor/DryTooling.jl",
-    devbranch="main",
 )

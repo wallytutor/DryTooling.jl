@@ -6,11 +6,6 @@ DryTooling.DiffusionInSolids sample
 Module under development... documentation comming soon!
 """
 
-import Pkg
-Pkg.activate(Base.current_project())
-Pkg.instantiate()
-
-using Revise
 using CairoMakie
 using DryTooling.Residuals
 using DryTooling.Grids

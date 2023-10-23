@@ -1,12 +1,12 @@
 ```@meta
-CurrentModule = DryTooling
+CurrentModule = DryTooling.Granular
 ```
 
-## DryTooling API
+## Granular
 
 ```@autodocs
 Modules = [
-    DryTooling
+    Granular
 ]
 ```
 
@@ -14,6 +14,6 @@ Modules = [
 
 ```@index
 Modules = [
-    DryTooling
+    Granular
 ]
 ```

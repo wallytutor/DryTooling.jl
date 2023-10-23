@@ -9,15 +9,11 @@ solvers available in the module. Sample 2 shows the support to arbitrary
 space discretizations.
 """
 
-import Pkg
-Pkg.activate(Base.current_project())
-Pkg.instantiate()
-
-using Revise
 using GLMakie
 using ExtendableGrids: geomspace
 using DryTooling.Grids
 using DryTooling.HeatConduction
+using DryTooling.HeatConduction: solve
 using DryTooling.Residuals: plotsimulationresiduals
 
 begin # (sample 1)

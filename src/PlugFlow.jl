@@ -2,12 +2,13 @@
 module PlugFlow
 
 using CommonSolve
+using CommonSolve: solve
 using DifferentialEquations: solve
 using ModelingToolkit
 using Symbolics
 using Symbolics: scalarize
 
-using DryTooling.Abstract
+using DryTooling
 using DryTooling.Kinetics
 
 export RectangularReactorGeometry

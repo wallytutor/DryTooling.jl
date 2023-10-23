@@ -10,15 +10,12 @@ using YAML
 
 using DocStringExtensions: TYPEDFIELDS
 
-include("Abstract.jl")
-include("Constants.jl")
-include("Utilities.jl")
+include("incl-abstract.jl")
+include("incl-constants.jl")
+include("incl-utilities.jl")
 include("Residuals.jl")
 include("Grids.jl")
 
-using DryTooling.Abstract
-using DryTooling.Constants
-using DryTooling.Utilities
 using DryTooling.Residuals
 using DryTooling.Grids
 

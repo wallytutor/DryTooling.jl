@@ -5,8 +5,7 @@ export UserDefinedGrid1D
 export equidistantcellsgrid1D
 export geometriccellsgrid1D
 
-using DryTooling.Abstract
-using DryTooling.Utilities: head, tail
+using DryTooling
 
 struct UserDefinedGrid1D <: AbstractGrid1D
     """

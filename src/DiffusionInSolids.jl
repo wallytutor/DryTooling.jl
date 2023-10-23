@@ -3,9 +3,6 @@ module DiffusionInSolids
 
 using Trapz: trapz
 using DryTooling
-using DryTooling.Abstract
-using DryTooling.Constants
-using DryTooling.Utilities
 using DryTooling.Residuals
 using DryTooling: TridiagonalProblem
 using DryTooling: Temperature1DModelStorage
@@ -50,7 +47,7 @@ struct AusteniteCarburizing1DModel <: AbstractDiffusionModel1D
     mem::Base.RefValue{Temperature1DModelStorage}
 
     "Residuals tracking during solution."
-    res::Base.RefValue{SimulationResiduals}
+    res::Base.RefValue{TimeSteppingSimulationResiduals}
 
     function AusteniteCarburizing1DModel(;
             grid::AbstractGrid1D,
@@ -72,7 +69,7 @@ struct AusteniteCarburizing1DModel <: AbstractDiffusionModel1D
 
         τ = Ref(-Inf)
         mem = Ref(Temperature1DModelStorage(0, 0))
-        res = Ref(SimulationResiduals(1, 0, 0))
+        res = Ref(TimeSteppingSimulationResiduals(1, 0, 0))
 
         return new(grid, problem, α′, β′, D, hu, Cu, τ, mem, res)
     end
@@ -88,7 +85,7 @@ function initialize!(
     "Set initial condition of thermal diffusion model."
     nsteps = convert(Int64, round(t / τ))
     m.τ[] = Base.step(range(0.0, t, nsteps))
-    m.res[] = SimulationResiduals(1, M, nsteps)
+    m.res[] = TimeSteppingSimulationResiduals(1, M, nsteps)
     m.mem[] = Temperature1DModelStorage(m.grid.N, nsteps)
     m.problem.x[:] .= x
     return nothing
@@ -155,7 +152,7 @@ function solve(
     "Interface for solving a `Cylinder1DTemperatureModel` instance."
     initialize!(m, t, τ, x, M = M)
     advance!(m; α, ε, M)
-    m.res[] = SimulationResiduals(m.res[])
+    m.res[] = TimeSteppingSimulationResiduals(m.res[])
     return nothing
 end
 

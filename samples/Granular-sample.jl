@@ -5,11 +5,6 @@ DryTooling.Granular sample
 
 """
 
-import Pkg
-Pkg.activate(Base.current_project())
-Pkg.instantiate()
-
-using Revise
 using GLMakie
 using DryTooling.Granular
 

@@ -3,15 +3,14 @@ module Residuals
 
 using CairoMakie
 using DryTooling
-using DryTooling.Utilities: axesunitscaler
 
-export SimulationResiduals
+export TimeSteppingSimulationResiduals
 export addresidual!
 export plotsimulationresiduals
 
-struct SimulationResiduals
+struct TimeSteppingSimulationResiduals
     """
-        SimulationResiduals
+        TimeSteppingSimulationResiduals
     
     Manage iterative solvers residuals storage during a simulation.
     The memory is initialized with a given number of inner and outer
@@ -33,20 +32,20 @@ struct SimulationResiduals
     residuals::Matrix{Float64}
 end
 
-function SimulationResiduals(N::Int64, inner::Int64, outer::Int64)
+function TimeSteppingSimulationResiduals(N::Int64, inner::Int64, outer::Int64)
     """
-        SimulationResiduals(N::Int64, inner::Int64, outer::Int64)
+        TimeSteppingSimulationResiduals(N::Int64, inner::Int64, outer::Int64)
     
     Outer constructor for starting a simulation with pre-allocated memory.
     """
     innersteps = -ones(Int64, outer)
     residuals = -ones(Float64, (outer * inner, N))
-    return SimulationResiduals(N, Ref(0), innersteps, residuals)
+    return TimeSteppingSimulationResiduals(N, Ref(0), innersteps, residuals)
 end
 
-function SimulationResiduals(r::SimulationResiduals)
+function TimeSteppingSimulationResiduals(r::TimeSteppingSimulationResiduals)
     """
-        SimulationResiduals(r::SimulationResiduals)
+        TimeSteppingSimulationResiduals(r::TimeSteppingSimulationResiduals)
     
     Outer constructor for post-processing an already filled object.
     """
@@ -60,12 +59,12 @@ function SimulationResiduals(r::SimulationResiduals)
     N = last(size(r.residuals))
     residuals = reshape(residuals, r.counter[], N)
 
-    return SimulationResiduals(N, r.counter, innersteps, residuals)
+    return TimeSteppingSimulationResiduals(N, r.counter, innersteps, residuals)
 end
 
-function addresidual!(r::SimulationResiduals, ε::Vector{Float64})::Nothing
+function addresidual!(r::TimeSteppingSimulationResiduals, ε::Vector{Float64})::Nothing
     """
-        step!(r::SimulationResiduals, ε::Vector{Float64})::Nothing
+        step!(r::TimeSteppingSimulationResiduals, ε::Vector{Float64})::Nothing
 
     Utility to increment iteration counter and store residuals.
     """
@@ -76,11 +75,11 @@ function addresidual!(r::SimulationResiduals, ε::Vector{Float64})::Nothing
 end
 
 function finaliterationdata(
-        r::SimulationResiduals
+        r::TimeSteppingSimulationResiduals
     )::Tuple{Vector{Int64}, Matrix{Float64}}
     """
         finaliterationdata(
-            r::SimulationResiduals
+            r::TimeSteppingSimulationResiduals
         )::Tuple{Vector{Int64}, Matrix{Float64}}
 
     Retrieve data at iterations closing an outer loop of solution.
@@ -91,7 +90,7 @@ function finaliterationdata(
 end
 
 function plotsimulationresiduals(
-        r::SimulationResiduals;
+        r::TimeSteppingSimulationResiduals;
         ε::Union{Float64, Nothing} = nothing,
         showinner::Bool = false,
         scaler::Function = log10,
@@ -99,7 +98,7 @@ function plotsimulationresiduals(
     )::Tuple{Figure, Axis, Vector}
     """
         plotsimulationresiduals(
-            r::SimulationResiduals;
+            r::TimeSteppingSimulationResiduals;
             ε::Union{Float64, Nothing} = nothing,
             showinner::Bool = false,
             resolution::Tuple{Int64, Int64} = (720, 500)

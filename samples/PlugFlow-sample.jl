@@ -6,16 +6,12 @@ DryTooling.PlugFlow sample
 Module under development... documentation comming soon!
 """
 
-import Pkg
-Pkg.activate(Base.current_project())
-Pkg.instantiate()
-
-using Revise
 using CairoMakie
 using LaTeXStrings
 using DryTooling.Grids
 using DryTooling.Kinetics
 using DryTooling.PlugFlow
+using DryTooling.PlugFlow: solve
 using DryTooling: convertsccmtomassflow
 using DryTooling: meanmolecularmass
 using DryTooling: molefraction2massfraction

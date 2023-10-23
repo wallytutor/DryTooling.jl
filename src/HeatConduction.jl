@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 module HeatConduction
 
+using CommonSolve
+using CommonSolve: solve
+
 using DryTooling
-using DryTooling.Abstract
-using DryTooling.Constants
-using DryTooling.Utilities
 using DryTooling.Residuals
 using DryTooling: TridiagonalProblem
 using DryTooling: Temperature1DModelStorage
@@ -52,7 +52,7 @@ struct Cylinder1DTemperatureModel <: LocalAbstractTemperature1DModel
     mem::Base.RefValue{Temperature1DModelStorage}
 
     "Residuals tracking during solution."
-    res::Base.RefValue{SimulationResiduals}
+    res::Base.RefValue{TimeSteppingSimulationResiduals}
 
     "Surface area scaling factor."
     scale::Float64
@@ -85,7 +85,7 @@ struct Cylinder1DTemperatureModel <: LocalAbstractTemperature1DModel
         τ = Ref(-Inf)
 
         mem = Ref(Temperature1DModelStorage(0, 0))
-        res = Ref(SimulationResiduals(1, 0, 0))
+        res = Ref(TimeSteppingSimulationResiduals(1, 0, 0))
 
         return new(grid, problem, α′, β′, κu, U, Bu, τ, mem, res, 2π)
     end
@@ -122,7 +122,7 @@ struct Sphere1DTemperatureModel <: LocalAbstractTemperature1DModel
     mem::Base.RefValue{Temperature1DModelStorage}
 
     "Residuals tracking during solution."
-    res::Base.RefValue{SimulationResiduals}
+    res::Base.RefValue{TimeSteppingSimulationResiduals}
 
     "Surface area scaling factor."
     scale::Float64
@@ -155,7 +155,7 @@ struct Sphere1DTemperatureModel <: LocalAbstractTemperature1DModel
         τ = Ref(-Inf)
 
         mem = Ref(Temperature1DModelStorage(0, 0))
-        res = Ref(SimulationResiduals(1, 0, 0))
+        res = Ref(TimeSteppingSimulationResiduals(1, 0, 0))
 
         return new(grid, problem, α′, β′, κu, U, Bu, τ, mem, res, 4π)
     end
@@ -171,13 +171,13 @@ function initialize!(
     "Set initial condition of thermal diffusion model."
     nsteps = convert(Int64, round(t / τ))
     m.τ[] = Base.step(range(0.0, t, nsteps))
-    m.res[] = SimulationResiduals(1, M, nsteps)
+    m.res[] = TimeSteppingSimulationResiduals(1, M, nsteps)
     m.mem[] = Temperature1DModelStorage(m.grid.N, nsteps)
     m.problem.x[:] .= T
     return nothing
 end
 
-function solve(
+function CommonSolve.solve(
         m::LocalAbstractTemperature1DModel;
         t::Float64,
         τ::Float64,
@@ -189,7 +189,7 @@ function solve(
     "Interface for solving a model instance."
     initialize!(m, t, τ, T; M)
     advance!(m; α, ε, M)
-    m.res[] = SimulationResiduals(m.res[])
+    m.res[] = TimeSteppingSimulationResiduals(m.res[])
     return nothing
 end
 
