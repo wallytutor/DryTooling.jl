@@ -22,7 +22,7 @@ Provides description of porosity parameters with stochastic behavior.
 
 $(TYPEDFIELDS)
 
-## Some background
+# Some background
 
 Modeling of geometrical characteristics of porous beds is required for
 including both their thermal effect or role over chemistry in chemical
@@ -68,6 +68,40 @@ which is also a result reported by Gunn [^Gunn1978].
 
 ```math
 {R}=\\frac{{\\phi}{l}}{3(1-{\\phi})}
+```
+
+# Usage
+
+`PackedBedPorosityDescriptor` can be used to describe the geometry
+of exchange section of a packed bed for a single set of arguments.
+
+```jldoctest
+julia> using DryTooling.Granular
+
+julia> PackedBedPorosityDescriptor(; ϕ = 0.65, l = 0.10, area = 1.0)
+PackedBedPorosityDescriptor(P = 21.000000 m, D = 0.123810 m)
+```
+
+It can also be used to describe randomly varying reactors, what is
+a more realistic thing to do when using this structure to simulate
+real world systems.
+
+```jldoctest
+julia> using DryTooling.Granular
+
+julia> PackedBedPorosityDescriptor(;
+            ϕ  = 0.65, l  = 0.10,
+            σϕ = 0.03, σl = 0.01,
+            N = 2,
+            ϕlims = (0.4, 0.8),
+            llims = (0.0, 0.3),
+            seed = 42,
+            area = 1.0
+        )
+PackedBedPorosityDescriptor(
+    P from  21.455749 m to  24.370742 m
+    D from   0.125589 m to   0.102353 m
+)
 ```
 
 [^Gunn1978]: [D. J. Gunn, 1978](https://doi.org/10.1016/0017-9310(78)90080-7)
@@ -122,8 +156,6 @@ struct PackedBedPorosityDescriptor
 end
 
 """
-    SymbolicLinearKramersModel
-
 Creates a reusable linear Kramers model for rotary kiln simulation.
 
 Implements the ordinary differential equation for prediction of bed
@@ -194,26 +226,85 @@ of bed height along the kiln length. The main goal of the quantities
 computed here is their use with heat and mass transfer models for the
 simulation of rotary kiln process.
 
+$(TYPEDFIELDS)
+
+# Arguments
+
 Internal elements are initialized through the following constructor:
 
-    RotaryKilnBedSolution(
-        z::Vector{Float64},
-        h::Vector{Float64},
-        R::Float64,
-        Φ::Float64
-    )
+```julia
+RotaryKilnBedSolution(z::Vector{Float64}, h::Vector{Float64}, R::Float64, Φ::Float64)
+```
 
 Where parameters are given as:
 
-    - `z`: solution coordinates over length, [m].
-    - `h`: bed profile solution over length, [m].
-    - `R`: kiln internal radius, [m].
-    - `Φ`: kiln feed rate, [m³/s].
+- `z`: solution coordinates over length, [m].
+- `h`: bed profile solution over length, [m].
+- `R`: kiln internal radius, [m].
+- `Φ`: kiln feed rate, [m³/s].
 
-$(TYPEDFIELDS)
+An outer constructor is also provided for managing the integration of an
+instance of `SymbolicLinearKramersModel`. This is the recommended usage
+that is illustrated below.
+
+**Important:** inputs must be provided in international system (SI) units
+as a better physical practice. The only exception is the rotation rate `ω`
+provided in revolution multiples. If the discharge end is held by a dam,
+its height must be provided instead of the particle size, as it is used
+as the ODE initial condition.
+
+- `model`: a symbolic kiln model.
+- `L`: kiln length, [m].
+- `R`: kiln internal radius, [m].
+- `Φ`: kiln feed rate, [m³/s].
+- `ω`: kiln rotation rate, [rev/s].
+- `β`: kiln slope, [rad].
+- `γ`: solids repose angle, [rad].
+- `d`: particle size or dam height, [m].
+- `solver`: Solver for `DifferentialEquations`. Defaults to `Tsit5`.
+- `rtol`: Relative integration tolerance. Defaults to 1.0e-08.
+- `atol`: Absolute integration tolerance. Defaults to 1.0e-08.
+
+# Usage
+
+Data in next example is an SI conversion of an example from Kramers (1952).
+
+```jldoctest
+julia> using DryTooling.Granular
+
+julia> L = 13.715999999999998;  # Kiln length [m]
+
+julia> D = 1.8897599999999999;  # Kiln diameter [m]
+
+julia> β = 2.3859440303888126;  # Kiln slope [°]
+
+julia> γ = 45.0;                # Repose angle [°]
+
+julia> d = 1.0;                 # Particle/dam size [mm]
+
+julia> Φ = 10.363965852671996;  # Feed rate [m³/h]
+
+julia> ω = 3.0300000000000002;  # Rotation rate [rev/min]
+
+julia> bed = RotaryKilnBedSolution(;
+            model = SymbolicLinearKramersModel(),
+            L     = L,
+            R     = D / 2.0,
+            Φ     = Φ / 3600.0,
+            ω     = ω / 60.0,
+            β     = deg2rad(β),
+            γ     = deg2rad(γ),
+            d     = d / 1000.0
+        );
+
+julia> bed
+RotaryKilnBedSolution(τ = 13.169938 min, ηₘ = 5.913271 %)
+
+julia> bed.τ
+790.1963002204092
+```
 """
 struct RotaryKilnBedSolution
-
     "Solution coordinates [m]"
     z::Vector{Float64}
 
@@ -265,11 +356,7 @@ struct RotaryKilnBedSolution
     end
 end
 
-function Base.length(p::PackedBedPorosityDescriptor)
-    return length(p.ϕ)
-end
-
-function solvelinearkramersmodel(;
+function RotaryKilnBedSolution(;
         model::SymbolicLinearKramersModel,
         L::Float64,
         R::Float64,
@@ -282,67 +369,61 @@ function solvelinearkramersmodel(;
         rtol::Float64 = 1.0e-08,
         atol::Float64 = 1.0e-08
     )
-    """
-        solvelinearkramersmodel(;
-            model::SymbolicLinearKramersModel,
-            L::Float64,
-            R::Float64,
-            Φ::Float64,
-            ω::Float64,
-            β::Float64,
-            γ::Float64,
-            d::Float64,
-            solver::Any = Tsit5(),
-            rtol::Float64 = 1.0e-08,
-            atol::Float64 = 1.0e-08
-        )
-
-    Integrates an instance of `SymbolicLinearKramersModel`.
-
-    **Important:** inputs must be provided in international system (SI) units
-    as a better physical practice. The only exception is the rotation rate `ω`
-    provided in revolution multiples. If the discharge end is held by a dam,
-    its height must be provided instead of the particle size, as it is used
-    as the ODE initial condition.
-
-    - `model`: a symbolic kiln model.
-    - `L`: kiln length, [m].
-    - `R`: kiln internal radius, [m].
-    - `Φ`: kiln feed rate, [m³/s].
-    - `ω`: kiln rotation rate, [rev/s].
-    - `β`: kiln slope, [rad].
-    - `γ`: solids repose angle, [rad].
-    - `d`: particle size or dam height, [m].
-    """
     h = [model.h => d]
     p = [model.R => R,
-         model.Φ => Φ,
-         model.ω => ω,
-         model.β => β,
-         model.γ => γ]
+        model.Φ => Φ,
+        model.ω => ω,
+        model.β => β,
+        model.γ => γ]
 
     prob = ODEProblem(model.sys, h, (0.0, L), p, jac = true)
     sol = solve(prob, solver, reltol = rtol, abstol = atol)
-    bed = RotaryKilnBedSolution(sol.t, sol[1, :], β, R, Φ)
-    return bed
+    return RotaryKilnBedSolution(sol.t, sol[1, :], β, R, Φ)
 end
 
+function Base.length(p::PackedBedPorosityDescriptor)
+    return length(p.ϕ)
+end
+
+function Base.show(io::IO, obj::PackedBedPorosityDescriptor)
+    if any(isnothing, [obj.σϕ, obj.σl])
+        P = @sprintf("%.6f m", obj.P)
+        D = @sprintf("%.6f m", obj.D)
+        print(io, "PackedBedPorosityDescriptor(P = $(P), D = $(D))")
+    else
+        P = map(x->@sprintf("%10.6f m", x), obj.P)
+        D = map(x->@sprintf("%10.6f m", x), obj.D)
+        print(io, """\
+        PackedBedPorosityDescriptor(
+            P from $(P[1]) to $(P[2])
+            D from $(D[1]) to $(D[2])
+        )\
+        """)
+    end
+end
+
+function Base.show(io::IO, obj::RotaryKilnBedSolution)
+    τ = @sprintf("%.6f min", obj.τ/60)
+    ηₘ = @sprintf("%.6f", obj.ηₘ)
+    print(io, "RotaryKilnBedSolution(τ = $(τ), ηₘ = $(ηₘ) %)")
+end
+
+"""
+    plotlinearkramersmodel(
+        model::RotaryKilnBedSolution;
+        normz::Bool = false,
+        normh::Bool = false
+    )::Figure
+
+Standardized plotting of `RotaryKilnBedSolution` bed profile. It
+supports normalization of axes throught keywords `normz` for axial
+coordinate and `normh` for bed depth.
+"""
 function plotlinearkramersmodel(
         model::RotaryKilnBedSolution;
         normz::Bool = false,
         normh::Bool = false
     )::Figure
-    """
-        plotlinearkramersmodel(
-            model::SolutionLinearKramersModel;
-            normz::Bool = false,
-            normh::Bool = false
-        )::Any
-
-    Display plot of model solution for rotary kiln bed profile. Arguments
-    `normz` and `normh` control whether z-coordinate and bed height must
-    be normalized, respectively.
-    """
     z = model.z
     h = tan(model.β) * z + model.h
 
