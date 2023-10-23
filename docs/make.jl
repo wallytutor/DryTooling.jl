@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+
+# Uncomment the following for generating docs locally.
+# import Pkg
+# Pkg.activate(Base.current_project())
+# Pkg.instantiate()
+
 using DryTooling
 using Documenter
 
