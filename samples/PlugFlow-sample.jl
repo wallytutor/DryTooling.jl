@@ -8,7 +8,7 @@ Module under development... documentation comming soon!
 
 using CairoMakie
 using LaTeXStrings
-using DryTooling.Grids
+using DryTooling.FiniteVolumes
 using DryTooling.Kinetics
 using DryTooling.PlugFlow
 using DryTooling.PlugFlow: solve

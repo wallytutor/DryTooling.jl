@@ -14,10 +14,10 @@ include("incl-abstract.jl")
 include("incl-constants.jl")
 include("incl-utilities.jl")
 include("Simulation.jl")
-include("Grids.jl")
+include("FiniteVolumes.jl")
 
 using DryTooling.Simulation
-using DryTooling.Grids
+using DryTooling.FiniteVolumes
 
 ################################################################################
 # FVM 1D FUNCTIONALITIES

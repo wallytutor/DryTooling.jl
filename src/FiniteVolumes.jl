@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-module Grids
+module FiniteVolumes
 
 export UserDefinedGrid1D
 export equidistantcellsgrid1D
@@ -9,9 +9,7 @@ using DryTooling
 
 struct UserDefinedGrid1D <: AbstractGrid1D
     """
-        UserDefinedGrid1D
-    
-    
+
     Provides a very simple interface for the 1D grids used in standard finite volume
     solvers provided in the package. Constructor accepts a vector of coordinates and
     compute walls at mid-points between cells centers. First and last cells are over
@@ -53,4 +51,4 @@ function geometriccellsgrid1D(R::Float64, N::Int64)::UserDefinedGrid1D
     return UserDefinedGrid1D(@. ((R+1)^(1/N))^(0:N)-1.0)
 end
 
-end # module Grids
+end # module FiniteVolumes

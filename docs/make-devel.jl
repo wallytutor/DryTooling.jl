@@ -24,17 +24,18 @@ format = Documenter.HTML(;
 )
 
 makedocs(;
-    modules = [DryTooling],
-    authors = "Walter Dal'Maz Silva <walter.dalmazsilva.manager@gmail.com> & contributors",
-    repo    = "https://github.com/wallytutor/DryTooling.jl/blob/{commit}{path}#{line}",
-    sitename= "DryTooling.jl",
-    format  = format,
-    pages   = [
-        "Home"              => "index.md",
-        "DryTooling Core"   => "drytooling.md",
-        "Module Granular"   => "granular.md",
-        "Module Simulation" => "simulation.md",
-        "Cantera Wrapper"   => "canterawrapper.md",
-        "Reference API"     => "apireference.md",
+    modules  = [DryTooling],
+    authors  = "Walter Dal'Maz Silva <walter.dalmazsilva.manager@gmail.com> & contributors",
+    repo     = "https://github.com/wallytutor/DryTooling.jl/blob/{commit}{path}#{line}",
+    sitename = "DryTooling.jl",
+    format   = format,
+    pages    = [
+        "Home"                  => "index.md",
+        "Module Granular"       => "granular.md",
+        "Module Simulation"     => "simulation.md",
+        "Module Finite Volumes" => "finitevolumes.md",
+        "Cantera Wrapper"       => "canterawrapper.md",
+        "DryTooling Core"       => "drytooling.md",
+        "Reference API"         => "apireference.md",
     ]
 )

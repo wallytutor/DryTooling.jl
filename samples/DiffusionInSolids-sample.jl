@@ -8,7 +8,7 @@ Module under development... documentation comming soon!
 
 using CairoMakie
 using DryTooling.Simulation
-using DryTooling.Grids
+using DryTooling.FiniteVolumes
 using DryTooling.DiffusionInSolids
 using DryTooling.DiffusionInSolids: carburizemoletomassfraction
 

@@ -4,24 +4,25 @@
 It is not until all the main solvers are migrated that it will become stable.
 This is necessary for ensuring compatibility with all models.
 
+## Residuals tracking
+
 ```@docs
+DryTooling.Simulation.TimeSteppingSimulationResiduals
+DryTooling.Simulation.finaliterationdata
+DryTooling.Simulation.addresidual!
+DryTooling.Simulation.plotsimulationresiduals
 ```
 
-```julia
-# Module DryTooling.Simulation is not generally imported by the end-user except
-# for its plotting utility function. In this script we illustrate the logic of
-# using a residual tracker in a new solver, thus it is seem more as a tutorial.
+## Tutorial: residuals tracking in a solver
 
+The residuals tracking functionalities of module `DryTooling.Simulation`` are not often imported by the end-user (except for its plotting utility function). In this tutorial we illustrate the logic of using a residual tracker in a new solver.
+
+```julia
 using DryTooling.Simulation
 
-# Number of variables.
-N = 2
-
-# Maximum inner steps.
-M = 5
-
-# Time-advancement steps.
-steps = 10
+N = 2      # Number of variables.
+M = 5      # Maximum inner steps.
+steps = 10 # Time-advancement steps.
 
 # Create a TimeSteppingSimulationResiduals object with the number of variables
 # to track, how many inner iterations per step are expected, and the
@@ -52,6 +53,6 @@ s = TimeSteppingSimulationResiduals(r)
 
 # The new object is ready for visualization. Check the documentation
 # of the following function for more details. It provides a raw figure
-# and handles for modifying it for proper display.
-fig = plotsimulationresiduals(s; showinner = true)[1]
+# and handles for modifying it for proper display (uncomment below).
+# fig = plotsimulationresiduals(s; showinner = true)[1]
 ```

@@ -2,22 +2,38 @@
 module Simulation
 
 using CairoMakie
+using DocStringExtensions: TYPEDFIELDS
 using DryTooling
 
 export TimeSteppingSimulationResiduals
 export addresidual!
 export plotsimulationresiduals
 
+"""
+Manage time-stepping solvers residuals storage during a simulation.
+
+The memory is initialized with a given number of inner and outer
+iterations and resizing is not under the scope of this structure.
+
+$(TYPEDFIELDS)
+
+# Usage
+
+For starting a simulation, use the outer constructor for starting
+a simulation with pre-allocated memory with interface:
+
+```julia
+TimeSteppingSimulationResiduals(N::Int64, inner::Int64, outer::Int64)
+```
+
+Once the simulation is finished, the first instance can be processed
+through creation of a new object using the next interface:
+
+```julia
+TimeSteppingSimulationResiduals(r::TimeSteppingSimulationResiduals)
+```
+"""
 struct TimeSteppingSimulationResiduals
-    """
-        TimeSteppingSimulationResiduals
-    
-    Manage iterative solvers residuals storage during a simulation.
-    The memory is initialized with a given number of inner and outer
-    iterations and resizing is not under the scope of this structure.
-    
-    $(TYPEDFIELDS)
-    """
 
     "Number of variables being tracked in problem."
     N::Int64
@@ -33,22 +49,12 @@ struct TimeSteppingSimulationResiduals
 end
 
 function TimeSteppingSimulationResiduals(N::Int64, inner::Int64, outer::Int64)
-    """
-        TimeSteppingSimulationResiduals(N::Int64, inner::Int64, outer::Int64)
-    
-    Outer constructor for starting a simulation with pre-allocated memory.
-    """
     innersteps = -ones(Int64, outer)
     residuals = -ones(Float64, (outer * inner, N))
     return TimeSteppingSimulationResiduals(N, Ref(0), innersteps, residuals)
 end
 
 function TimeSteppingSimulationResiduals(r::TimeSteppingSimulationResiduals)
-    """
-        TimeSteppingSimulationResiduals(r::TimeSteppingSimulationResiduals)
-    
-    Outer constructor for post-processing an already filled object.
-    """
     # XXX: the equal sign below is required! In some cases, *e.g.*
     # when you try to simulate a system that is already at constant
     # state or when using a closed boundary condition, the error
@@ -62,33 +68,50 @@ function TimeSteppingSimulationResiduals(r::TimeSteppingSimulationResiduals)
     return TimeSteppingSimulationResiduals(N, r.counter, innersteps, residuals)
 end
 
-function addresidual!(r::TimeSteppingSimulationResiduals, ε::Vector{Float64})::Nothing
-    """
-        step!(r::TimeSteppingSimulationResiduals, ε::Vector{Float64})::Nothing
+"""
+    addresidual!(
+        r::TimeSteppingSimulationResiduals,
+        ε::Vector{Float64}
+    )::Nothing
 
-    Utility to increment iteration counter and store residuals.
-    """
+Utility to increment iteration counter and store residuals.
+"""
+function addresidual!(
+        r::TimeSteppingSimulationResiduals,
+        ε::Vector{Float64}
+    )::Nothing
     # TODO: add resizing test here!
     r.counter[] += 1
     r.residuals[r.counter[], :] = ε
     return nothing
 end
 
+"""
+    finaliterationdata(
+        r::TimeSteppingSimulationResiduals
+    )::Tuple{Vector{Int64}, Matrix{Float64}}
+
+Retrieve data at iterations closing an outer loop of solution.
+"""
 function finaliterationdata(
         r::TimeSteppingSimulationResiduals
     )::Tuple{Vector{Int64}, Matrix{Float64}}
-    """
-        finaliterationdata(
-            r::TimeSteppingSimulationResiduals
-        )::Tuple{Vector{Int64}, Matrix{Float64}}
-
-    Retrieve data at iterations closing an outer loop of solution.
-    """
     steps = cumsum(r.innersteps)
     residuals = r.residuals[steps, :]
     return steps, residuals
 end
 
+"""
+    plotsimulationresiduals(
+        r::TimeSteppingSimulationResiduals;
+        ε::Union{Float64, Nothing} = nothing,
+        showinner::Bool = false,
+        resolution::Tuple{Int64, Int64} = (720, 500)
+    )::Tuple{Figure, Axis, Vector}
+
+Plot problem residuals over iterations or steps. It performs the basic
+figure setup, configuration of axis and details beign left to the user.
+"""
 function plotsimulationresiduals(
         r::TimeSteppingSimulationResiduals;
         ε::Union{Float64, Nothing} = nothing,
@@ -96,17 +119,6 @@ function plotsimulationresiduals(
         scaler::Function = log10,
         resolution::Tuple{Int64, Int64} = (720, 500)
     )::Tuple{Figure, Axis, Vector}
-    """
-        plotsimulationresiduals(
-            r::TimeSteppingSimulationResiduals;
-            ε::Union{Float64, Nothing} = nothing,
-            showinner::Bool = false,
-            resolution::Tuple{Int64, Int64} = (720, 500)
-        )::Tuple{Figure, Axis, Vector}
-
-    Plot problem residuals over iterations or steps. It performs the basic
-    figure setup, configuration of axis and details beign left to the user.
-    """
     xs, ys = finaliterationdata(r)
     ys = scaler.(ys)
     xs .-= 1
