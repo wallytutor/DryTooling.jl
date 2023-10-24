@@ -65,7 +65,7 @@ Rotation [rev/min] | $(@bind ω Slider(0.5:0.1:5.0, default=ωᵣ, show_value=tr
 "Run Kramers equation demo."
 function rundemo()
     try
-        bed = solvelinearkramersmodel(;
+        bed = RotaryKilnBedSolution(;
             model = SymbolicLinearKramersModel(),
             L     = L,
             R     = D / 2.0,
