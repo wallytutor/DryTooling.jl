@@ -1,1 +1,0 @@
-# DryTooling.Kinetics

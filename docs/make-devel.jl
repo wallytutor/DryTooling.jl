@@ -36,8 +36,8 @@ makedocs(;
         "Module Granular"       => "granular.md",
 
         "Module Cantera"        => "cantera.md",
-        "Module Thermodynamics" => "thermodynamics.md",
-        "Module Kinetics"       => "kinetics.md",
+        "Module Thermodynamics" => "Thermodynamics/index.md",
+        "Module Kinetics"       => "Kinetics/index.md",
         "Module Plug Flow"      => "plugflow.md",
         
         "Module Simulation"     => "simulation.md",
@@ -46,6 +46,6 @@ makedocs(;
         "Models validation"     => "validation/index.md",
 
         "Cantera Status"        => "canterawrapper.md",
-        "Reference API"         => "apireference.md",
+        "Reference API"         => "referenceapi.md",
     ]
 )
