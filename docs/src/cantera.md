@@ -12,28 +12,30 @@ import DryTooling.Cantera as ct
 ```
 
 ```@example cantera
-@assert ct.appdelete()
-@assert ct.resetstorage()
-@assert ct.clearstorage()
-@assert ct.suppress_thermo_warnings(true)
-@assert ct.use_legacy_rate_constants(false)
-```
+# FIXME: how to run this in GitHub???
 
-```@example cantera
-sol = ct.Solution("gri30.yaml", "gri30", "mixture-averaged")
-gas = ct.Solution("gri30.yaml", "gri30", "mixture-averaged")
+# @assert ct.appdelete()
+# @assert ct.resetstorage()
+# @assert ct.clearstorage()
+# @assert ct.suppress_thermo_warnings(true)
+# @assert ct.use_legacy_rate_constants(false)
+# ```
 
-Xᵣ = zeros(sol.nspecies)
-Xᵣ[1] = 1.0
+# ```@example cantera
+# sol = ct.Solution("gri30.yaml", "gri30", "mixture-averaged")
+# gas = ct.Solution("gri30.yaml", "gri30", "mixture-averaged")
 
-Tᵣ = 3500.0
-Pᵣ = 50000.0
+# Xᵣ = zeros(sol.nspecies)
+# Xᵣ[1] = 1.0
 
-ct.set_TPX!(sol, Tᵣ, Pᵣ, Xᵣ; norm = true)
+# Tᵣ = 3500.0
+# Pᵣ = 50000.0
 
-@assert ct.gettemperature(sol) ≈ Tᵣ
-@assert ct.getpressure(sol) ≈ Pᵣ
-@assert all(ct.getmolefractions(sol) ≈ Xᵣ)
+# ct.set_TPX!(sol, Tᵣ, Pᵣ, Xᵣ; norm = true)
 
-ct.equilibrate!(sol, "HP", print_results = true)
+# @assert ct.gettemperature(sol) ≈ Tᵣ
+# @assert ct.getpressure(sol) ≈ Pᵣ
+# @assert all(ct.getmolefractions(sol) ≈ Xᵣ)
+
+# ct.equilibrate!(sol, "HP", print_results = true)
 ```
