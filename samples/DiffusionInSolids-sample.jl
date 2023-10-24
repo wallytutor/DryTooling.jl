@@ -9,8 +9,7 @@ Module under development... documentation comming soon!
 using CairoMakie
 using DryTooling.Simulation
 using DryTooling.FiniteVolumes
-using DryTooling.DiffusionInSolids
-using DryTooling.DiffusionInSolids: carburizemoletomassfraction
+using DryTooling.FiniteVolumes: carburizemoletomassfraction
 
 begin
     N = 100

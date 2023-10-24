@@ -1,16 +1,4 @@
 # -*- coding: utf-8 -*-
-module PlugFlow
-
-using CommonSolve
-using CommonSolve: solve
-using DifferentialEquations: solve
-using ModelingToolkit
-using Symbolics
-using Symbolics: scalarize
-
-using DryTooling
-using DryTooling.Kinetics
-
 export RectangularReactorGeometry
 export IsothermalSymbolicPlugFlowReactor
 export solve
@@ -109,5 +97,3 @@ function CommonSolve.solve(
 
     return sol
 end
-
-end # module PlugFlow

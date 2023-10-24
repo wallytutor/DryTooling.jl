@@ -1,16 +1,8 @@
 # -*- coding: utf-8 -*-
-module DiffusionInSolids
-
-using Trapz: trapz
-using DryTooling
-using DryTooling.Simulation
-using DryTooling.Simulation: fouter!, finner!, fsolve!, timepoints
-using DryTooling: Temperature1DModelStorage
-using DryTooling: interfaceconductivity1D
-
 export AusteniteCarburizing1DModel
 export initialize!
 export solve
+
 export interstitialmassintake
 export carburize
 
@@ -144,7 +136,7 @@ function DryTooling.Simulation.timepoints(m::AbstractDiffusionModel1D)
     return 0.0:m.τ[]:tend
 end
 
-function solve(
+function CommonSolve.solve(
         m::AusteniteCarburizing1DModel;
         t::Float64,
         τ::Float64,
@@ -182,6 +174,4 @@ function carburize(grid, t, τ, T, h, y0, ys, ; M = 50)
     model = AusteniteCarburizing1DModel(; grid, h, C, T)
     @time solve(model; t, τ, x, M = M, α = 0.05)
     return model
-end
-
 end

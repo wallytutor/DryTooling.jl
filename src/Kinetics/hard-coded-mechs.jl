@@ -1,13 +1,4 @@
 # -*- coding: utf-8 -*-
-module Kinetics
-
-using ModelingToolkit
-using Symbolics
-using Symbolics: scalarize
-
-using DryTooling
-using DryTooling: meanmolecularmass
-
 export Graf2007AcetyleneKinetics
 export params
 export unknowns
@@ -126,16 +117,6 @@ struct Graf2007AcetyleneKinetics <: AbstractKineticsMechanism
     end 
 end
 
-
-function unknowns(k::AbstractKineticsMechanism)
-    @error "An specialization of this method is expexted!"
-end
-
-function params(k::AbstractKineticsMechanism)
-    @error "An specialization of this method is expexted!"
-end
-
-
 function unknowns(k::Graf2007AcetyleneKinetics)
     return [(k.Y)..., (k.RHS)...]
 end
@@ -143,5 +124,3 @@ end
 function params(k::Graf2007AcetyleneKinetics)
     return [k.T, k.P]
 end
-
-end # module Kinetics

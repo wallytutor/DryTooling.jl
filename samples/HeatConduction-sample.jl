@@ -12,7 +12,6 @@ space discretizations.
 using GLMakie
 using ExtendableGrids: geomspace
 using DryTooling.FiniteVolumes
-using DryTooling.HeatConduction
 using DryTooling.Simulation: plotsimulationresiduals
 
 begin # (sample 1)

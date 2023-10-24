@@ -8,8 +8,8 @@ if Base.current_project() != Base.active_project()
     Pkg.instantiate()
 end
 
-# include("CanteraAPI-sample.jl")
 include("DiffusionInSolids-sample.jl")
+
 include("HeatConduction-sample.jl")
 include("PlugFlow-sample.jl")
 

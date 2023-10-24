@@ -1,15 +1,4 @@
 # -*- coding: utf-8 -*-
-module HeatConduction
-
-using CommonSolve
-using CommonSolve: solve
-
-using DryTooling
-using DryTooling.Simulation
-using DryTooling.Simulation: fouter!, finner!, fsolve!, timepoints
-using DryTooling: Temperature1DModelStorage
-using DryTooling: interfaceconductivity1D
-
 export Cylinder1DTemperatureModel
 export Sphere1DTemperatureModel
 export initialize!
@@ -241,5 +230,3 @@ function DryTooling.Simulation.fsolve!(
     addresidual!(m.res[], [ε])
     return ε
 end
-
-end # module HeatConduction
