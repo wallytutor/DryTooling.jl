@@ -34,6 +34,8 @@ makedocs(;
         "Module Granular"       => "granular.md",
         "Module Simulation"     => "simulation.md",
         "Module Finite Volumes" => "finitevolumes.md",
+        "Module Plug Flow"      => "plugflow.md",
+        "Module Cantera"        => "cantera.md",
         "Cantera Wrapper"       => "canterawrapper.md",
         "DryTooling Core"       => "drytooling.md",
         "Reference API"         => "apireference.md",

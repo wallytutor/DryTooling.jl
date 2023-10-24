@@ -15,6 +15,16 @@ begin # module DryTooling
     include("DryTooling/utilities.jl")
 end
 
+module Cantera
+    using Libdl
+    using Logging
+    using Printf
+
+    include("Cantera/core.jl")
+    include("Cantera/pointers.jl")
+    include("Cantera/interfaces.jl")
+end
+
 # XXX
 include("tmp.jl")
 
@@ -96,5 +106,4 @@ using DryTooling.Granular
 using DryTooling.Kinetics
 using DryTooling.PlugFlow
 
-# include("CanteraAPI.jl")
 end

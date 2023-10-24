@@ -1,17 +1,13 @@
-# -*- coding: utf-8 -*-
-"""
-DryTooling.PlugFlow sample
-==========================
+# DryTooling.PlugFlow
 
-Module under development... documentation comming soon!
-"""
+## Example 1 - Acetylene pyrolysis
 
+```@setup graf2007
 using CairoMakie
 using LaTeXStrings
 using DryTooling.FiniteVolumes
 using DryTooling.Kinetics
 using DryTooling.PlugFlow
-using DryTooling.PlugFlow: solve
 using DryTooling: convertsccmtomassflow
 using DryTooling: meanmolecularmass
 using DryTooling: molefraction2massfraction
@@ -58,53 +54,54 @@ function plotgraf2007(grid, X)
 
     return f
 end
+```
 
-begin # (sample 1)
-    # Dimensions of reactor [m].
-    R = 0.014
-    L = 0.5
+```@example graf2007
+# Dimensions of reactor [m].
+R = 0.014
+L = 0.5
 
-    # Create a grid for the reactor.
-    grid = equidistantcellsgrid1D(L, 20)
+# Create a grid for the reactor.
+grid = equidistantcellsgrid1D(L, 20)
 
-    # Cross-section of reactor [m²].
-    A = (π * R^2)
+# Cross-section of reactor [m²].
+A = (π * R^2)
 
-    # Get mechanism with rates.
-    kin = Graf2007AcetyleneKinetics()
+# Get mechanism with rates.
+kin = Graf2007AcetyleneKinetics()
 
-    # Create reactor model to solve.
-    pfr = IsothermalSymbolicPlugFlowReactor(kin)
+# Create reactor model to solve.
+pfr = IsothermalSymbolicPlugFlowReactor(kin)
 
-    # Initial condition.
-    T = 1173.15
-    P = 5000.0
-    Y = let
-        # Mole fraction of acetylene (1) in system.
-        x1 = 0.36
-    
-        # Add acetylene impurities to initialization.
-        # NOTE: in reference thesis it was assumed 98% purity and acetone
-        # content of 1.8%, but that species is not available in Graf (2007).
-        X = zeros(length(kin.W))
-        X[1] = 0.998 * x1
-        X[4] = 0.002 * x1
-        X[end] = 1 - sum(X[1:end-1])
-    
-        # Convert to mass fractions for the model.
-        molefraction2massfraction(X, kin.W)
-    end
+# Initial condition.
+T = 1173.15
+P = 5000.0
+Y = let
+    # Mole fraction of acetylene (1) in system.
+    x1 = 0.36
 
-    # Compute mass flow rate.
-    M = meanmolecularmass(Y, kin.W)
-    ṁ = convertsccmtomassflow(222.0, 1000M)
+    # Add acetylene impurities to initialization.
+    # NOTE: in reference thesis it was assumed 98% purity and acetone
+    # content of 1.8%, but that species is not available in Graf (2007).
+    X = zeros(length(kin.W))
+    X[1] = 0.998 * x1
+    X[4] = 0.002 * x1
+    X[end] = 1 - sum(X[1:end-1])
 
-    # Integrate problem over domain.
-    sol = solve(pfr; z = grid.r, Y, T, P, ṁ, A, L)
-    
-    # Get mole fractions for plotting.
-    X = map((y)->massfraction2molefraction(y, kin.W), sol.u)
-    X = mapreduce(permutedims, vcat, X)
-    
-    fig = plotgraf2007(grid, X)
+    # Convert to mass fractions for the model.
+    molefraction2massfraction(X, kin.W)
 end
+
+# Compute mass flow rate.
+M = meanmolecularmass(Y, kin.W)
+ṁ = convertsccmtomassflow(222.0, 1000M)
+
+# Integrate problem over domain.
+sol = solve(pfr; z = grid.r, Y, T, P, ṁ, A, L)
+
+# Get mole fractions for plotting.
+X = map((y)->massfraction2molefraction(y, kin.W), sol.u)
+X = mapreduce(permutedims, vcat, X)
+
+fig = plotgraf2007(grid, X)
+```
