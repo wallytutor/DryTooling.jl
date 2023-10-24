@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 module DryTooling
 
-begin # module DryTooling
+begin # module DryTooling (core)
     using CairoMakie
     using CommonSolve
     using DocStringExtensions: TYPEDFIELDS
@@ -13,7 +13,7 @@ begin # module DryTooling
     include("DryTooling/abstract.jl")
     include("DryTooling/constants.jl")
     include("DryTooling/utilities.jl")
-end
+end # module DryTooling (core)
 
 module Cantera
     using Libdl
@@ -55,6 +55,9 @@ module FiniteVolumes
     include("FiniteVolumes/heat-conduction.jl")
     include("FiniteVolumes/diffusion-in-solids.jl")
 end # module FiniteVolumes
+
+module Thermodynamics
+end # module Thermodynamics
 
 module FluidModels  
 end # module FluidModels
@@ -101,9 +104,10 @@ end # module PlugFlow
 
 using DryTooling.Simulation
 using DryTooling.FiniteVolumes
+using DryTooling.Thermodynamics
 using DryTooling.FluidModels
 using DryTooling.Granular
 using DryTooling.Kinetics
 using DryTooling.PlugFlow
 
-end
+end # module DryTooling

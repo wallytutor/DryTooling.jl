@@ -31,13 +31,18 @@ makedocs(;
     format   = format,
     pages    = [
         "Home"                  => "index.md",
-        "Module Granular"       => "granular.md",
-        "Module Simulation"     => "simulation.md",
+
         "Module Finite Volumes" => "finitevolumes.md",
-        "Module Plug Flow"      => "plugflow.md",
+        "Module Granular"       => "granular.md",
+
         "Module Cantera"        => "cantera.md",
-        "Cantera Wrapper"       => "canterawrapper.md",
+        "Module Thermodynamics" => "thermodynamics.md",
+        "Module Kinetics"       => "kinetics.md",
+        "Module Plug Flow"      => "plugflow.md",
+        
+        "Module Simulation"     => "simulation.md",
         "DryTooling Core"       => "drytooling.md",
+        "Cantera Status"        => "canterawrapper.md",
         "Reference API"         => "apireference.md",
     ]
 )

@@ -1,9 +1,45 @@
-# Index
+# DryTooling
 
-## DryTooling
+In this page you find a list of all documented functions of DryTooling. Rather than being organized in a logical way as the main documentation, we chose (except for the root DryTooling) to list them in alphabetical order.
 
 ```@index
 Modules = [ DryTooling ]
+```
+
+## DryTooling.Cantera
+
+```@index
+Modules = [ DryTooling.Cantera ]
+```
+
+## DryTooling.FiniteVolumes
+
+```@index
+Modules = [ DryTooling.FiniteVolumes ]
+```
+
+## DryTooling.FluidModels
+
+```@index
+Modules = [ DryTooling.FluidModels ]
+```
+
+## DryTooling.Granular
+
+```@index
+Modules = [ DryTooling.Granular ]
+```
+
+## DryTooling.Kinetics
+
+```@index
+Modules = [ DryTooling.Kinetics ]
+```
+
+## DryTooling.PlugFlow
+
+```@index
+Modules = [ DryTooling.PlugFlow ]
 ```
 
 ## DryTooling.Simulation
@@ -12,8 +48,8 @@ Modules = [ DryTooling ]
 Modules = [ DryTooling.Simulation ]
 ```
 
-## DryTooling.Granular
+## DryTooling.Thermodynamics
 
 ```@index
-Modules = [ DryTooling.Granular ]
+Modules = [ DryTooling.Thermodynamics ]
 ```
