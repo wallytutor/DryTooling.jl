@@ -1,4 +1,4 @@
-# Cantera wrapper for C-API in Julia
+# Status of Cantera wrapper
 
 This is an experimental interface to Cantera library based on its [C-API under beta testing](https://testing.cantera.org/documentation/docs-3.0/doxygen/html/dir_690289abfa5e09db35ec6757548a6dfc.html) version 3.0. This interface is at its early days and has developped for Julia >= 1.9.0 under Windows 10/11. When it is stable enough it will be published as a package and tested under other platforms.
 
@@ -6,7 +6,6 @@ This is an experimental interface to Cantera library based on its [C-API under b
 
 - [Source files](https://github.com/Cantera/cantera/blob/main/src/clib)
 - [Header files](https://testing.cantera.org/documentation/docs-3.0/doxygen/html/dir_690289abfa5e09db35ec6757548a6dfc.html)
-
 
 ## API of `ct.h`
 
