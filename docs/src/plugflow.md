@@ -1,6 +1,8 @@
 # DryTooling.PlugFlow
 
-## Example 1 - Acetylene pyrolysis
+## Basic plug-flow reactors
+
+### Example - Acetylene pyrolysis
 
 ```@setup graf2007
 using CairoMakie

@@ -17,3 +17,19 @@ For extending existing models and *preferrably* contributing to the package's gr
 ## Citing
 
 Found it useful? See [`CITATION.bib`](https://github.com/wallytutor/DryTooling.jl/blob/main/CITATION.bib) for the relevant reference.
+
+## Table of contents
+
+```@contents
+Pages = [
+    "drytooling.md",
+    "finitevolumes.md",
+    "granular.md",
+    "cantera.md",
+    "thermodynamics.md",
+    "kinetics.md",
+    "plugflow.md",
+    "simulation.md",
+]
+Depth = 3
+```

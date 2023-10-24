@@ -10,7 +10,7 @@ DryTooling.FiniteVolumes.equidistantcellsgrid1D
 
 ## Heat conduction
 
-### Example 1 - Simple 1-D geometries
+### Example - Simple 1-D geometries
 
 In this example we compare solutions with different 1D solvers available in the module.
 
@@ -89,7 +89,7 @@ fig = let
 end
 ```
 
-### Example 2 - Grid types support
+### Example - Grid types support
 
 In this example we illustrate the support to arbitrary space discretizations.
 
