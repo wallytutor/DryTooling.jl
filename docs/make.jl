@@ -20,22 +20,20 @@ makedocs(;
     format   = format,
     pages    = [
         "Home"                  => "index.md",
+        "Table of contents"     => "toc.md",
 
-        "Module Finite Volumes" => "finitevolumes.md",
-        "Module Granular"       => "granular.md",
+        "Module Finite Volumes" => "FiniteVolumes/index.md",
+        "Module Granular"       => "Granular/index.md",
 
-        "Module Cantera"        => "cantera.md",
-        "Module Thermodynamics" => "thermodynamics.md",
-        "Module Kinetics"       => "kinetics.md",
-        "Module Plug Flow"      => "plugflow.md",
+        "Module Cantera"        => "Cantera/index.md",
+        "Module Thermodynamics" => "Thermodynamics/index.md",
+        "Module Kinetics"       => "Kinetics/index.md",
+        "Module Plug Flow"      => "PlugFlow/index.md",
         
-        "Module Simulation"     => "simulation.md",
-        "DryTooling Core"       => "drytooling.md",
+        "Module Simulation"     => "Simulation/index.md",
+        "DryTooling Core"       => "DryTooling/index.md",
 
-        "Models validation"     => "validation/index.md",
-
-        "Cantera Status"        => "canterawrapper.md",
-        "Reference API"         => "apireference.md",
+        "Reference API"         => "api.md",
     ]
 )
 
