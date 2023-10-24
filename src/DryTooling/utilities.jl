@@ -3,6 +3,7 @@ export closestpowerofx, axesunitscaler
 export head, tail, body
 export heaviside, interval
 export makestepwise1d
+export maxabsolutechange, maxrelativechange
 
 """
     closestpowerofx(
@@ -205,4 +206,14 @@ function makestepwise1d(lo, hi, xc; differentiable = true)
         f = @. x -> (x < xc) ? lo(x) : hi(x)
     end
     return f
+end
+
+"Maximum relative change in a solution array."
+function maxrelativechange(x::Vector{Float64}, Δx::Vector{Float64})::Float64
+    return maximum(abs.(Δx ./ x))
+end
+
+"Maximum absolute change in a solution array."
+function maxabsolutechange(x::Vector{Float64}, Δx::Vector{Float64})::Float64
+    return maximum(abs.(Δx))
 end

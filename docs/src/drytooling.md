@@ -32,6 +32,13 @@ DryTooling.closestpowerofx
 DryTooling.axesunitscaler
 ```
 
+## Computation of changes and residuals
+
+```@docs
+DryTooling.maxabsolutechange
+DryTooling.maxrelativechange
+```
+
 ## Abstract types
 
 ### Problem solving and physical models

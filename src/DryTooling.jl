@@ -3,21 +3,56 @@ module DryTooling
 
 using CairoMakie
 using CommonSolve
+using DocStringExtensions: TYPEDFIELDS
 using LinearAlgebra
 using Polynomials
 using Roots
 using YAML
 
-using DocStringExtensions: TYPEDFIELDS
+include("DryTooling/abstract.jl")
+include("DryTooling/constants.jl")
+include("DryTooling/utilities.jl")
 
-include("incl-abstract.jl")
-include("incl-constants.jl")
-include("incl-utilities.jl")
-include("Simulation.jl")
-include("FiniteVolumes.jl")
+module Simulation
+    using CairoMakie
+    using DocStringExtensions: TYPEDFIELDS
+    using LinearAlgebra
+    using DryTooling
+
+    include("Simulation/residuals.jl")
+    include("Simulation/linalg.jl")
+    include("Simulation/nlstepping.jl")
+end # module Simulation
+
+module FiniteVolumes
+    using DocStringExtensions: TYPEDFIELDS
+    using DryTooling
+
+    include("FiniteVolumes/grid-generation.jl")
+end # module FiniteVolumes
+
+module FluidModels  
+end # module FluidModels
+
+module Granular
+    using CairoMakie
+    using DifferentialEquations: ODEProblem, Tsit5
+    using DifferentialEquations: solve
+    using Distributions
+    using DocStringExtensions: TYPEDFIELDS
+    using ModelingToolkit
+    using Printf
+    using Random
+    using Trapz: trapz
+
+    include("Granular/porous-media.jl")
+    include("Granular/rotary-kiln.jl")
+end # module Granular
 
 using DryTooling.Simulation
 using DryTooling.FiniteVolumes
+using DryTooling.FluidModels
+using DryTooling.Granular
 
 ################################################################################
 # CHEMICAL ELEMENTS
@@ -824,18 +859,8 @@ struct Temperature1DModelStorage <: AbstractSolutionStorage
     end
 end
 
-################################################################################
-# BASE EXTENSIONS
-################################################################################
-
-################################################################################
-# SUBMODULES
-################################################################################
-
-include("FluidModels.jl")
 include("Kinetics.jl")
 include("PlugFlow.jl")
-include("Granular.jl")
 include("HeatConduction.jl")
 include("DiffusionInSolids.jl")
 # include("CanteraAPI.jl")

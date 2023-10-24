@@ -56,7 +56,7 @@ DryTooling.Simulation.plotsimulationresiduals
 
 The residuals tracking functionalities of module `DryTooling.Simulation`` are not often imported by the end-user (except for its plotting utility function). In this tutorial we illustrate the logic of using a residual tracker in a new solver.
 
-```julia
+```@example
 using DryTooling.Simulation
 
 N = 2      # Number of variables.
@@ -92,6 +92,6 @@ s = TimeSteppingSimulationResiduals(r)
 
 # The new object is ready for visualization. Check the documentation
 # of the following function for more details. It provides a raw figure
-# and handles for modifying it for proper display (uncomment below).
-# fig = plotsimulationresiduals(s; showinner = true)[1]
+# and handles for modifying it for proper display.
+fig = plotsimulationresiduals(s; showinner = true)[1]
 ```
