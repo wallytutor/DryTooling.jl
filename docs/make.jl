@@ -31,6 +31,9 @@ makedocs(;
         
         "Module Simulation"     => "simulation.md",
         "DryTooling Core"       => "drytooling.md",
+
+        "Models validation"     => "validation/index.md",
+
         "Cantera Status"        => "canterawrapper.md",
         "Reference API"         => "apireference.md",
     ]

@@ -3,6 +3,11 @@ export SymbolicLinearKramersModel
 export RotaryKilnBedSolution
 export solvelinearkramersmodel
 export plotlinearkramersmodel
+export dimlessNΦ
+export dimlessNₖ
+export sullivansηₘ
+export perrayresidence
+export kramersnlapprox
 
 """
 Creates a reusable linear Kramers model for rotary kiln simulation.
@@ -267,4 +272,51 @@ function plotlinearkramersmodel(
     axislegend(position = :lt)
 
     return fig
+end
+
+"Kramers (1952) dimensionless group NΦ."
+function dimlessNΦ(R, β, ω, Φ, γ)
+    return Φ * sin(γ) / (ω * R^3 * tan(β))
+end
+
+"Kramers (1952) dimensionless group Nₖ."
+function dimlessNₖ(L, R, β, γ)
+    return R * cos(γ) / (L * tan(β))
+end
+
+"Sullivans approximation to kiln filling."
+function sullivansηₘ(R, β, ω, Φ, γ)
+    return 3.8 * dimlessNΦ(R, β, ω, Φ, γ) * sqrt(γ) / sin(γ)
+end
+
+"Compute residence time from Peray's equation."
+function perrayresidence(L, ω, D, β)
+    return 0.19 * L / (ω * D * tan(β))
+end
+
+"Nonlinear formulation of Kramers model approximate solution."
+function kramersnlapprox(; z, R, Φ, ω, β, γ, d)
+    L = z[end]
+    N = length(z)
+
+    NΦ = dimlessNΦ(R, β, ω, Φ, γ)
+    Nₖ = dimlessNₖ(L, R, β, γ)
+
+    C₁ = R * NΦ
+    C₂ = 3C₁ / (4π * 1.24)
+    C₃ = C₁ / (L * NΦ * Nₖ)
+
+    optim = JuMP.Model(Ipopt.Optimizer)
+    JuMP.set_silent(optim)
+
+    @JuMP.variable(optim, h[1:N])
+    @JuMP.NLconstraint(
+        optim,
+        [i = 1:N],
+        C₂ * log((d - C₂) / (h[i] - C₂)) - C₃ * z[i] - h[i] + d == 0,
+    )
+    @JuMP.NLconstraint(optim, [i = 1:N], h[i] >= 0.0)
+    JuMP.optimize!(optim)
+
+    return RotaryKilnBedSolution(z, JuMP.value.(h), β, R, Φ)
 end

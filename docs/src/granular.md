@@ -28,7 +28,18 @@ DryTooling.Granular.PackedBedPorosityDescriptor
 
 ## Rotary kiln models
 
-Implements the ordinary differential equation for prediction of bed height profile in a rotary kiln as proposed by Kramers and Croockewite (1952) [^Kramers1952]. Its goal is to be used as a process support tool or to integrate more complex models requiring integration of the bed profile.
+Implements the ordinary differential equation for prediction of bed height profile in a rotary kiln as proposed by Kramers and Croockewite (1952) [^Kramers1952]. Its goal is to be used as a process support tool or to integrate more complex models requiring integration of the bed profile. In its classical statement, the bed height profile ``h(z)`` can be evaluated from *volume* of flowing material conservation through the following equations. Coordinate ``z=0`` represents the discharge position where initial condition must be applied. This is given by the dam height, if any, or particle size.
+
+```math
+\begin{aligned}
+\dfrac{dh}{dz} &= C₁ f\left(\frac{h}{R}\right) - C₂\\[6pt]
+C₁             &= \frac{3}{4}\dfrac{Φ\tan{γ}}{π R^3 ω}\\[6pt]
+C₂             &= \dfrac{\tan{β}}{\cos{γ}}\\[6pt]
+f(r)           &= (2r - r²)^{-\frac{3}{2}}
+\end{aligned}
+```
+
+This equation is implemented under the formalism of `ModelingToolkit` in the following structure `SymbolicLinearKramersModel`.
 
 ```@docs
 DryTooling.Granular.SymbolicLinearKramersModel
@@ -39,6 +50,16 @@ Description of a rotary kiln bed geometry computed from the solution of bed heig
 ```@docs
 DryTooling.Granular.RotaryKilnBedSolution
 DryTooling.Granular.plotlinearkramersmodel
+```
+
+Finally a set of basic equations provided for process analysis.
+
+```@docs
+DryTooling.Granular.sullivansηₘ
+DryTooling.Granular.dimlessNΦ
+DryTooling.Granular.dimlessNₖ
+DryTooling.Granular.perrayresidence
+DryTooling.Granular.kramersnlapprox
 ```
 
 ## References

@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.27
+# v0.19.30
 
 using Markdown
 using InteractiveUtils
@@ -11,10 +11,8 @@ begin
     Pkg.instantiate()
 
     using CSV
+    using CairoMakie
     using DataFrames
-    using Ipopt
-    using JuMP
-    using Plots
     using PlutoUI
     using Printf
     using DryTooling.Granular
@@ -25,26 +23,6 @@ end
 # ╔═╡ bbc70420-5554-11ee-035b-f7d156a056b2
 md"""
 # Kramers equation validation
-
-## Problem specification
-
-Bed profile $h(z)$ can be evaluated from *volume* conservation through
-
-```math
-\dfrac{dh}{dz} = C₁ f\left(\frac{h}{R}\right) - C₂
-```
-
-where the following partial expressions are used
-
-```math
-\begin{align}
-C₁          &= \frac{3}{4}\dfrac{Φ\tan{γ}}{π R^3 ω}\\
-C₂          &= \dfrac{\tan{β}}{\cos{γ}}\\
-f(r)        &= (2r - r²)^{-\frac{3}{2}}
-\end{align}
-```
-
-and coordinate $z=0$ represents the discharge.
 """
 
 # ╔═╡ ce518a29-75b1-4e2a-9b9a-8ce73e07de51
@@ -99,62 +77,10 @@ const DATA_TABLE3 = """\
 1480.0,36.0,0.0100,0.238,1.19e-02,9.22,0.068,6.13
 """
 
-# ╔═╡ c5d1f88d-90ab-4d3e-b878-4c281081494f
-"Kramers (1952) dimensionless group NΦ."
-function dimlessNΦ(R, β, ω, Φ, γ)
-    return Φ * sin(γ) / (ω * R^3 * tan(β))
-end
-
-# ╔═╡ 7a839722-9dee-4cb5-b900-042140cf4eeb
-"Kramers (1952) dimensionless group Nₖ."
-function dimlessNₖ(L, R, β, γ)
-    return R * cos(γ) / (L * tan(β))
-end
-
-# ╔═╡ cb33d18a-e11e-4596-86a3-1d1d7389f982
-"Sullivans approximation to kiln filling."
-function sullivansηₘ(R, β, ω, Φ, γ)
-    return 3.8 * dimlessNΦ(R, β, ω, Φ, γ) * sqrt(γ) / sin(γ)
-end
-
-# ╔═╡ 049056cf-f754-4fdc-ab20-a6b177942c11
-"Nonlinear formulation of Kramers model approximate solution."
-function kramersanalytical(; z, R, Φ, ω, β, γ, d)
-    L = z[end]
-    N = length(z)
-
-    NΦ = dimlessNΦ(R, β, ω, Φ, γ)
-    Nₖ = dimlessNₖ(L, R, β, γ)
-
-    C₁ = R * NΦ
-    C₂ = 3C₁ / (4π * 1.24)
-    C₃ = C₁ / (L * NΦ * Nₖ)
-
-    optim = JuMP.Model(Ipopt.Optimizer)
-    JuMP.set_silent(optim)
-
-    @JuMP.variable(optim, h[1:N])
-    @JuMP.NLconstraint(
-        optim,
-        [i = 1:N],
-        C₂ * log((d - C₂) / (h[i] - C₂)) - C₃ * z[i] - h[i] + d == 0,
-    )
-    @JuMP.NLconstraint(optim, [i = 1:N], h[i] >= 0.0)
-    JuMP.optimize!(optim)
-
-    return RotaryKilnBedSolution(z, JuMP.value.(h), β, R, Φ)
-end
-
-# ╔═╡ cd18eabc-3c5f-40ec-bb84-523ef0577871
-"Compute residence time from Peray's equation."
-function perrayresidence(L, ω, D, β)
-    return 0.19 * L / (ω * D * tan(β))
-end
-
 # ╔═╡ 75228bbe-4da9-4f70-a065-c96f47adc704
 "Compares approximate analytical to numerical solution."
 function solvekiln(; L, D, Φ, ω, β, γ, d, show = true)
-    model = solvelinearkramersmodel(;
+    model = RotaryKilnBedSolution(;
         model = SymbolicLinearKramersModel(),
         L     = L,
         R     = D / 2.0,
@@ -165,7 +91,7 @@ function solvekiln(; L, D, Φ, ω, β, γ, d, show = true)
         d     = d / 1000.0
     )
 
-    optim = kramersanalytical(;
+    optim = kramersnlapprox(;
         z = model.z,
         R = D / 2.0,
         Φ = Φ / 3600.0,
@@ -175,35 +101,35 @@ function solvekiln(; L, D, Φ, ω, β, γ, d, show = true)
         d = d / 1000.0
     )
 
-    p = nothing;
-
+    f = nothing
+	ax = nothing
+	
     if show
-        p = plot()
-        plot!(p, 100model.z/L, 100model.h,
-              linewidth = 3, label = "Numerical")
-        plot!(p, 100optim.z/L, 100optim.h,
-              linewidth = 3, label = "Analytical")
+        f = Figure()
+		ax = Axis(f[1, 1])
+		
+        lines!(ax, 100model.z/L, 100model.h,
+                  linewidth = 3, label = "Numerical")
+        lines!(ax, 100optim.z/L, 100optim.h,
+                  linewidth = 3, label = "Analytical")
 
         a = @sprintf("%.1f", model.ηₘ)
         b = @sprintf("%.1f", optim.ηₘ)
         title = "Loading: $(a)% (numerical) | $(b)% (analytical)"
 
-        plot!(p,
-              title = title,
-              xaxis = "Coordinate [%]",
-              yaxis = "Bed height [cm]",
-              label = nothing,
-              xlims = (0.0, 100.0),
-              xticks = 0.0:20.0:100.0,
-        )
+        ax.title = title
+        ax.xlabel = "Coordinate [%]"
+        ax.ylabel = "Bed height [cm]"
+        ax.xticks = 0.0:20.0:100.0
+        xlims!(ax, extrema(ax.xticks.val))
     end
 
-    return model, optim, p
+    return model, optim, f, ax
 end
 
 # ╔═╡ b258541d-fca9-4c2e-b6c1-d602d7d077ed
 let
-    _, _, p = solvekiln(
+    _, _, f, ax = solvekiln(
         L = 10.0,
         D = 1.0,
         Φ = 1.0,
@@ -213,9 +139,9 @@ let
         d = 0.001
     )
 
-    plot!(p,
-          ylims  = (0.0, 20.0),
-          yticks = 0.0:4.0:20.0)
+	ax.yticks = 0.0:4.0:20.0
+	ylims!(ax, extrema(ax.yticks.val))
+	f
 end
 
 # ╔═╡ 3a855976-5150-47f6-b3ef-cf1ba4a11239
@@ -227,7 +153,7 @@ function aluminakiln(ṁ, ω; show = false)
     D = 1.5
     β = atan(0.025)
 
-    model, optim, p = solvekiln(
+    model, optim, f, ax = solvekiln(
         L = L,
         D = D,
         Φ = (1000// 24) * ṁ / ρ,
@@ -240,18 +166,17 @@ function aluminakiln(ṁ, ω; show = false)
 
     τₚ = perrayresidence(L, ω, D, β)
 
-    return model, optim, p, τₚ
+    return model, optim, f, ax, τₚ
 end
 
 # ╔═╡ e2d3263d-bec5-4c6a-83da-e6e6f4deaeab
 let
     ṁ = 33.6
     ω = 0.85
-    _, _, p, _ = aluminakiln(ṁ, ω, show = true)
-
-    plot!(p,
-          ylims  = (0.0, 30.0),
-          yticks = 0.0:6.0:30.0)
+    _, _, f, ax, _ = aluminakiln(ṁ, ω, show = true)
+	ax.yticks = 0.0:6.0:30.0
+	ylims!(ax, extrema(ax.yticks.val))
+	f
 end
 
 # ╔═╡ c09fb848-1e24-43a1-be49-07deeb3e76cc
@@ -269,10 +194,7 @@ function scanaluminakiln()
     )
 
     for ṁ ∈ ṁlist, ω ∈ ωlist
-        model, _, _, τ = aluminakiln(ṁ, ω, show = false)
-
-
-
+        model, _, _, _, τ = aluminakiln(ṁ, ω, show = false)
         η̄ = round(model.ηₘ, digits = 0)
         τᵢ = round(model.τ / 60.0, digits = 0)
         τₚ = round(τ, digits = 0)
@@ -328,7 +250,7 @@ let
     d = d / 1000.0
 
     # Create problem container.
-    kramers = solvelinearkramersmodel(;
+    kramers = RotaryKilnBedSolution(;
         model = SymbolicLinearKramersModel(),
         L     = L,
         R     = R,
@@ -339,7 +261,7 @@ let
         d     = d
     )
 
-    optim = kramersanalytical(;
+    optim = kramersnlapprox(;
         z = kramers.z,
         R = R,
         Φ = Φ,
@@ -394,7 +316,7 @@ const TABLE3 = let
         β = rad2deg(atan(row["tan(β)"]))
         γ = row["γ"]
 
-        kramers = solvelinearkramersmodel(;
+        kramers = RotaryKilnBedSolution(;
             model = model,
             L     = Lₖ,
             R     = Dₖ / 2.0,
@@ -445,10 +367,11 @@ const DIMLESSPLOT = let
     Nₖ = dimlessNₖ(L, R, β, γ)
     model = SymbolicLinearKramersModel()
 
-    p = plot()
-
+	f = Figure()
+	ax = Axis(f[1, 1])
+	
     for d in [0.05, 0.10, 0.15, 0.193, 0.25]
-        kramers = solvelinearkramersmodel(;
+        kramers = RotaryKilnBedSolution(;
             model = model,
             L     = L,
             R     = R,
@@ -465,23 +388,20 @@ const DIMLESSPLOT = let
         z = @. (L - z) / L * 1 / (NΦ * Nₖ)
         z = @. z[1] - z
 
-        plot!(p, z, h,
-              linewidth = 2,
-              label = @sprintf("%.3f", d))
+		label = @sprintf("%.3f", d)
+		lines!(ax, z, h; linewidth = 2, label = label)
     end
 
-    plot!(p,
-         title = "Dimensionless loading curves",
-         xaxis = "Coordinate",
-         yaxis = "Bed height",
-         label = nothing,
-         xlims = (0.0, 0.5),
-         ylims = (0.0, 0.25),
-         xticks = 0.0:0.1:0.5,
-         yticks = 0.0:0.05:0.25
-    )
+	ax.title = "Dimensionless loading curves"
+	ax.xlabel = "Coordinate"
+	ax.ylabel = "Bed height"
+	ax.xticks.val = 0.0:0.1:0.5
+	ax.yticks.val = 0.05:0.05:0.25
+	xlims!(ax, extrema(ax.xticks.val))
+	ylims!(ax, extrema(ax.yticks.val))
+	axislegend(ax; position = :rb)
 
-    p
+    f
 end;
 
 # ╔═╡ 0ff54742-abf4-4b28-8ce9-ee8572c85285
@@ -508,11 +428,6 @@ $(DIMLESSPLOT)
 # ╟─0cafec10-ed46-49fe-9388-dc9ab84411fc
 # ╟─436f5f65-065c-4b63-b138-95d5a999b870
 # ╟─39f66a95-0a70-43ef-957a-e3fe7f07529a
-# ╟─c5d1f88d-90ab-4d3e-b878-4c281081494f
-# ╟─7a839722-9dee-4cb5-b900-042140cf4eeb
-# ╟─cb33d18a-e11e-4596-86a3-1d1d7389f982
-# ╟─049056cf-f754-4fdc-ab20-a6b177942c11
-# ╟─cd18eabc-3c5f-40ec-bb84-523ef0577871
 # ╟─75228bbe-4da9-4f70-a065-c96f47adc704
 # ╟─3a855976-5150-47f6-b3ef-cf1ba4a11239
 # ╟─c09fb848-1e24-43a1-be49-07deeb3e76cc

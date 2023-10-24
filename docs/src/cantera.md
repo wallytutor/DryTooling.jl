@@ -1,14 +1,14 @@
 # DryTooling.Cantera
 
 ```@setup cantera
-cantera = "C:\\Program Files\\Cantera\\bin\\cantera_shared.dll"
+# cantera = "C:\\Program Files\\Cantera\\bin\\cantera_shared.dll"
 
-ENV["CANTERA_SHARED"] = cantera
-@assert haskey(ENV, "CANTERA_SHARED")
+# ENV["CANTERA_SHARED"] = cantera
+# @assert haskey(ENV, "CANTERA_SHARED")
 ```
 
 ```@example cantera
-import DryTooling.Cantera as ct
+# import DryTooling.Cantera as ct
 ```
 
 ```@example cantera

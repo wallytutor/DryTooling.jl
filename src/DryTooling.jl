@@ -68,10 +68,12 @@ module Granular
     using DifferentialEquations: solve
     using Distributions
     using DocStringExtensions: TYPEDFIELDS
+    using Ipopt
     using ModelingToolkit
     using Printf
     using Random
     using Trapz: trapz
+    import JuMP
 
     include("Granular/porous-media.jl")
     include("Granular/rotary-kiln.jl")
