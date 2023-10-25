@@ -20,38 +20,87 @@ format = Documenter.HTML(;
 
 pages  = [
     "Home"                  => "index.md",
+
+    ################################################################
     
     "Module Finite Volumes" => [
         "Documentation" => "FiniteVolumes/index.md",
         "Examples"      => "FiniteVolumes/samples.md",
-        "Theory guide"  => "FiniteVolumes/theory.md",
     ],
+        
+    ################################################################
 
     "Module Granular"       => [
         "Documentation" => "Granular/index.md",
         "Examples"      => "Granular/samples.md",
-        "Theory guide"  => "Granular/theory.md",
     ],
-    
-    "Module Cantera"        => "Cantera/index.md",
-    "Module Thermodynamics" => "Thermodynamics/index.md",
-    "Module Kinetics"       => "Kinetics/index.md",
-    "Module Plug Flow"      => "PlugFlow/index.md",
-    
+        
+    ################################################################
+
+    "Module Fluid Models"   => [
+        "Documentation" => "FluidModels/index.md",
+        "Examples"      => "FluidModels/samples.md",
+    ],
+        
+    ################################################################
+
+    "Module Cantera"        => [
+        "Documentation" => "Cantera/index.md",
+        "Examples"      => "Cantera/samples.md",
+        "Status"        => "Cantera/status.md",
+    ],
+        
+    ################################################################
+
+    "Module Thermodynamics" => [
+        "Documentation" => "Thermodynamics/index.md",
+        "Examples"      => "Thermodynamics/samples.md",
+    ],
+        
+    ################################################################
+
+    "Module Kinetics"       => [
+        "Documentation" => "Kinetics/index.md",
+        "Examples"      => "Kinetics/samples.md",
+    ],
+        
+    ################################################################
+
+    "Module Plug Flow"      => [
+        "Documentation" => "PlugFlow/index.md",
+        "Examples"      => "PlugFlow/samples.md",
+    ],
+        
+    ################################################################
+
     "Module Simulation"     => "Simulation/index.md",
     "DryTooling Core"       => "DryTooling/index.md",
-    
+
+    ################################################################
+
+    "Theory Guide"      => [
+        "Finite volumes"   => "FiniteVolumes/theory.md",
+        "Granular models"  => "Granular/theory.md",
+        "Fluid models"     => "FluidModels/theory.md",
+        "Thermodynamics"   => "Thermodynamics/theory.md",
+        "Kinetics"         => "Kinetics/theory.md",
+        "Plug Flow models" => "PlugFlow/theory.md",
+        "References"       => "references.md",
+    ],
+
+    ################################################################
+
     "Reference API"         => "api.md",
     "Table of contents"     => "toc.md",
-    "References"         => "references.md",
 ]
 
 makedocs(;
     modules  = [DryTooling],
+    format   = format,
+    clean    = false,
+    sitename = "DryTooling.jl",
     authors  = "Walter Dal'Maz Silva <walter.dalmazsilva.manager@gmail.com> & contributors",
     repo     = "https://github.com/wallytutor/DryTooling.jl/blob/{commit}{path}#{line}",
-    sitename = "DryTooling.jl",
-    format   = format,
     plugins  = [bib],
     pages    = pages
 )

@@ -1,14 +1,12 @@
 # DryTooling.Granular
 
-## Documentation
-
-### General porous media
+## General porous media
 
 ```@docs
 DryTooling.Granular.PackedBedPorosityDescriptor
 ```
 
-### Rotary kiln models
+## Rotary kiln models
 
 The structure `SymbolicLinearKramersModel` implements the Kramers' ordinary differential equation for prediction of bed height profile in a rotary kiln. This equation is implemented under the formalism of `ModelingToolkit`.
 
@@ -32,6 +30,10 @@ DryTooling.Granular.dimlessNₖ
 DryTooling.Granular.perrayresidence
 DryTooling.Granular.kramersnlapprox
 ```
+
+## Theory guide
+
+Please go to the module theory guide [page](theory.md).
 
 ## Models validation
 

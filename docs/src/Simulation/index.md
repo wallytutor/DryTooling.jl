@@ -1,10 +1,8 @@
 # DryTooling.Simulation
 
-## Documentation
-
 **NOTE:** this module is *fragile* and breaking changes are still expected. It is not until all the main solvers are migrated that it will become stable. This is necessary for ensuring compatibility with all models.
 
-### Iterative solver
+## Iterative solver
 
 The core of the iterative time-stepping solver is `step!`. This function that is described below works according to the following solution logic:
 
@@ -37,7 +35,7 @@ DryTooling.Simulation.fsolve!
 DryTooling.Simulation.timepoints
 ```
 
-### Linear algebra
+## Linear algebra
 
 ```@docs
 DryTooling.Simulation.TridiagonalProblem
@@ -45,7 +43,7 @@ DryTooling.Simulation.solve!(::DryTooling.Simulation.TridiagonalProblem)
 DryTooling.Simulation.change
 ```
 
-### Residuals tracking
+## Residuals tracking
 
 ```@docs
 DryTooling.Simulation.TimeSteppingSimulationResiduals
