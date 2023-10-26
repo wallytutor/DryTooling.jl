@@ -19,3 +19,7 @@ DryTooling.FiniteVolumes.plotcarburizedprofile
 ## Theory guide
 
 Please go to the module theory guide [page](theory.md).
+
+## Models validation
+
+- [Iron carburizing](validation/carburizing.md)
