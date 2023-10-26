@@ -162,7 +162,7 @@ function initialize!(
     m.mem[] = Temperature1DModelStorage(m.grid.N, nsteps)
 
     # Do not reinitialize a problem.
-    if !isnothing(x)
+    if !isnothing(T)
         m.problem.x[:] .= T
     end
 
