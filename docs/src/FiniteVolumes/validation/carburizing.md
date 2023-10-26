@@ -15,8 +15,6 @@ M = 30
 ε = 1.0e-10
 
 hour = 3600.0
-xticks = 0.0:0.2:1.2
-yticks = 0.2:0.2:1.0
 showstairs = true
 
 yaero0 = 0.0016
@@ -59,15 +57,11 @@ Mass transfer coefficient is then declared as a time function. A *high* value of
 h = (t) -> (t < enrich) ? 1.0 : 0.0
 ```
 
-A wrapper was created to initialize the model:
+A wrapper was created to initialize the model and used below. Starting from initial time, we perform the carburizing step. The initial condition is provided through `x` with the alloy's initial carbon content. Below we see the plot of convergence tracking during the solution.
 
 ```@example carburizing
 model = getcarburizingmodel(L, N, h, T, yaeros)
-```
 
-Starting from initial time, we perform the carburizing step. The initial condition is provided through `x` with the alloy's initial carbon content. Below we see the plot of convergence tracking during the solution.
-
-```@example carburizing
 t0 = 0.0
 t = enrich
 x = carburizemasstomolefraction(yaero0)
@@ -77,6 +71,8 @@ res1
 ```
 
 ```@example carburizing
+xticks = 0.0:0.2:1.2                                               # hide
+yticks = 0.0:0.2:1.0                                               # hide
 fig, ax = plotcarburizedprofile(model, yaero0; showstairs, xticks, # hide
                                 yticks, label = "Carburizing");    # hide
 ```
@@ -106,7 +102,7 @@ Mass intake approaches the reference value of 23.5 ``g\cdotp{}m^{-2}``obtained b
 
 ## Carburizing of alloy 23MnCrMo5
 
-For alloy 23MnCrMo5 we perform 2 hours of carbon enrichment followed by 4 hours of zero flux (closed system) diffusion.
+For alloy 23MnCrMo5 we perform 2 hours of carbon enrichment followed by 4 hours of zero flux (closed system) diffusion. To make it shorter, all the code is presented in a single block below.
 
 ```@example carburizing
 enrich  = 2hour
@@ -120,7 +116,8 @@ t0 = 0.0
 t = enrich
 x = carburizemasstomolefraction(yauto0)
 @time solve(model; t, τ, x, M, α, ε, t0)
-
+xticks = 0.0:0.2:1.2                                               # hide
+yticks = 0.2:0.2:1.0                                               # hide
 fig, ax = plotcarburizedprofile(model, yauto0; showstairs, xticks, # hide
                                 yticks, label = "Carburizing");    # hide
 
@@ -136,4 +133,4 @@ axislegend(ax; position = :rt)                                       # hide
 fig                                                                  # hide
 ```
 
-Mass intake approaches the reference value of 15.3 ``g\cdotp{}m^{-2}``obtained by diffusion profile integration by Dal'Maz Silva *et al.* [DalMazSilva2017](@cite).
+Mass intake does not approache the reference value of 15.3 ``g\cdotp{}m^{-2}``obtained by diffusion profile integration by Dal'Maz Silva *et al.* [DalMazSilva2017](@cite), but that obtained by direct sample mass change of 20.5 ``g\cdotp{}m^{-2}``. Because of the lack of experimental reproduction and high uncertainty in measurements, results are considered to be in good agreement.
