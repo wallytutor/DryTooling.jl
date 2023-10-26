@@ -46,3 +46,15 @@ Helper for creating a `UserDefinedGrid1D` with all nodes equidistant.
 function geometriccellsgrid1D(R::Float64, N::Int64)::UserDefinedGrid1D
     return UserDefinedGrid1D(@. ((R+1)^(1/N))^(0:N)-1.0)
 end
+
+# TODO: this is broken after solution because of the way processed innersteps
+# are counted. A better solution (using mem.t ?!?!?) is to be found but since
+# this has no impact for now (it works in advance! as expected) this will be
+# done when solver reach a better maturity level.
+function DryTooling.Simulation.timepoints(m::AbstractDiffusionModel1D)
+    "Reconstruct time axis of integrated diffusion model."
+    nsteps = length(m.res[].innersteps) - 1
+    tend = nsteps * m.τ[]
+    return 0.0:m.τ[]:tend
+    # return m.mem[].t
+end

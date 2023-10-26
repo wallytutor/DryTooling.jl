@@ -59,7 +59,8 @@ end
         m::AbstractPhysicalModel;
         α::Float64 = 0.1,
         ε::Float64 = 1.0e-10,
-        M::Int64 = 20
+        M::Int64 = 20,
+        t0::Float64 = 0.0
     )
 
 Manage execution of `step!` over the integration time interval.
@@ -68,7 +69,8 @@ function advance!(
         m::AbstractPhysicalModel;
         α::Float64 = 0.1,
         ε::Float64 = 1.0e-10,
-        M::Int64 = 20
+        M::Int64 = 20,
+        t0::Float64 = 0.0
     )
     if α >= 1.0 || α < 0.0
         @error """\
@@ -79,12 +81,17 @@ function advance!(
 
     times = timepoints(m)
 
+    # XXX: `times` contain all solution points from initial condition.
+    # For time-advance use only the `head` of this to avoid performing
+    # and extra step. Uncomment the `@info` for checking if in doubt!
     for (n, t) in enumerate(head(times))
-        # @info "Advancing from $(t) to $(t+m.τ[]) s"
-        step!(m, t, n; α, ε, M)
+        tn = t + t0
+        # @info "Advancing from $(tn) to $(tn+m.τ[]) s"
+        step!(m, tn, n; α, ε, M)
     end
 
-    fouter!(m, last(times), length(times))
+    # @info "Reached time $(last(times))"
+    fouter!(m, last(times) + t0, length(times))
 end
 
 """

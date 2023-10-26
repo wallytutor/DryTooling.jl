@@ -151,8 +151,8 @@ end
 function initialize!(
         m::LocalAbstractTemperature1DModel,
         t::Float64,
-        τ::Float64,
-        T::Float64;
+        τ::Float64;
+        T::Union{Float64,Nothing} = nothing,
         M::Int64 = 50
     )::Nothing
     "Set initial condition of thermal diffusion model."
@@ -160,7 +160,12 @@ function initialize!(
     m.τ[] = Base.step(range(0.0, t, nsteps))
     m.res[] = TimeSteppingSimulationResiduals(1, M, nsteps)
     m.mem[] = Temperature1DModelStorage(m.grid.N, nsteps)
-    m.problem.x[:] .= T
+
+    # Do not reinitialize a problem.
+    if !isnothing(x)
+        m.problem.x[:] .= T
+    end
+
     return nothing
 end
 
@@ -168,13 +173,13 @@ function CommonSolve.solve(
         m::LocalAbstractTemperature1DModel;
         t::Float64,
         τ::Float64,
-        T::Float64,
+        T::Union{Float64,Nothing} = nothing,
         α::Float64 = 0.1,
         ε::Float64 = 1.0e-10,
         M::Int64 = 50
     )::Nothing
     "Interface for solving a model instance."
-    initialize!(m, t, τ, T; M)
+    initialize!(m, t, τ; T, M)
     advance!(m; α, ε, M)
     m.res[] = TimeSteppingSimulationResiduals(m.res[])
     return nothing
@@ -192,6 +197,7 @@ function DryTooling.Simulation.fouter!(
     # Follow surface heat flux and store partial solutions.
     # XXX: note the factor 4π because U = r²h only and A = 4πr²!!!!
     # XXX: note the factor 2π because U = rh only and A = 2πrl!!!!
+    m.mem[].t[n] = t
     m.mem[].Q[n] = m.scale * U * (B - last(m.problem.x))
     m.mem[].T[n, 1:end] = m.problem.x
 

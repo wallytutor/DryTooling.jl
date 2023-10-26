@@ -2,6 +2,7 @@
 export AusteniteCarburizing1DModel
 export initialize!
 export solve
+export plotcarburizedprofile
 
 export interstitialmassintake
 export carburize
@@ -68,8 +69,8 @@ end
 function initialize!(
         m::AusteniteCarburizing1DModel,
         t::Float64,
-        τ::Float64,
-        x::Float64;
+        τ::Float64;
+        x::Union{Float64,Nothing} = nothing,
         M::Int64 = 50
     )::Nothing
     "Set initial condition of thermal diffusion model."
@@ -77,7 +78,12 @@ function initialize!(
     m.τ[] = Base.step(range(0.0, t, nsteps))
     m.res[] = TimeSteppingSimulationResiduals(1, M, nsteps)
     m.mem[] = Temperature1DModelStorage(m.grid.N, nsteps)
-    m.problem.x[:] .= x
+
+    # Do not reinitialize a problem.
+    if !isnothing(x)
+        m.problem.x[:] .= x
+    end
+
     return nothing
 end
 
@@ -91,6 +97,7 @@ function DryTooling.Simulation.fouter!(
     C = m.C(t + m.τ[]/2)
 
     # Follow surface mass flux and store partial solutions.
+    m.mem[].t[n] = t
     m.mem[].Q[n] = h * (C - last(m.problem.x))
     m.mem[].T[n, 1:end] = m.problem.x
 
@@ -130,26 +137,70 @@ function DryTooling.Simulation.fsolve!(
     return ε
 end
 
-function DryTooling.Simulation.timepoints(m::AbstractDiffusionModel1D)
-    "Reconstruct time axis of integrated diffusion model."
-    tend = (length(m.res[].innersteps)-1) * m.τ[]
-    return 0.0:m.τ[]:tend
-end
-
 function CommonSolve.solve(
         m::AusteniteCarburizing1DModel;
         t::Float64,
         τ::Float64,
-        x::Float64,
+        x::Union{Float64,Nothing} = nothing,
         M::Int64 = 50,
         α::Float64 = 0.1,
-        ε::Float64 = 1.0e-10
+        ε::Float64 = 1.0e-10,
+        t0::Float64 = 0.0
     )::Nothing
     "Interface for solving a `Cylinder1DTemperatureModel` instance."
-    initialize!(m, t, τ, x, M = M)
-    advance!(m; α, ε, M)
+    initialize!(m, t, τ; x, M)
+    advance!(m; α, ε, M, t0)
     m.res[] = TimeSteppingSimulationResiduals(m.res[])
     return nothing
+end
+
+"""
+	plotcarburizedprofile(
+		model::AusteniteCarburizing1DModel,
+		yc0::Float64;
+		showstairs = true,
+		xticks = nothing,
+		yticks = nothing,
+        label = nothing
+	)
+
+Display carburized profile and mass intake in a standardized way.
+"""
+function plotcarburizedprofile(
+		model::AusteniteCarburizing1DModel,
+		yc0::Float64;
+		showstairs = true,
+		xticks = nothing,
+		yticks = nothing,
+        label = nothing
+	)
+	z = model.grid.r
+	yc = carburizemoletomassfraction.(model.problem.x)
+	mc = interstitialmassintake(model.grid.r, yc0, yc)
+	
+	fig = Figure(resolution = (720, 500))
+	ax = Axis(fig[1, 1], yscale = identity)
+	lines!(ax, 1000z, 100reverse(yc), label = label)
+
+	if showstairs
+		stairs!(ax, 1000z, 100reverse(yc), color = :black, step = :center)
+	end
+	
+	ax.title  = "Mass intake $(round(mc, digits = 2)) g/m²"
+	ax.xlabel = "Coordinate [mm]"
+	ax.ylabel = "Mass percentage [%]"
+
+	if !isnothing(xticks)
+		ax.xticks = xticks
+		xlims!(ax, extrema(ax.xticks.val))
+	end
+
+	if !isnothing(yticks)
+		ax.yticks = yticks
+		ylims!(ax, extrema(ax.yticks.val))
+	end
+
+	return fig, ax
 end
 
 # TODO generalize these interfaces!
@@ -175,3 +226,4 @@ function carburize(grid, t, τ, T, h, y0, ys, ; M = 50)
     @time solve(model; t, τ, x, M = M, α = 0.05)
     return model
 end
+

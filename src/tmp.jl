@@ -794,6 +794,9 @@ end
 struct Temperature1DModelStorage <: AbstractSolutionStorage
     "Data storage for 1D temperature solution models."
 
+    "Tracker for time points."
+    t::Vector{Float64}
+
     "Tracker for surface heat flux."
     Q::Vector{Float64}
 
@@ -801,6 +804,6 @@ struct Temperature1DModelStorage <: AbstractSolutionStorage
     T::Matrix{Float64}
 
     function Temperature1DModelStorage(N, M)
-        return new(zeros(M), zeros(M, N))
+        return new(zeros(M), zeros(M), zeros(M, N))
     end
 end

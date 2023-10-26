@@ -40,13 +40,13 @@ module Simulation
 end # module Simulation
 
 module FiniteVolumes
+    using CairoMakie
     using CommonSolve
     using CommonSolve: solve
     using DocStringExtensions: TYPEDFIELDS
     using Trapz: trapz
     using DryTooling
     using DryTooling.Simulation
-    # using DryTooling.Simulation: fouter!, finner!, fsolve!, timepoints
     # TODO this will migrate!
     using DryTooling: Temperature1DModelStorage
     using DryTooling: interfaceconductivity1D
