@@ -40,6 +40,7 @@ N = 100       # Number of cells
 L = 0.002     # Length [m]
 T = 1173.15   # Temperature [K]
 τ = 50.0      # Characteristic time-step [s]
+nothing # hide
 ```
 
 ## Carburizing of alloy 16NiCrMo13
@@ -49,15 +50,17 @@ For alloy 16NiCrMo13 we perform 2 hours of carbon enrichment followed by 3 hours
 ```@example carburizing
 enrich  = 2hour
 diffuse = 3hour
+nothing # hide
 ```
 
 Mass transfer coefficient is then declared as a time function. A *high* value of `1.0` enforces an *almost-Dirichlet* boundary condition, while `0.0` closes the system.
 
 ```@example carburizing
 h = (t) -> (t < enrich) ? 1.0 : 0.0
+nothing # hide
 ```
 
-A wrapper was created to initialize the model and used below. Starting from initial time, we perform the carburizing step. The initial condition is provided through `x` with the alloy's initial carbon content. Below we see the plot of convergence tracking during the solution.
+A wrapper was created to initialize the model and used below. Starting from initial time, we perform the carburizing step. The initial condition is provided through `x` with the alloy's initial carbon content.
 
 ```@example carburizing
 model = getcarburizingmodel(L, N, h, T, yaeros)
@@ -67,17 +70,24 @@ t = enrich
 x = carburizemasstomolefraction(yaero0)
 @time solve(model; t, τ, x, M, α, ε, t0)
 res1 = plotsimulationresiduals(model.res[]; showinner = true)[1]
-res1
+nothing # hide
+```
+
+Below we see the plot of convergence tracking during the solution. Through option `showinner = true` we see the internal steps residuals. The blue dots represent the end of step residual, all of which fall below the target convergence criterium.
+
+```@example carburizing
+res1 # hide
 ```
 
 ```@example carburizing
 xticks = 0.0:0.2:1.2                                               # hide
 yticks = 0.0:0.2:1.0                                               # hide
 fig, ax = plotcarburizedprofile(model, yaero0; showstairs, xticks, # hide
-                                yticks, label = "Carburizing");    # hide
+                                yticks, label = "Carburizing")     # hide
+nothing # hide
 ```
 
-Now we continue the process from final time of carburizing for the whole diffusion interval. Again we inspect the residuals for this step.
+Now we continue the process from final time of carburizing for the whole diffusion interval. Again we inspect the residuals for this step to verify that everything worked as expected.
 
 ```@example carburizing
 t0 = t
@@ -85,7 +95,15 @@ t = diffuse
 x = nothing
 @time solve(model; t, τ, x, M, α, ε, t0)
 res2 = plotsimulationresiduals(model.res[]; showinner = true)[1]
-res2
+nothing # hide
+```
+
+!!! note "About convergence"
+
+    If a convergence plot is not really required, this check could be skipped. In fact the solver will issue warnings if any step did not reach internal convergence so no worries.
+
+```@example carburizing
+res2 # hide
 ```
 
 Below we see the state of the system after both carburizing and homogeneization diffusion steps.
