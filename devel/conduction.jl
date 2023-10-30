@@ -136,7 +136,7 @@ function DryTooling.Simulation.fouter!(
     m.mem[].T[n, 1:end] = m.problem.x
 
     @. m.problem.b[1:end] = map(m.H, m.problem.x)
-    m.problem.b[end] += m.α[end] * U * B
+    m.problem.b[end] += U * B / m.α[end]
     return nothing
 end
 
@@ -144,22 +144,21 @@ function DryTooling.Simulation.finner!(
         m::Sphere1DEnthalpyModel, t::Float64, n::Int64
     )::Nothing
     "Non-linear iteration updater for model."
-    # D = interfaceconductivity1D(m.D.(m.problem.x))
-    # β = D .* m.β′
-    # α = m.α′./ m.τ[]
+    κ = interfaceconductivity1D(m.κ.(m.problem.x))
+    β = κ .* m.β′
 
-    # # XXX: for now evaluating B.C. at mid-step, fix when going full
-    # # semi-implicit generalization!
-    # h = m.h(t + m.τ[]/2)
+    # XXX: for now evaluating B.C. at mid-step, fix when going full
+    # semi-implicit generalization!
+    U = m.U(t + m.τ[]/2)
 
-    # m.problem.A.dl[1:end] = -β
-    # m.problem.A.du[1:end] = -β
-    # m.problem.A.d[1:end]  = α
+    m.problem.A.dl[1:end] = -β
+    m.problem.A.du[1:end] = -β
+    m.problem.A.d[1:end]  = m.α
 
-    # m.problem.A.d[2:end-1] += tail(β) + head(β)
-    # m.problem.A.d[1]       += first(β)
-    # m.problem.A.d[end]     += last(β) + h
-    # return nothing
+    m.problem.A.d[2:end-1] += tail(β) + head(β)
+    m.problem.A.d[1]       += first(β)
+    m.problem.A.d[end]     += last(β) + U / m.α[end]
+    return nothing
 end
 
 function DryTooling.Simulation.fsolve!(
