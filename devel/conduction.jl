@@ -18,108 +18,125 @@ if Base.current_project() != Base.active_project()
     using DryTooling: interfaceconductivity1D
 end
 
+struct Sphere1DEnthalpyModel <: AbstractDiffusionModel1D
+    "Energy equation in an 1-D sphere formulated in enthalpy."
 
+    "Grid over which problem will be solved."
+    grid::AbstractGrid1D
 
-# "Thermal diffusion in a sphere represented in temperature space."
-# struct Sphere1DEnthalpyModel <: dry.AbstractDiffusionModel1D
-#     "Grid over which problem will be solved."
-#     grid::dry.AbstractGrid1D
+    "Memory for model linear algebra problem."
+    problem::TridiagonalProblem
 
-#     "Memory for model linear algebra problem."
-#     problem::dry.TridiagonalProblem
+    "Constant part of model coefficient α."
+    α′::Vector{Float64}
 
-#     "Constant part of model coefficient α."
-#     α′::Vector{Float64}
+    "Constant part of model coefficient β."
+    β′::Vector{Float64}
 
-#     "Constant part of model coefficient β."
-#     β′::Vector{Float64}
+    "Thermal conductivity in terms of temperature."
+    κ::Function
 
-#     "Thermal conductivity in terms of temperature."
-#     κ::Function
+    "Global heat transfer coefficient ``U=hR``."
+    U::Function
 
-#     "Enthalpy in terms of temperature."
-#     h::Function
+    "Surface environment temperature."
+    B::Function
 
-#     "Global heat transfer coefficient ``U=hR²``."
-#     U::Float64
+    "Enthalpy function of temperature."
+    H::Function
 
-#     "Surface environment temperature."
-#     B::Float64
+    "Time-step used in integration."
+    τ::Base.RefValue{Float64}
 
-#     "Time-step used in integration."
-#     τ::Base.RefValue{Float64}
+    "Memory storage for solution retrieval."
+    mem::Base.RefValue{Temperature1DModelStorage}
 
-#     "Memory storage for solution retrieval."
-#     mem::Base.RefValue{dry.Temperature1DModelStorage}
+    "Residuals tracking during solution."
+    res::Base.RefValue{TimeSteppingSimulationResiduals}
 
-#     function Sphere1DEnthalpyModel(;
-#             grid::dry.AbstractGrid1D,
-#             h::Function,
-#             κ::Function,
-#             ρ::Float64,
-#             u::Float64,
-#             B::Float64
-#         )
-#         problem = dry.TridiagonalProblem(grid.N)
+    "Surface area scaling factor."
+    scale::Float64
 
-#         rₙ = dry.tail(grid.w)
-#         rₛ = dry.head(grid.w)
-#         α′ = @. ρ * (rₙ^3 - rₛ^3) / 3.0
+    function Sphere1DEnthalpyModel(;
+            grid::AbstractGrid1D,
+            h::Union{Function,Float64},
+            B::Union{Function,Float64},
+            κ::Union{Function,Float64},
+            H::Function,
+            ρ::Float64
+        )
+        hu = (typeof(h) <: Function) ? h : (t) -> h
+        Bu = (typeof(B) <: Function) ? B : (t) -> B
+        κu = (typeof(κ) <: Function) ? κ : (T) -> κ
 
-#         rₙ = dry.tail(grid.r)
-#         rₛ = dry.head(grid.r)
-#         wⱼ = dry.body(grid.w)
-#         β′ = @. wⱼ^2 / (rₙ - rₛ)
+        problem = TridiagonalProblem(grid.N)
 
-#         U = u * last(grid.r)^2
-#         τ = Ref(-Inf)
-#         mem = Ref(dry.Temperature1DModelStorage(0, 0))
+        rₙ = tail(grid.w)
+        rₛ = head(grid.w)
+        α′ = @. ρ * (rₙ^3 - rₛ^3) / 3.0
 
-#         return new(grid, problem, α′, β′, κ, h, U, B, τ, mem)
-#     end
-# end
+        rₙ = tail(grid.r)
+        rₛ = head(grid.r)
+        wⱼ = body(grid.w)
+        β′ = @. wⱼ^2 / (rₙ - rₛ)
 
-# "Time-step dependent updater for model."
-# function sphereenthalpyouter!(
-#         m::Sphere1DEnthalpyModel,
-#         t::Float64,
-#         n::Int64
-#     )::Nothing
-#     # Note the factor 4π because U = r²h only and A = 4πr²!!!!
-#     m.mem[].Q[n] = 4π * m.U * (m.B - last(m.problem.x))
-#     m.mem[].T[n, 1:end] = m.problem.x
+        R = last(grid.r)^2
+        U = (t) -> hu(t) * R
+        τ = Ref(-Inf)
 
-#     @. m.problem.b[1:end] = m.h.(m.problem.x)
-#     m.problem.b[end] += m.U * m.B
+        mem = Ref(Temperature1DModelStorage(0, 0))
+        res = Ref(TimeSteppingSimulationResiduals(1, 0, 0))
 
-#     return nothing
-# end
+        return new(grid, problem, α′, β′, κu, U, Bu, H, τ, mem, res, 4π)
+    end
+end
 
-# "Non-linear iteration updater for model."
-# function sphereenthalpyinner!(
-#         m::Sphere1DEnthalpyModel,
-#         t::Float64,
-#         n::Int64
-#     )::Nothing
-#     a_p = m.problem.A.d
-#     a_s = m.problem.A.dl
-#     a_n = m.problem.A.du
-#     T_p = m.problem.x
+function DryTooling.Simulation.fouter!(
+        m::Sphere1DEnthalpyModel, t::Float64, n::Int64
+    )::Nothing
+    "Time-step dependent updater for model."
+    # # XXX: for now evaluating B.C. at mid-step, fix when going full
+    # # semi-implicit generalization!
+    # h = m.h(t + m.τ[]/2)
+    # C = m.C(t + m.τ[]/2)
 
-#     κ = interfaceconductivity1D(m.κ.(T_p))
-#     β = κ .* m.β′
-#     α = m.α′./ m.τ
+    # # Follow surface mass flux and store partial solutions.
+    # m.mem[].t[n] = t
+    # m.mem[].Q[n] = h * (C - last(m.problem.x))
+    # m.mem[].T[n, 1:end] = m.problem.x
 
-#     a_s[1:end] = -β
-#     a_n[1:end] = -β
-#     a_p[1:end] = α
+    # @. m.problem.b[1:end] = (m.α′ / m.τ[]) * m.problem.x
+    # m.problem.b[end] += h * C
+    # return nothing
+end
 
-#     a_p[2:end-1] += tail(β) + head(β)
-#     a_p[1]       += first(β)
-#     a_p[end]     += last(β) + m.U
+function DryTooling.Simulation.finner!(
+        m::Sphere1DEnthalpyModel, t::Float64, n::Int64
+    )::Nothing
+    "Non-linear iteration updater for model."
+    # D = interfaceconductivity1D(m.D.(m.problem.x))
+    # β = D .* m.β′
+    # α = m.α′./ m.τ[]
 
-#     return nothing
-# end
+    # # XXX: for now evaluating B.C. at mid-step, fix when going full
+    # # semi-implicit generalization!
+    # h = m.h(t + m.τ[]/2)
 
-# function sphereenthalpysolve!()
-# end
+    # m.problem.A.dl[1:end] = -β
+    # m.problem.A.du[1:end] = -β
+    # m.problem.A.d[1:end]  = α
+
+    # m.problem.A.d[2:end-1] += tail(β) + head(β)
+    # m.problem.A.d[1]       += first(β)
+    # m.problem.A.d[end]     += last(β) + h
+    # return nothing
+end
+
+function DryTooling.Simulation.fsolve!(
+        m::Sphere1DEnthalpyModel, t::Float64, n::Int64, α::Float64
+    )::Float64
+    "Solve problem for one non-linear step."
+    # ε = relaxationstep!(m.problem, α, maxabsolutechange)
+    # addresidual!(m.res[], [ε])
+    # return ε
+end
