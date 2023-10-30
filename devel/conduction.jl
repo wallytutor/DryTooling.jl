@@ -27,8 +27,8 @@ struct Sphere1DEnthalpyModel <: AbstractDiffusionModel1D
     "Memory for model linear algebra problem."
     problem::TridiagonalProblem
 
-    "Constant part of model coefficient α."
-    α′::Vector{Float64}
+    "Model coefficient α."
+    α::Vector{Float64}
 
     "Constant part of model coefficient β."
     β′::Vector{Float64}
@@ -73,7 +73,7 @@ struct Sphere1DEnthalpyModel <: AbstractDiffusionModel1D
 
         rₙ = tail(grid.w)
         rₛ = head(grid.w)
-        α′ = @. ρ * (rₙ^3 - rₛ^3) / 3.0
+        α = @. ρ * (rₙ^3 - rₛ^3) / 3.0
 
         rₙ = tail(grid.r)
         rₛ = head(grid.r)
@@ -87,27 +87,57 @@ struct Sphere1DEnthalpyModel <: AbstractDiffusionModel1D
         mem = Ref(Temperature1DModelStorage(0, 0))
         res = Ref(TimeSteppingSimulationResiduals(1, 0, 0))
 
-        return new(grid, problem, α′, β′, κu, U, Bu, H, τ, mem, res, 4π)
+        return new(grid, problem, α, β′, κu, U, Bu, H, τ, mem, res, 4π)
     end
+end
+
+function initialize!(
+        m::Sphere1DEnthalpyModel,
+        t::Float64,
+        τ::Float64;
+        T::Union{Float64,Nothing} = nothing,
+        M::Int64 = 50
+    )::Nothing
+    "Set initial condition of thermal diffusion model."
+    # XXX: this is the same as for LocalAbstractTemperature1DModel!
+    # Try to instantiate that function instead of the next calls!
+    # ---
+    nsteps = convert(Int64, round(t / τ))
+    m.τ[] = Base.step(range(0.0, t, nsteps))
+    m.res[] = TimeSteppingSimulationResiduals(1, M, nsteps)
+    m.mem[] = Temperature1DModelStorage(m.grid.N, nsteps)
+    
+    # Do not reinitialize a problem.
+    if !isnothing(T)
+        m.problem.x[:] .= T
+    end
+    # ---
+
+    # Update constant coefficient with time-step.
+    m.α[:] = @. m.α / m.τ[] 
+
+    return nothing
 end
 
 function DryTooling.Simulation.fouter!(
         m::Sphere1DEnthalpyModel, t::Float64, n::Int64
     )::Nothing
     "Time-step dependent updater for model."
-    # # XXX: for now evaluating B.C. at mid-step, fix when going full
-    # # semi-implicit generalization!
-    # h = m.h(t + m.τ[]/2)
-    # C = m.C(t + m.τ[]/2)
+    # XXX: for now evaluating B.C. at mid-step, fix when going full
+    # semi-implicit generalization!
+    U = m.U(t + m.τ[]/2)
+    B = m.B(t + m.τ[]/2)
 
-    # # Follow surface mass flux and store partial solutions.
-    # m.mem[].t[n] = t
-    # m.mem[].Q[n] = h * (C - last(m.problem.x))
-    # m.mem[].T[n, 1:end] = m.problem.x
+    # Follow surface heat flux and store partial solutions.
+    # XXX: note the factor 4π because U = r²h only and A = 4πr²!!!!
+    # XXX: note the factor 2π because U = rh only and A = 2πrl!!!!
+    m.mem[].t[n] = t
+    m.mem[].Q[n] = m.scale * U * (B - last(m.problem.x))
+    m.mem[].T[n, 1:end] = m.problem.x
 
-    # @. m.problem.b[1:end] = (m.α′ / m.τ[]) * m.problem.x
-    # m.problem.b[end] += h * C
-    # return nothing
+    @. m.problem.b[1:end] = map(m.H, m.problem.x)
+    m.problem.b[end] += m.α[end] * U * B
+    return nothing
 end
 
 function DryTooling.Simulation.finner!(
