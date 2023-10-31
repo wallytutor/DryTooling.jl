@@ -108,7 +108,7 @@ function initialize!(
     m.τ[] = Base.step(range(0.0, t, nsteps))
     m.res[] = TimeSteppingSimulationResiduals(1, M, nsteps)
     m.mem[] = Temperature1DModelStorage(m.grid.N, nsteps)
-    
+
     # Do not reinitialize a problem.
     if !isnothing(T)
         m.problem.x[:] .= T
@@ -133,8 +133,10 @@ function DryTooling.Simulation.fouter!(
     m.mem[].Q[n] = m.scale * U * (B - last(m.problem.x))
     m.mem[].T[n, 1:end] = m.problem.x
 
-    @. m.problem.b[1:end] = map(m.H, m.problem.x)
-    m.problem.b[end] += U * B / (m.α[end] * m.τ[])
+    α = m.α ./ m.τ[]
+
+    @. m.problem.b[1:end] = α * map(m.H, m.problem.x)
+    m.problem.b[end] += U * B
     return nothing
 end
 
@@ -144,20 +146,17 @@ function DryTooling.Simulation.finner!(
     "Non-linear iteration updater for model."
     κ = interfaceconductivity1D(m.κ.(m.problem.x))
     β = κ .* m.β
-    α = m.α * m.τ[]
 
     # XXX: for now evaluating B.C. at mid-step, fix when going full
     # semi-implicit generalization!
     U = m.U(t + m.τ[]/2)
 
-    m.problem.A.dl[1:end] = -β ./ tail(α)
-    m.problem.A.du[1:end] = -β ./ head(α)
-    
+    m.problem.A.dl[1:end] = -β
+    m.problem.A.du[1:end] = -β
+
     m.problem.A.d[2:end-1] = tail(β) + head(β)
     m.problem.A.d[1]       = first(β)
     m.problem.A.d[end]     = last(β) + U
-
-    @. m.problem.A.d[1:end] /= α
 
     return nothing
 end
@@ -166,7 +165,7 @@ function DryTooling.Simulation.fsolve!(
         m::Sphere1DEnthalpyModel, t::Float64, n::Int64, α::Float64
     )::Float64
     "Solve problem for one non-linear step."
-    m.problem.a[:] = residual(m.problem)
+    m.problem.a[:] = residual(m.problem) * m.τ[] ./ m.α
 
     f = (Tₖ, hₖ) -> find_zero(T -> m.H(T) - hₖ, Tₖ)
 
@@ -179,6 +178,7 @@ function DryTooling.Simulation.fsolve!(
     # ε = maxabsolutechange(T₀, ΔT)
     ε = maximum(abs.(ΔT))
 
+    # @info "Solving at $(t) .... $(ε)"
     addresidual!(m.res[], [ε])
     return ε
 end
@@ -221,49 +221,44 @@ model_devs = (
 
 solve_pars = (
     t = 2400.0,
-    τ = 10.0,
+    τ = 12.0,
     T = 300.0,
-    α = 0.4,
-    ε = 1.0e-06,
-    M = 20
+    α = 0.9,
+    ε = 1.0e-04,
+    M = 100
 )
 
-grid = equidistantcellsgrid1D(0.05, 100)
+grid = equidistantcellsgrid1D(0.05, 15)
 
-model_sph = Sphere1DTemperatureModel(; grid, model_args...)
-model_tst = Sphere1DEnthalpyModel(; grid, model_devs...)
+mtst = Sphere1DEnthalpyModel(; grid, model_devs...)
+solve(mtst; solve_pars...)
 
-# m, t, n = model_tst, 0.0, 1
-# initialize!(m, solve_pars.t, solve_pars.τ; T = solve_pars.T, M = solve_pars.M)
-# @time for k in 1:10
-# step!(m, t, n; solve_pars.α, solve_pars.ε, solve_pars.M); m.problem.x
-# end
-
-solve(model_sph; solve_pars...)
-solve(model_tst; solve_pars...)
+msph = Sphere1DTemperatureModel(; grid, model_args...)
+solve(msph; solve_pars...)
 
 fig = let
     fig = Figure(resolution = (720, 500))
     ax = Axis(fig[1, 1], yscale = identity)
-    lines!(ax, 100model_sph.grid.r, model_sph.problem.x, label = "Temperature")
-    lines!(ax, 100model_tst.grid.r, model_tst.problem.x, label = "Enthalpy")
+    lines!(ax, 100msph.grid.r, msph.problem.x, label = "Temperature")
+    lines!(ax, 100mtst.grid.r, mtst.problem.x, label = "Enthalpy")
     ax.title = "Solution at $(solve_pars.t) s"
     ax.xlabel = "Radial coordinate [cm]"
     ax.ylabel = "Temperature [K]"
-    ax.xticks = 0.0:1.0:100last(model_sph.grid.r)
+    ax.xticks = 0.0:1.0:100last(msph.grid.r)
     axislegend(ax; position = :lt)
     fig
 end
 
-# fsph, axsph, psph = plotsimulationresiduals(model_sph.res[]; ε = solve_pars.ε)
-# ftst, axtst, ptst = plotsimulationresiduals(model_tst.res[]; ε = solve_pars.ε)
+fsph = plotsimulationresiduals(msph.res[]; ε = solve_pars.ε)[1]
+ftst = plotsimulationresiduals(mtst.res[]; ε = solve_pars.ε)[1]
 
-# axcyl.xticks = 0:3:12
-# axcyl.yticks = -11.2:0.2:-9.8
-# xlims!(axcyl, extrema(axcyl.xticks.val))
-# ylims!(axcyl, extrema(axcyl.yticks.val))
+# m, t, n = model_tst, 0.0, 1
+# initialize!(m, solve_pars.t, solve_pars.τ; T = solve_pars.T, M = solve_pars.M)
+# fouter!(m, t, n)
+# finner!(m, t, n)
+# fsolve!(m, t, n, 0.995)
+# step!(m, t, n; α = 0.9, solve_pars.ε, solve_pars.M); m.problem.x
 
-# axsph.xticks = 0:3:12
-# axsph.yticks = -11.2:0.2:-9.8
-# xlims!(axsph, extrema(axsph.xticks.val))
-# ylims!(axsph, extrema(axsph.yticks.val))
+# @time for k in 1:10
+#     step!(m, t, n; α = 0.9, solve_pars.ε, solve_pars.M); m.problem.x
+# end
