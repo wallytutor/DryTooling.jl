@@ -183,14 +183,14 @@ function DryTooling.Simulation.fsolve!(
     T₀ = m.problem.x
     T₁ = nlsolve(f, T₀, autodiff = :forward).zero
 
-    if α > 0.0
-        ΔT = (1-α) * (T₁-T₀)
-        @. m.problem.x[:] += ΔT
-        ε = maximum(abs.(ΔT))
-    else
-        @. m.problem.x[:] = T₁
-        ε = eps(Float64)
-    end
+    # if α > 10eps(Float64)
+    #     ΔT = (1-α) * (T₁-T₀)
+    #     @. m.problem.x[:] += ΔT
+    #     ε = maximum(abs.(ΔT))
+    # else
+    @. m.problem.x[:] = T₁
+    ε = eps(Float64)
+    # end
 
     # ## --- old finner
     # κ = interfaceconductivity1D(m.κ.(m.problem.x))
@@ -257,14 +257,14 @@ model_devs = (
 
 solve_pars = (
     t = 2400.0,
-    τ = 1.0,
+    τ = 0.1,
     T = 300.0,
-    α = 0.5,
+    α = 0.1,
     ε = 1.0e-05,
     M = 100
 )
 
-grid = equidistantcellsgrid1D(0.05, 30)
+grid = equidistantcellsgrid1D(0.05, 50)
 # grid = UserDefinedGrid1D(geomspace(0, 0.05, 0.005, 0.0005))
 
 mtst = Sphere1DEnthalpyModel(; grid, model_devs...)
