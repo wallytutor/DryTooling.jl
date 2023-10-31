@@ -2,6 +2,7 @@
 export TridiagonalProblem
 export solve!
 export change
+export residual
 
 """ Memory for a tridiagonal problem of rank `N`.
 
@@ -33,7 +34,7 @@ end
 """
     solve!(p::TridiagonalProblem)::Nothing
 
-Solve a tridiagonal problem and update internal memory.
+Solve problem ``x=A^{-1}b` updating internal memory.
 """
 function solve!(p::TridiagonalProblem)::Nothing
     p.x[:] = p.A \ p.b
@@ -43,10 +44,19 @@ end
 """
     change(p::TridiagonalProblem)::Vector{Float64}
 
-Compute change in solution of a tridiagonal problem without update.
+Change in solution ``A^{-1}b-x`` of problem without update ``x``.
 """
 function change(p::TridiagonalProblem)::Vector{Float64}
     return p.A \ p.b - p.x
+end
+
+"""
+    residual(p::TridiagonalProblem)::Vector{Float64}
+
+Solution residual ``b-Ax`` of problem without update of ``x``.
+"""
+function residual(p::TridiagonalProblem)::Vector{Float64}
+    return p.b - p.A * p.x
 end
 
 function Base.length(p::AbstractMatrixProblem)

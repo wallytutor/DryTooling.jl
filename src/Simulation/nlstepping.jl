@@ -131,9 +131,9 @@ function timepoints(::AbstractPhysicalModel)
 end
 
 function relaxationstep!(
-    p::AbstractMatrixProblem,
-    α::Float64,
-    f::Function
+        p::AbstractMatrixProblem,
+        α::Float64,
+        f::Function
     )::Float64
     "Applies relaxation to solution and compute residual."
     # Compute relaxed increment based on solution change.

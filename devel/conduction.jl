@@ -6,20 +6,22 @@ if Base.current_project() != Base.active_project()
     Pkg.activate(Base.current_project())
     Pkg.resolve()
     Pkg.instantiate()
-
-    using CairoMakie
-    using CommonSolve
-    using CommonSolve: solve
-    using DocStringExtensions: TYPEDFIELDS
-    using Trapz: trapz
-    using DryTooling
-    using DryTooling.Simulation
-    using DryTooling: Temperature1DModelStorage
-    using DryTooling: interfaceconductivity1D
 end
 
+using CairoMakie
+using CommonSolve
+using CommonSolve: solve
+using DocStringExtensions: TYPEDFIELDS
+using Roots
+using Trapz: trapz
+using DryTooling
+using DryTooling.FiniteVolumes
+using DryTooling.Simulation
+using DryTooling: Temperature1DModelStorage
+using DryTooling: interfaceconductivity1D
+
 struct Sphere1DEnthalpyModel <: AbstractDiffusionModel1D
-    "Energy equation in an 1-D sphere formulated in enthalpy."
+    "Thermal diffusion in a cylinder represented in enthalpy space."
 
     "Grid over which problem will be solved."
     grid::AbstractGrid1D
@@ -31,7 +33,7 @@ struct Sphere1DEnthalpyModel <: AbstractDiffusionModel1D
     α::Vector{Float64}
 
     "Constant part of model coefficient β."
-    β′::Vector{Float64}
+    β::Vector{Float64}
 
     "Thermal conductivity in terms of temperature."
     κ::Function
@@ -78,7 +80,7 @@ struct Sphere1DEnthalpyModel <: AbstractDiffusionModel1D
         rₙ = tail(grid.r)
         rₛ = head(grid.r)
         wⱼ = body(grid.w)
-        β′ = @. wⱼ^2 / (rₙ - rₛ)
+        β = @. wⱼ^2 / (rₙ - rₛ)
 
         R = last(grid.r)^2
         U = (t) -> hu(t) * R
@@ -87,7 +89,7 @@ struct Sphere1DEnthalpyModel <: AbstractDiffusionModel1D
         mem = Ref(Temperature1DModelStorage(0, 0))
         res = Ref(TimeSteppingSimulationResiduals(1, 0, 0))
 
-        return new(grid, problem, α, β′, κu, U, Bu, H, τ, mem, res, 4π)
+        return new(grid, problem, α, β, κu, U, Bu, H, τ, mem, res, 4π)
     end
 end
 
@@ -112,10 +114,6 @@ function initialize!(
         m.problem.x[:] .= T
     end
     # ---
-
-    # Update constant coefficient with time-step.
-    m.α[:] = @. m.α / m.τ[] 
-
     return nothing
 end
 
@@ -136,7 +134,7 @@ function DryTooling.Simulation.fouter!(
     m.mem[].T[n, 1:end] = m.problem.x
 
     @. m.problem.b[1:end] = map(m.H, m.problem.x)
-    m.problem.b[end] += U * B / m.α[end]
+    m.problem.b[end] += U * B / (m.α[end] * m.τ[])
     return nothing
 end
 
@@ -145,19 +143,22 @@ function DryTooling.Simulation.finner!(
     )::Nothing
     "Non-linear iteration updater for model."
     κ = interfaceconductivity1D(m.κ.(m.problem.x))
-    β = κ .* m.β′
+    β = κ .* m.β
+    α = m.α * m.τ[]
 
     # XXX: for now evaluating B.C. at mid-step, fix when going full
     # semi-implicit generalization!
     U = m.U(t + m.τ[]/2)
 
-    m.problem.A.dl[1:end] = -β
-    m.problem.A.du[1:end] = -β
-    m.problem.A.d[1:end]  = m.α
+    m.problem.A.dl[1:end] = -β ./ tail(α)
+    m.problem.A.du[1:end] = -β ./ head(α)
+    
+    m.problem.A.d[2:end-1] = tail(β) + head(β)
+    m.problem.A.d[1]       = first(β)
+    m.problem.A.d[end]     = last(β) + U
 
-    m.problem.A.d[2:end-1] += tail(β) + head(β)
-    m.problem.A.d[1]       += first(β)
-    m.problem.A.d[end]     += last(β) + U / m.α[end]
+    @. m.problem.A.d[1:end] /= α
+
     return nothing
 end
 
@@ -165,7 +166,104 @@ function DryTooling.Simulation.fsolve!(
         m::Sphere1DEnthalpyModel, t::Float64, n::Int64, α::Float64
     )::Float64
     "Solve problem for one non-linear step."
-    # ε = relaxationstep!(m.problem, α, maxabsolutechange)
-    # addresidual!(m.res[], [ε])
-    # return ε
+    m.problem.a[:] = residual(m.problem)
+
+    f = (Tₖ, hₖ) -> find_zero(T -> m.H(T) - hₖ, Tₖ)
+
+    T₀ = m.problem.x
+    T₁ = map(f, m.problem.x, m.problem.a)
+    ΔT = (1-α) * (T₁-T₀)
+
+    @. m.problem.x[:] += ΔT
+
+    # ε = maxabsolutechange(T₀, ΔT)
+    ε = maximum(abs.(ΔT))
+
+    addresidual!(m.res[], [ε])
+    return ε
 end
+
+function CommonSolve.solve(
+        m::Sphere1DEnthalpyModel;
+        t::Float64,
+        τ::Float64,
+        T::Union{Float64,Nothing} = nothing,
+        α::Float64 = 0.1,
+        ε::Float64 = 1.0e-10,
+        M::Int64 = 50
+    )::Nothing
+    "Interface for solving a model instance."
+    initialize!(m, t, τ; T, M)
+    advance!(m; α, ε, M)
+    m.res[] = TimeSteppingSimulationResiduals(m.res[])
+    return nothing
+end
+
+#### TESTING
+
+@info "Solving 1-D models!"
+
+model_args = (
+    h = 20.0,
+    B = 1500.0,
+    κ = 2.0,
+    ρ = 3000.0,
+    c = 900.0
+)
+
+model_devs = (
+    h = model_args.h,
+    B = model_args.B,
+    κ = model_args.κ,
+    H = (T) -> model_args.c * T,
+    ρ = model_args.ρ
+)
+
+solve_pars = (
+    t = 2400.0,
+    τ = 10.0,
+    T = 300.0,
+    α = 0.4,
+    ε = 1.0e-06,
+    M = 20
+)
+
+grid = equidistantcellsgrid1D(0.05, 100)
+
+model_sph = Sphere1DTemperatureModel(; grid, model_args...)
+model_tst = Sphere1DEnthalpyModel(; grid, model_devs...)
+
+# m, t, n = model_tst, 0.0, 1
+# initialize!(m, solve_pars.t, solve_pars.τ; T = solve_pars.T, M = solve_pars.M)
+# @time for k in 1:10
+# step!(m, t, n; solve_pars.α, solve_pars.ε, solve_pars.M); m.problem.x
+# end
+
+solve(model_sph; solve_pars...)
+solve(model_tst; solve_pars...)
+
+fig = let
+    fig = Figure(resolution = (720, 500))
+    ax = Axis(fig[1, 1], yscale = identity)
+    lines!(ax, 100model_sph.grid.r, model_sph.problem.x, label = "Temperature")
+    lines!(ax, 100model_tst.grid.r, model_tst.problem.x, label = "Enthalpy")
+    ax.title = "Solution at $(solve_pars.t) s"
+    ax.xlabel = "Radial coordinate [cm]"
+    ax.ylabel = "Temperature [K]"
+    ax.xticks = 0.0:1.0:100last(model_sph.grid.r)
+    axislegend(ax; position = :lt)
+    fig
+end
+
+# fsph, axsph, psph = plotsimulationresiduals(model_sph.res[]; ε = solve_pars.ε)
+# ftst, axtst, ptst = plotsimulationresiduals(model_tst.res[]; ε = solve_pars.ε)
+
+# axcyl.xticks = 0:3:12
+# axcyl.yticks = -11.2:0.2:-9.8
+# xlims!(axcyl, extrema(axcyl.xticks.val))
+# ylims!(axcyl, extrema(axcyl.yticks.val))
+
+# axsph.xticks = 0:3:12
+# axsph.yticks = -11.2:0.2:-9.8
+# xlims!(axsph, extrema(axsph.xticks.val))
+# ylims!(axsph, extrema(axsph.yticks.val))
