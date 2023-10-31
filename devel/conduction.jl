@@ -12,6 +12,7 @@ using CairoMakie
 using CommonSolve
 using CommonSolve: solve
 using DocStringExtensions: TYPEDFIELDS
+using ExtendableGrids: geomspace
 using Roots
 using Trapz: trapz
 using DryTooling
@@ -229,6 +230,7 @@ solve_pars = (
 )
 
 grid = equidistantcellsgrid1D(0.05, 15)
+# grid = UserDefinedGrid1D(geomspace(0, 0.05, 0.005, 0.0005))
 
 mtst = Sphere1DEnthalpyModel(; grid, model_devs...)
 solve(mtst; solve_pars...)
