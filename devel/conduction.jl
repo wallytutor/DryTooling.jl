@@ -166,7 +166,9 @@ function DryTooling.Simulation.fsolve!(
         m::Sphere1DEnthalpyModel, t::Float64, n::Int64, α::Float64
     )::Float64
     "Solve problem for one non-linear step."
-    m.problem.a[:] = residual(m.problem) * m.τ[] ./ m.α
+    # m.problem.a[:] = residual(m.problem) * m.τ[] ./ m.α
+    p = m.problem
+    m.problem.a[:] = (p.b - p.A * p.x) * m.τ[] ./ m.α
 
     f = (Tₖ, hₖ) -> find_zero(T -> m.H(T) - hₖ, Tₖ)
 
@@ -222,14 +224,14 @@ model_devs = (
 
 solve_pars = (
     t = 2400.0,
-    τ = 12.0,
+    τ = 6.0,
     T = 300.0,
-    α = 0.9,
-    ε = 1.0e-04,
-    M = 100
+    α = 0.7,
+    ε = 1.0e-05,
+    M = 500
 )
 
-grid = equidistantcellsgrid1D(0.05, 15)
+grid = equidistantcellsgrid1D(0.05, 20)
 # grid = UserDefinedGrid1D(geomspace(0, 0.05, 0.005, 0.0005))
 
 mtst = Sphere1DEnthalpyModel(; grid, model_devs...)
