@@ -13,6 +13,7 @@ using CommonSolve
 using CommonSolve: solve
 using DocStringExtensions: TYPEDFIELDS
 using ExtendableGrids: geomspace
+using NLsolve
 using Roots
 using Trapz: trapz
 using DryTooling
@@ -47,6 +48,9 @@ struct Sphere1DEnthalpyModel <: AbstractDiffusionModel1D
 
     "Enthalpy function of temperature."
     H::Function
+    
+    "Root finding function for temperature."
+    root::Function
 
     "Time-step used in integration."
     τ::Base.RefValue{Float64}
@@ -87,10 +91,12 @@ struct Sphere1DEnthalpyModel <: AbstractDiffusionModel1D
         U = (t) -> hu(t) * R
         τ = Ref(-Inf)
 
+        root = (Tₖ, hₖ) -> find_zero(T -> H(T) - hₖ, Tₖ)
+
         mem = Ref(Temperature1DModelStorage(0, 0))
         res = Ref(TimeSteppingSimulationResiduals(1, 0, 0))
 
-        return new(grid, problem, α, β, κu, U, Bu, H, τ, mem, res, 4π)
+        return new(grid, problem, α, β, κu, U, Bu, H, root, τ, mem, res, 4π)
     end
 end
 
@@ -145,20 +151,6 @@ function DryTooling.Simulation.finner!(
         m::Sphere1DEnthalpyModel, t::Float64, n::Int64
     )::Nothing
     "Non-linear iteration updater for model."
-    κ = interfaceconductivity1D(m.κ.(m.problem.x))
-    β = κ .* m.β
-
-    # XXX: for now evaluating B.C. at mid-step, fix when going full
-    # semi-implicit generalization!
-    U = m.U(t + m.τ[]/2)
-
-    m.problem.A.dl[1:end] = -β
-    m.problem.A.du[1:end] = -β
-
-    m.problem.A.d[2:end-1] = tail(β) + head(β)
-    m.problem.A.d[1]       = first(β)
-    m.problem.A.d[end]     = last(β) + U
-
     return nothing
 end
 
@@ -166,20 +158,61 @@ function DryTooling.Simulation.fsolve!(
         m::Sphere1DEnthalpyModel, t::Float64, n::Int64, α::Float64
     )::Float64
     "Solve problem for one non-linear step."
-    # m.problem.a[:] = residual(m.problem) * m.τ[] ./ m.α
     p = m.problem
-    m.problem.a[:] = (p.b - p.A * p.x) * m.τ[] ./ m.α
 
-    f = (Tₖ, hₖ) -> find_zero(T -> m.H(T) - hₖ, Tₖ)
+    # XXX: for now evaluating B.C. at mid-step, fix when going full
+    # semi-implicit generalization!
+    U = m.U(t + m.τ[]/2)
+
+    p.a[:] = m.α ./ m.τ[]
+
+    function f(x)
+        κ = interfaceconductivity1D(m.κ.(x))
+        β = κ .* m.β
+
+        p.A.dl[1:end] = -β
+        p.A.du[1:end] = -β
+
+        p.A.d[2:end-1] = tail(β) + head(β)
+        p.A.d[1]       = first(β)
+        p.A.d[end]     = last(β) + U
+
+        return m.H.(x) .- (p.b - p.A * p.x) ./ p.a
+    end
 
     T₀ = m.problem.x
-    T₁ = map(f, m.problem.x, m.problem.a)
-    ΔT = (1-α) * (T₁-T₀)
+    T₁ = nlsolve(f, T₀, autodiff = :forward).zero
 
-    @. m.problem.x[:] += ΔT
+    if α > 0.0
+        ΔT = (1-α) * (T₁-T₀)
+        @. m.problem.x[:] += ΔT
+        ε = maximum(abs.(ΔT))
+    else
+        @. m.problem.x[:] = T₁
+        ε = eps(Float64)
+    end
 
-    # ε = maxabsolutechange(T₀, ΔT)
-    ε = maximum(abs.(ΔT))
+    # ## --- old finner
+    # κ = interfaceconductivity1D(m.κ.(m.problem.x))
+    # β = κ .* m.β
+
+    # # XXX: for now evaluating B.C. at mid-step, fix when going full
+    # # semi-implicit generalization!
+    # U = m.U(t + m.τ[]/2)
+
+    # p.A.dl[1:end] = -β
+    # p.A.du[1:end] = -β
+
+    # p.A.d[2:end-1] = tail(β) + head(β)
+    # p.A.d[1]       = first(β)
+    # p.A.d[end]     = last(β) + U
+    # ## ---
+    
+    # # m.problem.a[:] = residual(m.problem) * m.τ[] ./ m.α
+    # p.a[:] = (p.b - p.A * p.x) * m.τ[] ./ m.α
+
+    # T₀ = m.problem.x
+    # T₁ = map(m.root, T₀, m.problem.a)
 
     # @info "Solving at $(t) .... $(ε)"
     addresidual!(m.res[], [ε])
@@ -224,21 +257,21 @@ model_devs = (
 
 solve_pars = (
     t = 2400.0,
-    τ = 6.0,
+    τ = 1.0,
     T = 300.0,
-    α = 0.7,
+    α = 0.5,
     ε = 1.0e-05,
-    M = 500
+    M = 100
 )
 
-grid = equidistantcellsgrid1D(0.05, 20)
+grid = equidistantcellsgrid1D(0.05, 30)
 # grid = UserDefinedGrid1D(geomspace(0, 0.05, 0.005, 0.0005))
 
 mtst = Sphere1DEnthalpyModel(; grid, model_devs...)
-solve(mtst; solve_pars...)
+@time solve(mtst; solve_pars...)
 
 msph = Sphere1DTemperatureModel(; grid, model_args...)
-solve(msph; solve_pars...)
+@time solve(msph; solve_pars...)
 
 fig = let
     fig = Figure(resolution = (720, 500))
@@ -253,7 +286,7 @@ fig = let
     fig
 end
 
-fsph = plotsimulationresiduals(msph.res[]; ε = solve_pars.ε)[1]
+# fsph = plotsimulationresiduals(msph.res[]; ε = solve_pars.ε)[1]
 ftst = plotsimulationresiduals(mtst.res[]; ε = solve_pars.ε)[1]
 
 # m, t, n = model_tst, 0.0, 1
