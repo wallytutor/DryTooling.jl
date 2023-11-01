@@ -41,14 +41,13 @@ T = 1173.15
 xc = 0.001
 xn = 0.000
 
-
 rt = rₓ(xc, xn)
 xt = xc + 0.72xn
 Dc = Dcγ(T, xt, rt)
 Dn = Dnγ(T, xt, rt)
 
-
-
+# Uncoupled inner loop
+# Generalized Crank-Nicolson scheme
 
 struct AusteniteCarbonitriding1DModel <: AbstractDiffusionModel1D
     "Carbon diffusion in a plate represented in temperature space."
