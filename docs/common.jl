@@ -80,7 +80,6 @@ pages  = [
 
     "Theory Guide"      => [
         "Finite volumes"   => "FiniteVolumes/theory.md",
-        "Granular models"  => "Granular/theory.md",
         "Fluid models"     => "FluidModels/theory.md",
         "Thermodynamics"   => "Thermodynamics/theory.md",
         "Kinetics"         => "Kinetics/theory.md",

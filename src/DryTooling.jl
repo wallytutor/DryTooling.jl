@@ -62,23 +62,6 @@ end # module Thermodynamics
 module FluidModels  
 end # module FluidModels
 
-module Granular
-    using CairoMakie
-    using DifferentialEquations: ODEProblem, Tsit5
-    using DifferentialEquations: solve
-    using Distributions
-    using DocStringExtensions: TYPEDFIELDS
-    using Ipopt
-    using ModelingToolkit
-    using Printf
-    using Random
-    using Trapz: trapz
-    import JuMP
-
-    include("Granular/porous-media.jl")
-    include("Granular/rotary-kiln.jl")
-end # module Granular
-
 module Kinetics
     using ModelingToolkit
     using Symbolics
