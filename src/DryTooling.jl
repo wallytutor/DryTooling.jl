@@ -62,18 +62,6 @@ end # module Thermodynamics
 module FluidModels  
 end # module FluidModels
 
-module Kinetics
-    using ModelingToolkit
-    using Symbolics
-    using Symbolics: scalarize
-    using DryTooling
-    # TODO this will migrate!
-    using DryTooling: meanmolecularmass
-
-    include("Kinetics/core.jl")
-    include("Kinetics/hard-coded-mechs.jl")
-end # module Kinetics
-
 module PlugFlow
     using CommonSolve
     using CommonSolve: solve
