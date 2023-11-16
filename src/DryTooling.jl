@@ -42,25 +42,6 @@ module FiniteVolumes
     include("FiniteVolumes/diffusion-in-solids.jl")
 end # module FiniteVolumes
 
-module Thermodynamics
-end # module Thermodynamics
-
-module FluidModels  
-end # module FluidModels
-
-module PlugFlow
-    using CommonSolve
-    using CommonSolve: solve
-    using DifferentialEquations: solve
-    using ModelingToolkit
-    using Symbolics
-    using Symbolics: scalarize
-    using DryTooling
-    using DryTooling.Kinetics
-
-    include("PlugFlow/core.jl")
-end # module PlugFlow
-
 using DryTooling.Simulation
 using DryTooling.FiniteVolumes
 using DryTooling.Thermodynamics
