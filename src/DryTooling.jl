@@ -9,10 +9,6 @@ begin # module DryTooling (core)
     using Polynomials
     using Roots
     using YAML
-
-    include("DryTooling/abstract.jl")
-    include("DryTooling/constants.jl")
-    include("DryTooling/utilities.jl")
 end # module DryTooling (core)
 
 module Cantera
@@ -28,16 +24,6 @@ end
 # XXX
 include("tmp.jl")
 
-module Simulation
-    using CairoMakie
-    using DocStringExtensions: TYPEDFIELDS
-    using LinearAlgebra
-    using DryTooling
-
-    include("Simulation/residuals.jl")
-    include("Simulation/linalg.jl")
-    include("Simulation/nlstepping.jl")
-end # module Simulation
 
 module FiniteVolumes
     using CairoMakie
